@@ -35,7 +35,7 @@ public class InventoryMove1 extends ModuleStructure {
 
     public InventoryMove1() {
         super("InventoryMove1", "Inventory Move1", ModuleCategory.MOVEMENT);
-        setup(mode);
+        setup();
     }
 
     @EventHandler

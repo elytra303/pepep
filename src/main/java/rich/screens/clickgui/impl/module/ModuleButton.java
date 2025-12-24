@@ -109,13 +109,6 @@ public class ModuleButton extends AbstractComponent {
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         boolean enabled = moduleStructure.isState();
-
-        Render2D.rect(x - 8f, renderY, width + 16.5f, 1f, new Color(55, 55, 55, 100).getRGB());
-
-        if (isLast) {
-            Render2D.rect(x - 8f, renderY + 20.5f, width + 16, 1f, new Color(55, 55, 55, 100).getRGB());
-        }
-
         String moduleName = moduleStructure.getName();
 
         if (moduleStructure.getKey() != GLFW.GLFW_KEY_UNKNOWN && !binding) {
@@ -131,7 +124,10 @@ public class ModuleButton extends AbstractComponent {
         Color textColor = enabled ? new Color(255, 255, 255, 255) : new Color(155, 155, 155, 155);
         Fonts.BOLD.draw(moduleName, x + 4, renderY + 6.5f, 7, textColor.getRGB());
 
-        Fonts.BOLD.draw("...", x + 83, renderY + 0.5f, 12, textColor.getRGB());
+        if  (moduleStructure.settings().isEmpty()) {
+        } else {
+            Fonts.BOLD.draw("...", x + 83, renderY + 0.5f, 12, textColor.getRGB());
+        }
 
         if (!settingComponents.isEmpty()) {
             String arrow = expanded ? "▼" : "▶";

@@ -15,7 +15,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Getter
-public class CategoryPanel extends AbstractComponent {
+public class BackgroundRender extends AbstractComponent {
     private final ModuleCategory category;
     private final List<ModuleStructure> moduleStructures;
     private final List<ModuleButton> moduleButtons = new ArrayList<>();
@@ -30,7 +30,7 @@ public class CategoryPanel extends AbstractComponent {
     private static final int PADDING = 8;
     private static final int MODULE_SPACING = 0;
 
-    public CategoryPanel(ModuleCategory category, List<ModuleStructure> moduleStructures) {
+    public BackgroundRender(ModuleCategory category, List<ModuleStructure> moduleStructures) {
         this.category = category;
         this.moduleStructures = moduleStructures;
         initializeButtons();
@@ -53,22 +53,6 @@ public class CategoryPanel extends AbstractComponent {
 
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
-        int[] colors = {
-                new Color(26, 26, 26, 255).getRGB(),
-                new Color(0, 0, 0, 255).getRGB(),
-                new Color(26, 26, 26, 255).getRGB(),
-                new Color(0, 0, 0, 255).getRGB(),
-                new Color(26, 26, 20, 255).getRGB()
-        };
-
-        Render2D.gradientRect(x, y, width, height, colors, 15);
-
-        String categoryName = category.getReadableName();
-        float textWidth = Fonts.BOLD.getWidth(categoryName, 9);
-        float textX = x + width / 2 - textWidth / 2;
-
-        Fonts.BOLD.draw(categoryName, textX, y + 10, 9, new Color(255, 255, 255, 240).getRGB());
-
         updateButtonPositions();
 
         for (int i = 0; i < moduleButtons.size(); i++) {
