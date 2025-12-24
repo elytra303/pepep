@@ -5,6 +5,7 @@ import rich.events.api.EventManager;
 import rich.modules.module.*;
 import rich.screens.clickgui.ClickGui;
 import rich.util.render.RenderCore;
+import rich.util.render.Scissor;
 import rich.screens.hud.drags.DraggableRepository;
 
 @Getter
@@ -12,6 +13,7 @@ public class Manager {
 
     private EventManager eventManager;
     private RenderCore renderCore;
+    private Scissor scissor;
     private DraggableRepository draggableRepository;
     private ModuleProvider moduleProvider;
     private ModuleRepository moduleRepository;
@@ -22,6 +24,7 @@ public class Manager {
         clickgui = new ClickGui();
         eventManager = new EventManager();
         renderCore = new RenderCore();
+        scissor = new Scissor();
         draggableRepository = new DraggableRepository();
         draggableRepository.setup();
         moduleRepository = new ModuleRepository();
