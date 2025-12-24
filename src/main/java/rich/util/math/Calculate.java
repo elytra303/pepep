@@ -1,0 +1,99 @@
+package rich.util.math;
+
+import lombok.experimental.UtilityClass;
+import net.minecraft.util.math.ColorHelper;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.Vec3d;
+import rich.IMinecraft;
+
+import java.util.concurrent.ThreadLocalRandom;
+
+@UtilityClass
+public class Calculate implements IMinecraft {
+    public double PI2 = Math.PI * 2;
+    public boolean isHovered(double mouseX, double mouseY, double x, double y, double width, double height) {
+        return mouseX >= x && mouseX <= x + width && mouseY >= y && mouseY <= y + height;
+    }
+
+    public static float clamp(float num, float min, float max) {
+        return num < min ? min : Math.min(num, max);
+    }
+
+    public double computeGcd() {
+        return (Math.pow(mc.options.getMouseSensitivity().getValue() * 0.6 + 0.2, 3.0)) * 1.2;
+    }
+
+    public int getRandom(int min, int max) {
+        return (int) getRandom((float) min, (float) max + 1);
+    }
+
+    public float getRandom(float min, float max) {
+       return (float) getRandom(min, (double) max);
+    }
+
+    public double getRandom(double min, double max) {
+        if (min == max) {
+            return min;
+        } else {
+            if (min > max) {
+                double d = min;
+                min = max;
+                max = d;
+            }
+
+            return ThreadLocalRandom.current().nextDouble(min, max);
+        }
+    }
+
+
+    public float textScrolling(float textWidth) {
+        int speed = (int) (textWidth * 75);
+        return (float) MathHelper.clamp((System.currentTimeMillis() % speed * Math.PI / speed), 0, 1) * textWidth;
+    }
+
+
+
+
+    public double round(double num, double increment) {
+        double rounded = Math.round(num / increment) * increment;
+        return Math.round(rounded * 100.0) / 100.0;
+    }
+
+    public int floorNearestMulN(int x, int n) {
+        return n * (int) Math.floor((double) x / (double) n);
+    }
+
+    public int getRed(int hex) {
+        return hex >> 16 & 255;
+    }
+
+    public int getGreen(int hex) {
+        return hex >> 8 & 255;
+    }
+
+    public int getBlue(int hex) {
+        return hex & 255;
+    }
+
+    public int getAlpha(int hex) {
+        return hex >> 24 & 255;
+    }
+
+    public int applyOpacity(int color, float opacity) {
+        return ColorHelper.getArgb((int) (getAlpha(color) * opacity / 255), getRed(color), getGreen(color), getBlue(color));
+    }
+
+    public Vec3d cosSin(int i, int size, double width) {
+        int index = Math.min(i, size);
+        float cos = (float) (Math.cos(index * Calculate.PI2 / size) * width);
+        float sin = (float) (-Math.sin(index * Calculate.PI2 / size) * width);
+        return new Vec3d(cos, 0, sin);
+    }
+
+    public double absSinAnimation(double input) {
+        return Math.abs(1 + Math.sin(input)) / 2;
+    }
+
+
+
+}

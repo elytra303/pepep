@@ -1,0 +1,359 @@
+package rich.util.render.font;
+
+import com.mojang.blaze3d.buffers.GpuBuffer;
+import com.mojang.blaze3d.buffers.GpuBufferSlice;
+import com.mojang.blaze3d.pipeline.BlendFunction;
+import com.mojang.blaze3d.pipeline.RenderPipeline;
+import com.mojang.blaze3d.platform.DepthTestFunction;
+import com.mojang.blaze3d.systems.CommandEncoder;
+import com.mojang.blaze3d.systems.RenderPass;
+import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.textures.FilterMode;
+import com.mojang.blaze3d.textures.GpuTexture;
+import com.mojang.blaze3d.textures.GpuTextureView;
+import com.mojang.blaze3d.vertex.VertexFormat;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gl.GpuSampler;
+import net.minecraft.client.gl.RenderPipelines;
+import net.minecraft.client.gl.UniformType;
+import net.minecraft.client.render.VertexFormats;
+import net.minecraft.client.texture.AbstractTexture;
+import net.minecraft.util.Identifier;
+import org.joml.Matrix4f;
+import org.joml.Vector3f;
+import org.joml.Vector4f;
+import org.lwjgl.system.MemoryUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.OptionalDouble;
+import java.util.OptionalInt;
+
+public class FontPipeline {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger("Initialization/FontPipeline");
+
+    private static final Identifier PIPELINE_ID = Identifier.of("minecraft", "pipeline/msdf");
+    private static final Identifier VERTEX_SHADER = Identifier.of("minecraft", "core/msdf");
+    private static final Identifier FRAGMENT_SHADER = Identifier.of("minecraft", "core/msdf");
+
+    private static final RenderPipeline PIPELINE = RenderPipelines.register(
+            RenderPipeline.builder(RenderPipelines.TRANSFORMS_AND_PROJECTION_SNIPPET)
+                    .withLocation(PIPELINE_ID)
+                    .withVertexShader(VERTEX_SHADER)
+                    .withFragmentShader(FRAGMENT_SHADER)
+                    .withVertexFormat(VertexFormats.EMPTY, VertexFormat.DrawMode.TRIANGLES)
+                    .withUniform("FontData", UniformType.UNIFORM_BUFFER)
+                    .withSampler("Sampler0")
+                    .withBlend(BlendFunction.TRANSLUCENT)
+                    .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
+                    .withDepthWrite(false)
+                    .withCull(false)
+                    .build()
+    );
+
+    private static final Vector4f COLOR_MODULATOR = new Vector4f(1f, 1f, 1f, 1f);
+    private static final Vector3f MODEL_OFFSET = new Vector3f(0, 0, 0);
+    private static final Matrix4f TEXTURE_MATRIX = new Matrix4f();
+
+    private static final int MAX_CHARS = 256;
+    private static final int BUFFER_SIZE = 64 + MAX_CHARS * 48;
+
+    private GpuBuffer uniformBuffer;
+    private GpuBuffer dummyVertexBuffer;
+    private ByteBuffer dataBuffer;
+    private boolean initialized = false;
+
+    private final List<CharData> charBatch = new ArrayList<>();
+
+    private static class CharData {
+        float x, y, width, height;
+        float u0, v0, u1, v1;
+        int color;
+
+        CharData(float x, float y, float w, float h, float u0, float v0, float u1, float v1, int color) {
+            this.x = x;
+            this.y = y;
+            this.width = w;
+            this.height = h;
+            this.u0 = u0;
+            this.v0 = v0;
+            this.u1 = u1;
+            this.v1 = v1;
+            this.color = color;
+        }
+    }
+
+    private void ensureInitialized() {
+        if (initialized) return;
+
+        this.dataBuffer = MemoryUtil.memAlloc(BUFFER_SIZE);
+
+        ByteBuffer dummyData = MemoryUtil.memAlloc(4);
+        dummyData.putInt(0);
+        dummyData.flip();
+        this.dummyVertexBuffer = RenderSystem.getDevice().createBuffer(
+                () -> "minecraft:font_dummy_vertex",
+                GpuBuffer.USAGE_VERTEX,
+                dummyData
+        );
+        MemoryUtil.memFree(dummyData);
+
+        initialized = true;
+    }
+
+    public void drawText(FontAtlas atlas, String text, float x, float y, float size, int color) {
+        drawText(atlas, text, x, y, size, color, 0, 0);
+    }
+
+    public void drawText(FontAtlas atlas, String text, float x, float y, float size, int color,
+                         float outlineWidth, int outlineColor) {
+
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client.getFramebuffer() == null) return;
+        if (text == null || text.isEmpty()) return;
+
+        atlas.ensureLoaded();
+        if (atlas.getGlyphCount() == 0) {
+            LOGGER.warn("Font atlas has no glyphs: {}", atlas.getTextureId());
+            return;
+        }
+
+        ensureInitialized();
+        charBatch.clear();
+
+        float scale = size / atlas.getFontSize();
+        float cursorX = x;
+        float cursorY = y;
+
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+
+            if (c == '\n') {
+                cursorX = x;
+                cursorY += atlas.getLineHeight() * scale;
+                continue;
+            }
+
+            if (c == ' ') {
+                Glyph spaceGlyph = atlas.getGlyph(' ');
+                if (spaceGlyph != null) {
+                    cursorX += spaceGlyph.xAdvance * scale;
+                } else {
+                    cursorX += size * 0.25f;
+                }
+                continue;
+            }
+
+            Glyph glyph = atlas.getGlyph(c);
+            if (glyph == null) {
+                continue;
+            }
+
+            float glyphX = cursorX + glyph.xOffset * scale;
+            float glyphY = cursorY + glyph.yOffset * scale;
+            float glyphW = glyph.width * scale;
+            float glyphH = glyph.height * scale;
+
+            if (glyphW > 0.1f && glyphH > 0.1f) {
+                charBatch.add(new CharData(
+                        glyphX, glyphY, glyphW, glyphH,
+                        glyph.u0, glyph.v0, glyph.u1, glyph.v1,
+                        color
+                ));
+            }
+
+            cursorX += glyph.xAdvance * scale;
+
+            if (charBatch.size() >= MAX_CHARS) {
+                flush(client, atlas, outlineWidth, outlineColor);
+            }
+        }
+
+        if (!charBatch.isEmpty()) {
+            flush(client, atlas, outlineWidth, outlineColor);
+        }
+    }
+
+    private void flush(MinecraftClient client, FontAtlas atlas, float outlineWidth, int outlineColor) {
+        if (charBatch.isEmpty()) return;
+
+        AbstractTexture texture = client.getTextureManager().getTexture(atlas.getTextureId());
+        if (texture == null) {
+            LOGGER.warn("Font texture not found: {}", atlas.getTextureId());
+            charBatch.clear();
+            return;
+        }
+
+        GpuTexture gpuTexture;
+        try {
+            gpuTexture = texture.getGlTexture();
+        } catch (Exception e) {
+            LOGGER.warn("Failed to get GPU texture for font: {}", atlas.getTextureId());
+            charBatch.clear();
+            return;
+        }
+
+        prepareUniformData(client, outlineWidth, outlineColor);
+
+        int size = dataBuffer.remaining();
+        if (uniformBuffer == null || uniformBuffer.size() < size) {
+            if (uniformBuffer != null) {
+                uniformBuffer.close();
+            }
+            uniformBuffer = RenderSystem.getDevice().createBuffer(
+                    () -> "minecraft:font_uniform",
+                    GpuBuffer.USAGE_UNIFORM | GpuBuffer.USAGE_COPY_DST,
+                    size
+            );
+        }
+
+        CommandEncoder encoder = RenderSystem.getDevice().createCommandEncoder();
+        encoder.writeToBuffer(uniformBuffer.slice(), dataBuffer);
+
+        GpuBufferSlice dynamicTransforms = RenderSystem.getDynamicUniforms()
+                .write(RenderSystem.getModelViewMatrix(),
+                        COLOR_MODULATOR,
+                        MODEL_OFFSET,
+                        TEXTURE_MATRIX);
+
+        GpuSampler sampler = RenderSystem.getSamplerCache().get(FilterMode.LINEAR);
+        GpuTextureView textureView = RenderSystem.getDevice().createTextureView(gpuTexture);
+
+        try (RenderPass renderPass = encoder.createRenderPass(
+                () -> "minecraft:font_pass",
+                client.getFramebuffer().getColorAttachmentView(),
+                OptionalInt.empty(),
+                client.getFramebuffer().getDepthAttachmentView(),
+                OptionalDouble.empty())) {
+
+            renderPass.setPipeline(PIPELINE);
+            renderPass.setVertexBuffer(0, dummyVertexBuffer);
+            renderPass.bindTexture("Sampler0", textureView, sampler);
+
+            RenderSystem.bindDefaultUniforms(renderPass);
+            renderPass.setUniform("DynamicTransforms", dynamicTransforms);
+            renderPass.setUniform("FontData", uniformBuffer);
+
+            renderPass.draw(0, charBatch.size() * 6);
+        }
+
+        textureView.close();
+        charBatch.clear();
+    }
+
+    private void prepareUniformData(MinecraftClient client, float outlineWidth, int outlineColor) {
+        dataBuffer.clear();
+
+        float screenWidth = client.getWindow().getScaledWidth();
+        float screenHeight = client.getWindow().getScaledHeight();
+        float guiScale = (float) client.getWindow().getScaleFactor();
+
+        dataBuffer.putFloat(screenWidth);
+        dataBuffer.putFloat(screenHeight);
+        dataBuffer.putFloat(guiScale);
+        dataBuffer.putFloat(outlineWidth);
+
+        float oa = ((outlineColor >> 24) & 0xFF) / 255.0f;
+        float or = ((outlineColor >> 16) & 0xFF) / 255.0f;
+        float og = ((outlineColor >> 8) & 0xFF) / 255.0f;
+        float ob = (outlineColor & 0xFF) / 255.0f;
+        dataBuffer.putFloat(or);
+        dataBuffer.putFloat(og);
+        dataBuffer.putFloat(ob);
+        dataBuffer.putFloat(oa);
+
+        dataBuffer.putFloat(0);
+        dataBuffer.putFloat(0);
+        dataBuffer.putFloat(0);
+        dataBuffer.putFloat(0);
+
+        dataBuffer.putInt(charBatch.size());
+        dataBuffer.putInt(0);
+        dataBuffer.putInt(0);
+        dataBuffer.putInt(0);
+
+        for (CharData cd : charBatch) {
+            dataBuffer.putFloat(cd.x);
+            dataBuffer.putFloat(cd.y);
+            dataBuffer.putFloat(cd.width);
+            dataBuffer.putFloat(cd.height);
+
+            dataBuffer.putFloat(cd.u0);
+            dataBuffer.putFloat(cd.v0);
+            dataBuffer.putFloat(cd.u1);
+            dataBuffer.putFloat(cd.v1);
+
+            float a = ((cd.color >> 24) & 0xFF) / 255.0f;
+            float r = ((cd.color >> 16) & 0xFF) / 255.0f;
+            float g = ((cd.color >> 8) & 0xFF) / 255.0f;
+            float b = (cd.color & 0xFF) / 255.0f;
+            dataBuffer.putFloat(r);
+            dataBuffer.putFloat(g);
+            dataBuffer.putFloat(b);
+            dataBuffer.putFloat(a);
+        }
+
+        dataBuffer.flip();
+    }
+
+    public float getTextWidth(FontAtlas atlas, String text, float size) {
+        atlas.ensureLoaded();
+        float scale = size / atlas.getFontSize();
+        float width = 0;
+        float maxWidth = 0;
+
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            if (c == '\n') {
+                maxWidth = Math.max(maxWidth, width);
+                width = 0;
+                continue;
+            }
+            if (c == ' ') {
+                Glyph spaceGlyph = atlas.getGlyph(' ');
+                if (spaceGlyph != null) {
+                    width += spaceGlyph.xAdvance * scale;
+                } else {
+                    width += size * 0.25f;
+                }
+                continue;
+            }
+            Glyph glyph = atlas.getGlyph(c);
+            if (glyph != null) {
+                width += glyph.xAdvance * scale;
+            }
+        }
+
+        return Math.max(maxWidth, width);
+    }
+
+    public float getTextHeight(FontAtlas atlas, String text, float size) {
+        atlas.ensureLoaded();
+        float scale = size / atlas.getFontSize();
+        int lines = 1;
+        for (int i = 0; i < text.length(); i++) {
+            if (text.charAt(i) == '\n') lines++;
+        }
+        return lines * atlas.getLineHeight() * scale;
+    }
+
+    public void close() {
+        if (uniformBuffer != null) {
+            uniformBuffer.close();
+            uniformBuffer = null;
+        }
+        if (dummyVertexBuffer != null) {
+            dummyVertexBuffer.close();
+            dummyVertexBuffer = null;
+        }
+        if (dataBuffer != null) {
+            MemoryUtil.memFree(dataBuffer);
+            dataBuffer = null;
+        }
+        initialized = false;
+    }
+}

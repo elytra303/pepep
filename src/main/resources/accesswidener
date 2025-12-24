@@ -1,0 +1,15 @@
+accessWidener v1 named
+accessible class net/minecraft/client/gui/render/GuiRenderer$Draw
+accessible method net/minecraft/client/render/GameRenderer getFov (Lnet/minecraft/client/render/Camera;FZ)F
+
+mutable field net/minecraft/util/math/Vec3d x D
+mutable field net/minecraft/util/math/Vec3d y D
+mutable field net/minecraft/util/math/Vec3d z D
+
+accessible method net/minecraft/entity/Entity movementInputToVelocity (Lnet/minecraft/util/math/Vec3d;FF)Lnet/minecraft/util/math/Vec3d;
+
+accessible class net/minecraft/client/gui/hud/InGameHud$BarType
+accessible field net/minecraft/client/render/entity/EntityRenderer state Lnet/minecraft/client/render/entity/state/EntityRenderState;
+accessible field net/minecraft/client/render/entity/LivingEntityRenderer features Ljava/util/List;
+
+accessible field net/minecraft/client/gui/hud/BossBarHud bossBars Ljava/util/Map;
