@@ -164,6 +164,8 @@ public class ClickGui extends Screen implements IMinecraft {
         Render2D.rect(bgX + 92f, bgY + 38f, 146, 40, new Color(64, 64, 64, 25).getRGB(), 7);
         Render2D.outline(bgX + 92f, bgY + 38f, 146, 40,0.5f, new Color(55, 55, 55, 215).getRGB(),7);
 
+        GifRender.drawBackground(bgX + 25f, bgY + 25f,15,15,1,-1);
+
         //2 список модулей
         Render2D.rect(bgX + 245f, bgY + 38f, 146, 40, new Color(64, 64, 64, 25).getRGB(), 7);
         Render2D.outline(bgX + 245f, bgY + 38f, 146, 40,0.5f, new Color(55, 55, 55, 215).getRGB(),7);

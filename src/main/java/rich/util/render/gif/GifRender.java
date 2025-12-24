@@ -28,15 +28,15 @@ public class GifRender {
         avatarFrames.clear();
         backgroundFrames.clear();
 
-        for (int i = 0; i <= 118; i++) {
-            String frameName = String.format("frame_%03d_delay-0.03s", i);
-            Identifier id = Identifier.of("minecraft", "textures/images/gifs/avatar/" + frameName + ".png");
+        for (int i = 1; i <= 119; i++) {
+            String frameName = String.format("Image%03d", i);
+            Identifier id = Identifier.of("minecraft", "images/gifs/avatar/" + frameName + ".png");
             avatarFrames.add(id);
         }
 
-        for (int i = 0; i <= 21; i++) {
-            String frameName = String.format("frame_%02d_delay-0.1s", i);
-            Identifier id = Identifier.of("minecraft", "textures/images/gifs/back/" + frameName + ".png");
+        for (int i = 1; i <= 22; i++) {
+            String frameName = String.format("back%03d", i);
+            Identifier id = Identifier.of("minecraft", "images/gifs/back/" + frameName + ".png");
             backgroundFrames.add(id);
         }
 
@@ -57,7 +57,7 @@ public class GifRender {
         }
 
         Identifier frame = avatarFrames.get(avatarFrameIndex);
-        Render2D.texture(frame, x, y, width, height,1, 15, color);
+        Render2D.texture(frame, x, y, width, height, 1, 15, color);
     }
 
     public static void drawAvatar(float x, float y, float width, float height, float radius, int color) {
