@@ -64,7 +64,7 @@ public class TestModuleStructure extends ModuleStructure {
             .visible(() -> advancedMode.isValue());
 
     public TestModuleStructure() {
-        super("TestModule", "Test Module", ModuleCategory.COMBAT);
+        super("TestModule", "Ites a test module its sow cool!", ModuleCategory.COMBAT);
         setup(
             booleanTest,
             booleanTest2,

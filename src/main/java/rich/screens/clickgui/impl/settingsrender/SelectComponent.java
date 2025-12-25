@@ -25,8 +25,6 @@ public class SelectComponent extends AbstractSettingComponent {
         expandAnimation += (expanded ? 1f : 0f - expandAnimation) * 0.25f;
         expandAnimation = Math.max(0f, Math.min(1f, expandAnimation));
 
-        Render2D.rect(x, y, width, height, new Color(255, 255, 255, hovered ? 25 : 20).getRGB(), 6f);
-
         if (hovered) {
             Render2D.outline(x, y, width, height, 0.6f, new Color(255, 255, 255, 30).getRGB(), 6f);
         }

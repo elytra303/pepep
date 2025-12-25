@@ -19,6 +19,13 @@ public class ModuleRepository {
                 new InventoryMove(),
                 new InventoryMove1(),
                 new InventoryMove2(),
+                new TestModule(),
+                new TestModule2(),
+                new TestModule3(),
+                new TestModule4(),
+                new TestModule5(),
+                new TestModule6(),
+                new TestModule7(),
                 new Hud(),
                 new ClickGuiModule()
         );

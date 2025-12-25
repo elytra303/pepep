@@ -8,6 +8,7 @@
     "InGameHudMixin",
     "KeyboardMixin",
     "MinecraftClientMixin",
+    "MouseMixin",
     "ScreenMixin"
   ],
   "injectors": {

@@ -29,10 +29,10 @@ public class CheckboxComponent extends AbstractSettingComponent {
         checkAnimation += (booleanSetting.isValue() ? 1f : 0f - checkAnimation) * 0.2f;
         checkAnimation = Math.max(0f, Math.min(1f, checkAnimation));
 
-        Fonts.BOLD.draw(booleanSetting.getName(), x + 6, y + height / 2 - 3.5f, 7, new Color(210, 210, 220, 200).getRGB());
+        Fonts.BOLD.draw(booleanSetting.getName(), x + 0.5f, y + height / 2 - 3.5f, 7, new Color(210, 210, 220, 200).getRGB());
 
         float checkboxSize = 10;
-        float checkboxX = x + width - checkboxSize - 6;
+        float checkboxX = x + width - checkboxSize;
         float checkboxY = y + height / 2 - checkboxSize / 2;
 
         Render2D.rect(checkboxX, checkboxY, checkboxSize, checkboxSize, new Color(255, 255, 255, 25).getRGB(), 3f);
