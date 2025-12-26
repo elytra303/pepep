@@ -26,6 +26,11 @@ public class ModuleRepository {
                 new TestModule5(),
                 new TestModule6(),
                 new TestModule7(),
+                new TestModule8(),
+                new TestModule9(),
+                new TestModule10(),
+                new TestModule11(),
+                new TestModule12(),
                 new Hud(),
                 new ClickGuiModule()
         );

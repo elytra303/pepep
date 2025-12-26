@@ -3,7 +3,6 @@ package rich.modules.module.setting.implement;
 import rich.modules.module.setting.Setting;
 import lombok.Getter;
 import lombok.Setter;
-import rich.util.math.Calculate;
 
 import java.awt.*;
 import java.util.function.Supplier;
@@ -38,26 +37,57 @@ public class ColorSetting extends Setting {
     }
 
     public int getColor() {
-        return (getColorWithAlpha() & 0x00FFFFFF) | (Math.round(alpha * 255) << 24);
+        int rgb = Color.HSBtoRGB(hue, saturation, brightness);
+        int alphaInt = Math.round(alpha * 255);
+        return (alphaInt << 24) | (rgb & 0x00FFFFFF);
     }
 
     public int getColorWithAlpha() {
-        return Color.HSBtoRGB(hue, saturation, brightness);
+        return getColor();
+    }
+
+    public int getColorNoAlpha() {
+        return Color.HSBtoRGB(hue, saturation, brightness) | 0xFF000000;
     }
 
     public ColorSetting setColor(int color) {
-        float[] hsb = Color.RGBtoHSB(
-                Calculate.getRed(color),
-                Calculate.getGreen(color),
-                Calculate.getBlue(color),
-                null
-        );
+        int r = (color >> 16) & 0xFF;
+        int g = (color >> 8) & 0xFF;
+        int b = color & 0xFF;
+        int a = (color >> 24) & 0xFF;
+
+        float[] hsb = Color.RGBtoHSB(r, g, b, null);
 
         hue = hsb[0];
         saturation = hsb[1];
         brightness = hsb[2];
-        alpha = (Calculate.getAlpha(color) / 255f);
+        alpha = a / 255f;
 
+        return this;
+    }
+
+    public Color getAwtColor() {
+        int color = getColor();
+        return new Color(color, true);
+    }
+
+    public ColorSetting setHue(float hue) {
+        this.hue = Math.max(0f, Math.min(1f, hue));
+        return this;
+    }
+
+    public ColorSetting setSaturation(float saturation) {
+        this.saturation = Math.max(0f, Math.min(1f, saturation));
+        return this;
+    }
+
+    public ColorSetting setBrightness(float brightness) {
+        this.brightness = Math.max(0f, Math.min(1f, brightness));
+        return this;
+    }
+
+    public ColorSetting setAlpha(float alpha) {
+        this.alpha = Math.max(0f, Math.min(1f, alpha));
         return this;
     }
 }

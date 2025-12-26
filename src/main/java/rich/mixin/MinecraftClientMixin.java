@@ -9,7 +9,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import rich.Initialization;
 import rich.events.api.EventManager;
 import rich.events.impl.SetScreenEvent;
+import rich.screens.clickgui.ClickGui;
 import rich.util.window.WindowStyle;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import static rich.IMinecraft.mc;
 
@@ -23,6 +25,15 @@ public abstract class MinecraftClientMixin {
 
     @Inject(method = "setScreen", at = @At(value = "HEAD"), cancellable = true)
     public void setScreenHook(Screen screen, CallbackInfo ci) {
+        MinecraftClient client = (MinecraftClient) (Object) this;
+
+        if (client.currentScreen instanceof ClickGui clickGui) {
+            if (clickGui.isClosing() && screen == null) {
+                ci.cancel();
+                return;
+            }
+        }
+
         SetScreenEvent event = new SetScreenEvent(screen);
         EventManager.callEvent(event);
 
@@ -36,6 +47,11 @@ public abstract class MinecraftClientMixin {
             mc.setScreen(eventScreen);
             ci.cancel();
         }
+    }
+
+    @Inject(method = "getWindowTitle", at = @At("RETURN"), cancellable = true)
+    private void getWindowTitle(CallbackInfoReturnable<String> cir) {
+        cir.setReturnValue(String.format("Rich Modern (Developer - Baflllik)", cir.getReturnValue().replace("Minecraft", "").replace("*", "").strip()));
     }
 
     @Inject(method = "onResolutionChanged", at = @At("TAIL"))

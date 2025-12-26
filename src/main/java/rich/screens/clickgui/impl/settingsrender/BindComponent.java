@@ -14,58 +14,205 @@ public class BindComponent extends AbstractSettingComponent {
     private float listeningAnimation = 0f;
     private float hoverAnimation = 0f;
     private float bindHoverAnimation = 0f;
+    private float pulseAnimation = 0f;
+    private float scaleAnimation = 1f;
+    private float glowAnimation = 0f;
+    private float textChangeAnimation = 0f;
+    private String previousBindText = "";
+    private String currentBindText = "";
+
+    private long lastUpdateTime = System.currentTimeMillis();
+
+    private static final float ANIMATION_SPEED = 8f;
+    private static final float FAST_ANIMATION_SPEED = 12f;
+    private static final float BIND_BOX_WIDTH = 32f;
+    private static final float BIND_BOX_HEIGHT = 10f;
 
     public BindComponent(BindSetting setting) {
         super(setting);
+        BindSetting bindSetting = (BindSetting) getSetting();
+        this.currentBindText = getBindDisplayName(bindSetting.getKey(), bindSetting.getType());
+        this.previousBindText = this.currentBindText;
+    }
+
+    private float getDeltaTime() {
+        long currentTime = System.currentTimeMillis();
+        float deltaTime = Math.min((currentTime - lastUpdateTime) / 1000f, 0.1f);
+        lastUpdateTime = currentTime;
+        return deltaTime;
+    }
+
+    private float lerp(float current, float target, float speed) {
+        float diff = target - current;
+        if (Math.abs(diff) < 0.001f) {
+            return target;
+        }
+        return current + diff * Math.min(speed, 1f);
     }
 
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
+        float deltaTime = getDeltaTime();
+
         boolean hovered = isHover(mouseX, mouseY);
         boolean bindHovered = isBindHover(mouseX, mouseY);
 
-        hoverAnimation += (hovered ? 1f : 0f - hoverAnimation) * 0.2f;
-        hoverAnimation = Math.max(0f, Math.min(1f, hoverAnimation));
+        hoverAnimation = lerp(hoverAnimation, hovered ? 1f : 0f, deltaTime * ANIMATION_SPEED);
+        bindHoverAnimation = lerp(bindHoverAnimation, bindHovered ? 1f : 0f, deltaTime * ANIMATION_SPEED);
+        listeningAnimation = lerp(listeningAnimation, listening ? 1f : 0f, deltaTime * FAST_ANIMATION_SPEED);
 
-        bindHoverAnimation += (bindHovered ? 1f : 0f - bindHoverAnimation) * 0.2f;
-        bindHoverAnimation = Math.max(0f, Math.min(1f, bindHoverAnimation));
+        float scaleTarget = listening ? 1.05f : (bindHovered ? 1.02f : 1f);
+        scaleAnimation = lerp(scaleAnimation, scaleTarget, deltaTime * ANIMATION_SPEED);
 
-        listeningAnimation += (listening ? 1f : 0f - listeningAnimation) * 0.2f;
-        listeningAnimation = Math.max(0f, Math.min(1f, listeningAnimation));
-
-        Fonts.BOLD.draw(getSetting().getName(), x + 0.5f, y + height / 2 - 3.5f, 7, new Color(210, 210, 220, 200).getRGB());
-
-        float bindBoxX = x + width - 22.5F;
-        float bindBoxY = y + height / 2 - 5;
-        float bindBoxWidth = 20;
-        float bindBoxHeight = 10;
-
-        BindSetting bindSetting = (BindSetting) getSetting();
-        int bindKey = bindSetting.getKey();
-        int bindType = bindSetting.getType();
-        String bindText = listening ? "..." : getBindDisplayName(bindKey, bindType);
-
-        int glassAlpha = 20 + (int)(bindHoverAnimation * 10) + (int)(listeningAnimation * 25);
-        Color glassColor = listening
-                ? new Color(150, 180, 255, glassAlpha)
-                : new Color(255, 255, 255, glassAlpha);
-
-        Render2D.rect(bindBoxX, bindBoxY, bindBoxWidth, bindBoxHeight, glassColor.getRGB(), 3f);
+        glowAnimation = lerp(glowAnimation, listening ? 1f : 0f, deltaTime * ANIMATION_SPEED);
 
         if (listening) {
-            long time = System.currentTimeMillis();
-            float pulseAlpha = (float)(Math.sin(time / 150.0) * 0.3 + 0.7);
-            int pulseOutlineAlpha = (int)(120 * pulseAlpha * listeningAnimation);
-            Render2D.outline(bindBoxX, bindBoxY, bindBoxWidth, bindBoxHeight, 0.5f, new Color(150, 180, 255, pulseOutlineAlpha).getRGB(), 3f);
-        } else if (bindHovered) {
-            Render2D.outline(bindBoxX, bindBoxY, bindBoxWidth, bindBoxHeight, 0.5f, new Color(255, 255, 255, (int)(50 * bindHoverAnimation)).getRGB(), 3f);
+            pulseAnimation += deltaTime * 4f;
+            if (pulseAnimation > Math.PI * 2) {
+                pulseAnimation -= (float)(Math.PI * 2);
+            }
+        } else {
+            pulseAnimation = lerp(pulseAnimation, 0f, deltaTime * ANIMATION_SPEED);
         }
 
-        Color bindTextColor = listening
-                ? new Color(180, 200, 255, 220)
-                : (bindKey != GLFW.GLFW_KEY_UNKNOWN ? new Color(150, 220, 150, 200) : new Color(150, 150, 160, 150));
+        BindSetting bindSetting = (BindSetting) getSetting();
+        String newBindText = listening ? "" : getBindDisplayName(bindSetting.getKey(), bindSetting.getType());
 
-        Fonts.BOLD.drawCentered(bindText, bindBoxX + bindBoxWidth / 2, bindBoxY + bindBoxHeight / 2 - 3f, 5, bindTextColor.getRGB());
+        if (!newBindText.equals(currentBindText)) {
+            previousBindText = currentBindText;
+            currentBindText = newBindText;
+            textChangeAnimation = 0f;
+        }
+
+        textChangeAnimation = lerp(textChangeAnimation, 1f, deltaTime * FAST_ANIMATION_SPEED);
+
+        Fonts.BOLD.draw(getSetting().getName(), x + 0.5f, y + height / 2 - 7.5f, 6, applyAlpha(new Color(210, 210, 220, 200)).getRGB());
+
+        String description = getSetting().getDescription();
+        if (description != null && !description.isEmpty()) {
+            Fonts.BOLD.draw(description, x + 0.5f, y + height / 2 + 0.5f, 5, applyAlpha(new Color(128, 128, 128, 128)).getRGB());
+        }
+
+        renderBindBox(mouseX, mouseY, bindSetting);
+    }
+
+    private void renderBindBox(int mouseX, int mouseY, BindSetting bindSetting) {
+        float bindBoxX = x + width - BIND_BOX_WIDTH - 2;
+        float bindBoxY = y + height / 2 - BIND_BOX_HEIGHT / 2;
+
+        float scaledWidth = BIND_BOX_WIDTH * scaleAnimation;
+        float scaledHeight = BIND_BOX_HEIGHT * scaleAnimation;
+        float scaledX = bindBoxX - (scaledWidth - BIND_BOX_WIDTH) / 2;
+        float scaledY = bindBoxY - (scaledHeight - BIND_BOX_HEIGHT) / 2;
+
+        int bgAlpha = (int)(25 + bindHoverAnimation * 15 + listeningAnimation * 20);
+        Color bgColor;
+        if (listening) {
+            float pulse = (float)(Math.sin(pulseAnimation) * 0.15 + 0.85);
+            bgColor = new Color(
+                    (int)(60 + 40 * pulse),
+                    (int)(80 + 40 * pulse),
+                    (int)(120 + 35 * pulse),
+                    (int)(bgAlpha * alphaMultiplier)
+            );
+        } else if (bindSetting.getKey() != GLFW.GLFW_KEY_UNKNOWN && bindSetting.getKey() != -1) {
+            bgColor = applyAlpha(new Color(40, 60, 50, bgAlpha));
+        } else {
+            bgColor = applyAlpha(new Color(40, 40, 45, bgAlpha));
+        }
+
+        Render2D.rect(scaledX, scaledY, scaledWidth, scaledHeight, bgColor.getRGB(), 3f);
+
+        float outlineAlpha;
+        Color outlineColor;
+
+        if (listening) {
+            float pulse = (float)(Math.sin(pulseAnimation) * 0.3 + 0.7);
+            outlineAlpha = 150 * pulse * listeningAnimation;
+            outlineColor = new Color(120, 160, 220, (int)(outlineAlpha * alphaMultiplier));
+        } else if (bindSetting.getKey() != GLFW.GLFW_KEY_UNKNOWN && bindSetting.getKey() != -1) {
+            outlineAlpha = 80 + bindHoverAnimation * 40;
+            outlineColor = new Color(100, 160, 120, (int)(outlineAlpha * alphaMultiplier));
+        } else {
+            outlineAlpha = 60 + bindHoverAnimation * 40;
+            outlineColor = new Color(120, 120, 125, (int)(outlineAlpha * alphaMultiplier));
+        }
+
+        Render2D.outline(scaledX, scaledY, scaledWidth, scaledHeight, 0.5f, outlineColor.getRGB(), 3f);
+
+        renderBindText(scaledX, scaledY, scaledWidth, scaledHeight, bindSetting);
+
+        if (listening) {
+            renderListeningIndicator(scaledX, scaledY, scaledWidth, scaledHeight);
+        }
+    }
+
+    private void renderBindText(float boxX, float boxY, float boxWidth, float boxHeight, BindSetting bindSetting) {
+        float textY = boxY + boxHeight / 2 - 2.5f;
+        float centerX = boxX + boxWidth / 2;
+
+        Color textColor;
+        if (listening) {
+            float pulse = (float)(Math.sin(pulseAnimation * 2) * 0.2 + 0.8);
+            int alpha = (int)(220 * pulse * alphaMultiplier);
+            textColor = new Color(180, 200, 240, alpha);
+        } else if (bindSetting.getKey() != GLFW.GLFW_KEY_UNKNOWN && bindSetting.getKey() != -1) {
+            int alpha = (int)(200 * alphaMultiplier);
+            textColor = new Color(140, 200, 150, alpha);
+        } else {
+            int alpha = (int)(150 * alphaMultiplier);
+            textColor = new Color(140, 140, 150, alpha);
+        }
+
+        if (textChangeAnimation < 1f && !previousBindText.equals(currentBindText)) {
+            float oldAlpha = 1f - textChangeAnimation;
+            float newAlpha = textChangeAnimation;
+
+            float oldOffsetY = -3f * textChangeAnimation;
+            float newOffsetY = 3f * (1f - textChangeAnimation);
+
+            if (oldAlpha > 0.01f) {
+                Color oldColor = new Color(
+                        textColor.getRed(),
+                        textColor.getGreen(),
+                        textColor.getBlue(),
+                        (int)(textColor.getAlpha() * oldAlpha)
+                );
+                Fonts.BOLD.drawCentered(previousBindText, centerX, textY + oldOffsetY, 5, oldColor.getRGB());
+            }
+
+            Color newColor = new Color(
+                    textColor.getRed(),
+                    textColor.getGreen(),
+                    textColor.getBlue(),
+                    (int)(textColor.getAlpha() * newAlpha)
+            );
+            Fonts.BOLD.drawCentered(currentBindText, centerX, textY + newOffsetY, 5, newColor.getRGB());
+        } else {
+            Fonts.BOLD.drawCentered(currentBindText, centerX, textY, 5, textColor.getRGB());
+        }
+    }
+
+    private void renderListeningIndicator(float boxX, float boxY, float boxWidth, float boxHeight) {
+        float dotSpacing = 3f;
+        float dotSize = 1.5f;
+        float dotsWidth = dotSpacing * 2;
+        float startX = boxX + (boxWidth - dotsWidth) / 2 - dotSize / 2;
+        float dotY = boxY + boxHeight - 5.5f;
+
+        for (int i = 0; i < 3; i++) {
+            float phase = pulseAnimation + i * 0.5f;
+            float pulse = (float)(Math.sin(phase * 2) * 0.5 + 0.5);
+            float currentDotSize = dotSize * (0.5f + pulse * 0.5f);
+
+            int alpha = (int)(150 * (0.3f + pulse * 0.7f) * listeningAnimation * alphaMultiplier);
+
+            float dotX = startX + i * dotSpacing + (dotSize - currentDotSize) / 2;
+            float adjustedDotY = dotY + (dotSize - currentDotSize) / 2;
+
+            Render2D.rect(dotX, adjustedDotY, currentDotSize, currentDotSize,
+                    new Color(120, 160, 220, alpha).getRGB(), currentDotSize / 2);
+        }
     }
 
     private String getBindDisplayName(int key, int type) {
@@ -149,12 +296,10 @@ public class BindComponent extends AbstractSettingComponent {
     }
 
     private boolean isBindHover(double mouseX, double mouseY) {
-        float bindBoxX = x + width - 35;
-        float bindBoxY = y + height / 2 - 5;
-        float bindBoxWidth = 32;
-        float bindBoxHeight = 10;
-        return mouseX >= bindBoxX && mouseX <= bindBoxX + bindBoxWidth &&
-                mouseY >= bindBoxY && mouseY <= bindBoxY + bindBoxHeight;
+        float bindBoxX = x + width - BIND_BOX_WIDTH - 2;
+        float bindBoxY = y + height / 2 - BIND_BOX_HEIGHT / 2;
+        return mouseX >= bindBoxX && mouseX <= bindBoxX + BIND_BOX_WIDTH &&
+                mouseY >= bindBoxY && mouseY <= bindBoxY + BIND_BOX_HEIGHT;
     }
 
     @Override
@@ -174,6 +319,9 @@ public class BindComponent extends AbstractSettingComponent {
                 listening = true;
                 return true;
             }
+        } else if (listening) {
+            listening = false;
+            return true;
         }
         return false;
     }
@@ -182,8 +330,6 @@ public class BindComponent extends AbstractSettingComponent {
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
         if (listening) {
             if (keyCode == GLFW.GLFW_KEY_ESCAPE) {
-                ((BindSetting) getSetting()).setKey(GLFW.GLFW_KEY_UNKNOWN);
-                ((BindSetting) getSetting()).setType(1);
                 listening = false;
                 return true;
             } else if (keyCode == GLFW.GLFW_KEY_BACKSPACE || keyCode == GLFW.GLFW_KEY_DELETE) {
@@ -204,12 +350,14 @@ public class BindComponent extends AbstractSettingComponent {
 
     @Override
     public void tick() {
-        listeningAnimation += (listening ? 1f : 0f - listeningAnimation) * 0.2f;
-        listeningAnimation = Math.max(0f, Math.min(1f, listeningAnimation));
     }
 
     @Override
     public boolean isHover(double mouseX, double mouseY) {
         return mouseX >= x && mouseX <= x + width && mouseY >= y && mouseY <= y + height;
+    }
+
+    public boolean isListening() {
+        return listening;
     }
 }

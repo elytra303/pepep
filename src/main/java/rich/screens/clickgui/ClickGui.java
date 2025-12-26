@@ -1,6 +1,5 @@
 package rich.screens.clickgui;
 
-import lombok.Getter;
 import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
@@ -16,14 +15,18 @@ import rich.screens.clickgui.impl.DragHandler;
 import rich.screens.clickgui.impl.background.BackgroundComponent;
 import rich.screens.clickgui.impl.module.ModuleComponent;
 import rich.screens.clickgui.impl.settingsrender.TextComponent;
+import rich.util.animations.Direction;
+import rich.util.animations.GuiAnimation;
 import rich.util.interfaces.AbstractSettingComponent;
 import rich.util.math.FrameRateCounter;
+import rich.util.render.Render2D;
+import rich.util.render.font.Fonts;
 import rich.util.render.gif.GifRender;
 
+import java.awt.*;
 import java.util.ArrayList;
 import java.util.List;
 
-@Getter
 public class ClickGui extends Screen implements IMinecraft {
     public static ClickGui INSTANCE = new ClickGui();
     private static final int FIXED_GUI_SCALE = 2;
@@ -33,13 +36,28 @@ public class ClickGui extends Screen implements IMinecraft {
     private final DragHandler dragHandler = new DragHandler();
     private ModuleCategory selectedCategory = ModuleCategory.COMBAT;
 
+    private final GuiAnimation openAnimation = new GuiAnimation();
+    private boolean closing = false;
+
     public ClickGui() {
-        super(Text.of("ClickGui"));
+        super(Text.of("MenuScreen"));
+    }
+
+    public boolean isClosing() {
+        return closing;
     }
 
     @Override
     protected void init() {
         super.init();
+        closing = false;
+        openAnimation.setMs(250).setValue(1.0).setDirection(Direction.FORWARDS).reset();
+
+        long handle = mc.getWindow().getHandle();
+        double centerX = mc.getWindow().getWidth() / 2.0;
+        double centerY = mc.getWindow().getHeight() / 2.0;
+        GLFW.glfwSetCursorPos(handle, centerX, centerY);
+
         updateModules();
     }
 
@@ -57,7 +75,11 @@ public class ClickGui extends Screen implements IMinecraft {
     }
 
     public void openGui() {
-        if (mc.currentScreen == null) mc.setScreen(this);
+        if (mc.currentScreen == null) {
+            closing = false;
+            openAnimation.setMs(250).setValue(1.0).setDirection(Direction.FORWARDS).reset();
+            mc.setScreen(this);
+        }
     }
 
     @Override
@@ -80,36 +102,82 @@ public class ClickGui extends Screen implements IMinecraft {
         FrameRateCounter.INSTANCE.recordFrame();
         float scrollSpeed = Math.min(1f, 60f / Math.max(FrameRateCounter.INSTANCE.getFps(), 1));
 
+        float animValue = openAnimation.getOutput().floatValue();
+
+        if (closing && openAnimation.isFinished(Direction.BACKWARDS)) {
+            closing = false;
+            TextComponent.typing = false;
+            moduleComponent.setBindingModule(null);
+            dragHandler.stopDrag();
+            mc.currentScreen = null;
+            return;
+        }
+
+        int screenWidth = mc.getWindow().getScaledWidth();
+        int screenHeight = mc.getWindow().getScaledHeight();
+
+        int dimAlpha = (int) (77 * animValue);
+        if (dimAlpha > 0) {
+            Render2D.rect(0, 0, screenWidth, screenHeight, new Color(0, 0, 0, dimAlpha).getRGB(), 0);
+        }
+
         int guiScale = mc.getWindow().calculateScaleFactor(mc.options.getGuiScale().getValue(), mc.forcesUnicodeFont());
         float scale = (float) FIXED_GUI_SCALE / guiScale;
 
         float mx = mouseX / scale, my = mouseY / scale;
-        dragHandler.update(mx, my);
+
+        if (!closing) {
+            dragHandler.update(mx, my);
+        }
 
         context.getMatrices().pushMatrix();
         context.getMatrices().scale(scale, scale);
 
         float[] bg = calculateBackground(scale);
-        float bgX = bg[0], bgY = bg[1];
+        float bgX = bg[0];
+        float bgY = bg[1];
 
-        background.render(context, bgX, bgY, selectedCategory, delta);
-        background.renderCategoryPanel(bgX, bgY);
-        background.renderHeader(bgX, bgY, selectedCategory);
-        background.renderCategoryNames(bgX, bgY, selectedCategory);
+        float yOffset;
+        if (closing) {
+            yOffset = (1f - animValue) * 30f;
+        } else {
+            yOffset = (1f - animValue) * -15f;
+        }
+        bgY += yOffset;
+
+        float alphaMultiplier = animValue;
+
+        context.getMatrices().pushMatrix();
+
+        background.render(context, bgX, bgY, selectedCategory, delta, alphaMultiplier);
+        background.renderCategoryPanel(bgX, bgY, alphaMultiplier);
+        background.renderHeader(bgX, bgY, selectedCategory, alphaMultiplier);
+        background.renderCategoryNames(bgX, bgY, selectedCategory, alphaMultiplier);
 
         float mlX = bgX + 92f, mlY = bgY + 38f, mlW = 120f, mlH = BackgroundComponent.BG_HEIGHT - 46f;
         float spX = bgX + 218f, spY = bgY + 38f, spW = 172f, spH = BackgroundComponent.BG_HEIGHT - 46f;
 
         moduleComponent.updateScroll(delta, scrollSpeed);
         moduleComponent.updateScrollFades(delta, scrollSpeed, mlH, spH);
-        moduleComponent.renderModuleList(context, mlX, mlY, mlW, mlH, mx, my, FIXED_GUI_SCALE);
-        moduleComponent.renderSettingsPanel(context, spX, spY, spW, spH, mx, my, delta, FIXED_GUI_SCALE);
+        moduleComponent.renderModuleList(context, mlX, mlY, mlW, mlH, mx, my, FIXED_GUI_SCALE, alphaMultiplier);
+        moduleComponent.renderSettingsPanel(context, spX, spY, spW, spH, mx, my, delta, FIXED_GUI_SCALE, alphaMultiplier);
+
+        int hintAlpha = (int) (255 * alphaMultiplier);
+        if (hintAlpha > 0) {
+            float centerX = bgX + BackgroundComponent.BG_WIDTH / 2f;
+            float textY = bgY + BackgroundComponent.BG_HEIGHT + 10f;
+            Fonts.BOLD.drawCentered("Press CTRL / ALT to reset position", centerX, textY, 6, new Color(200, 200, 200, hintAlpha).getRGB());
+        }
+
+        context.getMatrices().popMatrix();
 
         context.getMatrices().popMatrix();
     }
 
     @Override
     public boolean mouseClicked(Click click, boolean doubled) {
+        if (closing) return false;
+
         int guiScale = mc.getWindow().calculateScaleFactor(mc.options.getGuiScale().getValue(), mc.forcesUnicodeFont());
         float scale = (float) FIXED_GUI_SCALE / guiScale;
         double mx = click.x() / scale, my = click.y() / scale;
@@ -155,7 +223,22 @@ public class ClickGui extends Screen implements IMinecraft {
     }
 
     @Override
+    public boolean mouseReleased(Click click) {
+        if (closing) return false;
+
+        for (AbstractSettingComponent c : moduleComponent.getSettingComponents()) {
+            if (c.getSetting().isVisible() && c.mouseReleased(click.x(), click.y(), click.button())) {
+                return true;
+            }
+        }
+
+        return super.mouseReleased(click);
+    }
+
+    @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double horizontal, double vertical) {
+        if (closing) return false;
+
         int guiScale = mc.getWindow().calculateScaleFactor(mc.options.getGuiScale().getValue(), mc.forcesUnicodeFont());
         float scale = (float) FIXED_GUI_SCALE / guiScale;
         double mx = mouseX / scale, my = mouseY / scale;
@@ -179,6 +262,13 @@ public class ClickGui extends Screen implements IMinecraft {
 
     @Override
     public boolean keyPressed(KeyInput input) {
+        if (input.key() == GLFW.GLFW_KEY_ESCAPE) {
+            close();
+            return true;
+        }
+
+        if (closing) return false;
+
         if (dragHandler.isResetNeeded(input.key(), input.modifiers())) {
             dragHandler.reset();
             return true;
@@ -186,18 +276,22 @@ public class ClickGui extends Screen implements IMinecraft {
 
         ModuleStructure binding = moduleComponent.getBindingModule();
         if (binding != null) {
-            binding.setKey(input.key() == GLFW.GLFW_KEY_DELETE || input.key() == GLFW.GLFW_KEY_ESCAPE ? GLFW.GLFW_KEY_UNKNOWN : input.key());
+            binding.setKey(input.key() == GLFW.GLFW_KEY_DELETE ? GLFW.GLFW_KEY_UNKNOWN : input.key());
             moduleComponent.setBindingModule(null);
             return true;
         }
+
         for (AbstractSettingComponent c : moduleComponent.getSettingComponents()) {
             if (c.getSetting().isVisible() && c.keyPressed(input.key(), input.scancode(), input.modifiers())) return true;
         }
+
         return super.keyPressed(input);
     }
 
     @Override
     public boolean charTyped(CharInput input) {
+        if (closing) return false;
+
         for (AbstractSettingComponent c : moduleComponent.getSettingComponents()) {
             if (c.getSetting().isVisible() && c.charTyped((char) input.codepoint(), input.modifiers())) return true;
         }
@@ -211,9 +305,21 @@ public class ClickGui extends Screen implements IMinecraft {
 
     @Override
     public void close() {
-        TextComponent.typing = false;
-        moduleComponent.setBindingModule(null);
-        dragHandler.stopDrag();
-        super.close();
+        if (!closing) {
+            closing = true;
+            openAnimation.setDirection(Direction.BACKWARDS);
+            openAnimation.reset();
+
+            long handle = mc.getWindow().getHandle();
+            double centerX = mc.getWindow().getWidth() / 2.0;
+            double centerY = mc.getWindow().getHeight() / 2.0;
+
+            GLFW.glfwSetInputMode(handle, GLFW.GLFW_CURSOR, GLFW.GLFW_CURSOR_DISABLED);
+            GLFW.glfwSetCursorPos(handle, centerX, centerY);
+
+            TextComponent.typing = false;
+            moduleComponent.setBindingModule(null);
+            dragHandler.stopDrag();
+        }
     }
 }

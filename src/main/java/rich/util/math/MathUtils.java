@@ -9,7 +9,7 @@ import rich.IMinecraft;
 import java.util.concurrent.ThreadLocalRandom;
 
 @UtilityClass
-public class Calculate implements IMinecraft {
+public class MathUtils implements IMinecraft {
     public double PI2 = Math.PI * 2;
     public boolean isHovered(double mouseX, double mouseY, double x, double y, double width, double height) {
         return mouseX >= x && mouseX <= x + width && mouseY >= y && mouseY <= y + height;
@@ -85,8 +85,8 @@ public class Calculate implements IMinecraft {
 
     public Vec3d cosSin(int i, int size, double width) {
         int index = Math.min(i, size);
-        float cos = (float) (Math.cos(index * Calculate.PI2 / size) * width);
-        float sin = (float) (-Math.sin(index * Calculate.PI2 / size) * width);
+        float cos = (float) (Math.cos(index * MathUtils.PI2 / size) * width);
+        float sin = (float) (-Math.sin(index * MathUtils.PI2 / size) * width);
         return new Vec3d(cos, 0, sin);
     }
 
