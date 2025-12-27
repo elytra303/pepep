@@ -1,4 +1,4 @@
-package rich.modules.module;
+package rich.util.modules;
 
 import lombok.AccessLevel;
 import lombok.experimental.FieldDefaults;
@@ -6,6 +6,7 @@ import rich.IMinecraft;
 import rich.events.api.EventHandler;
 import rich.events.api.EventManager;
 import rich.events.impl.KeyEvent;
+import rich.modules.module.ModuleStructure;
 
 import java.util.List;
 

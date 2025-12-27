@@ -4,6 +4,8 @@ import lombok.Getter;
 import rich.events.api.EventManager;
 import rich.modules.module.*;
 import rich.screens.clickgui.ClickGui;
+import rich.util.modules.ModuleProvider;
+import rich.util.modules.ModuleSwitcher;
 import rich.util.render.RenderCore;
 import rich.util.render.Scissor;
 import rich.screens.hud.drags.DraggableRepository;

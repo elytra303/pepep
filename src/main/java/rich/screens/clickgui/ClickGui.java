@@ -66,6 +66,7 @@ public class ClickGui extends Screen implements IMinecraft {
         double centerY = mc.getWindow().getHeight() / 2.0;
         GLFW.glfwSetCursorPos(handle, centerX, centerY);
 
+        background.setSearchActive(false);
         updateModules();
     }
 
@@ -198,10 +199,19 @@ public class ClickGui extends Screen implements IMinecraft {
         float mlX = bgX + 92f, mlY = bgY + 38f, mlW = 120f, mlH = BackgroundComponent.BG_HEIGHT - 46f;
         float spX = bgX + 218f, spY = bgY + 38f, spW = 172f, spH = BackgroundComponent.BG_HEIGHT - 46f;
 
-        moduleComponent.updateScroll(delta, scrollSpeed);
-        moduleComponent.updateScrollFades(delta, scrollSpeed, mlH, spH);
-        moduleComponent.renderModuleList(context, mlX, mlY, mlW, mlH, mx, my, FIXED_GUI_SCALE, alphaMultiplier);
-        moduleComponent.renderSettingsPanel(context, spX, spY, spW, spH, mx, my, delta, FIXED_GUI_SCALE, alphaMultiplier);
+        float normalAlpha = background.getNormalPanelAlpha();
+        float searchAlpha = background.getSearchPanelAlpha();
+
+        if (normalAlpha > 0.01f) {
+            moduleComponent.updateScroll(delta, scrollSpeed);
+            moduleComponent.updateScrollFades(delta, scrollSpeed, mlH, spH);
+            moduleComponent.renderModuleList(context, mlX, mlY, mlW, mlH, mx, my, FIXED_GUI_SCALE, alphaMultiplier * normalAlpha);
+            moduleComponent.renderSettingsPanel(context, spX, spY, spW, spH, mx, my, delta, FIXED_GUI_SCALE, alphaMultiplier * normalAlpha);
+        }
+
+        if (searchAlpha > 0.01f) {
+            background.renderSearchResults(context, bgX, bgY, mx, my, FIXED_GUI_SCALE, alphaMultiplier);
+        }
 
         context.getMatrices().popMatrix();
 
@@ -227,6 +237,44 @@ public class ClickGui extends Screen implements IMinecraft {
 
         float[] bg = calculateBackground(scale);
         float bgX = bg[0], bgY = bg[1];
+
+        if (background.isSearchBoxHovered(mx, my, bgX, bgY) && click.button() == 0) {
+            background.setSearchActive(true);
+            return true;
+        }
+
+        if (background.isSearchActive()) {
+            if (click.button() == 0) {
+                ModuleStructure searchModule = background.getSearchModuleAtPosition(mx, my, bgX, bgY);
+                if (searchModule != null) {
+                    searchModule.switchState();
+                    return true;
+                }
+
+                float panelX = bgX + 92f;
+                float panelY = bgY + 38f;
+                float panelW = BackgroundComponent.BG_WIDTH - 100f;
+                float panelH = BackgroundComponent.BG_HEIGHT - 46f;
+
+                if (mx >= panelX && mx <= panelX + panelW && my >= panelY && my <= panelY + panelH) {
+                    return true;
+                }
+
+                if (!background.isSearchBoxHovered(mx, my, bgX, bgY)) {
+                    background.setSearchActive(false);
+                }
+            } else if (click.button() == 1) {
+                ModuleStructure searchModule = background.getSearchModuleAtPosition(mx, my, bgX, bgY);
+                if (searchModule != null) {
+                    background.setSearchActive(false);
+                    selectedCategory = searchModule.getCategory();
+                    moduleComponent.selectModuleFromSearch(searchModule);
+                    updateModules();
+                    return true;
+                }
+            }
+            return true;
+        }
 
         float mlX = bgX + 92f, mlY = bgY + 38f, mlW = 120f, mlH = BackgroundComponent.BG_HEIGHT - 48f;
 
@@ -259,6 +307,12 @@ public class ClickGui extends Screen implements IMinecraft {
         if (cat != null) {
             selectedCategory = cat;
             updateModules();
+            return true;
+        }
+
+        ModuleStructure starModule = moduleComponent.getModuleForStarClick(mx, my, mlX, mlY, mlW, mlH);
+        if (starModule != null && click.button() == 0) {
+            moduleComponent.toggleFavorite(starModule);
             return true;
         }
 
@@ -315,6 +369,18 @@ public class ClickGui extends Screen implements IMinecraft {
         float[] bg = calculateBackground(scale);
         float bgX = bg[0], bgY = bg[1];
 
+        if (background.isSearchActive()) {
+            float panelX = bgX + 92f;
+            float panelY = bgY + 38f;
+            float panelW = BackgroundComponent.BG_WIDTH - 100f;
+            float panelH = BackgroundComponent.BG_HEIGHT - 46f;
+
+            if (mx >= panelX && mx <= panelX + panelW && my >= panelY && my <= panelY + panelH) {
+                background.handleSearchScroll(vertical, panelH);
+                return true;
+            }
+        }
+
         float mlX = bgX + 92f, mlY = bgY + 38f, mlW = 120f, mlH = BackgroundComponent.BG_HEIGHT - 48f;
         if (mx >= mlX && mx <= mlX + mlW && my >= mlY && my <= mlY + mlH) {
             moduleComponent.handleModuleScroll(vertical, mlH);
@@ -332,11 +398,21 @@ public class ClickGui extends Screen implements IMinecraft {
     @Override
     public boolean keyPressed(KeyInput input) {
         if (input.key() == GLFW.GLFW_KEY_ESCAPE) {
+            if (background.isSearchActive()) {
+                background.setSearchActive(false);
+                return true;
+            }
             close();
             return true;
         }
 
         if (closing) return false;
+
+        if (background.isSearchActive()) {
+            if (background.handleSearchKey(input.key())) {
+                return true;
+            }
+        }
 
         if (dragHandler.isResetNeeded(input.key(), input.modifiers())) {
             dragHandler.reset();
@@ -360,6 +436,12 @@ public class ClickGui extends Screen implements IMinecraft {
     @Override
     public boolean charTyped(CharInput input) {
         if (closing) return false;
+
+        if (background.isSearchActive()) {
+            if (background.handleSearchChar((char) input.codepoint())) {
+                return true;
+            }
+        }
 
         for (AbstractSettingComponent c : moduleComponent.getSettingComponents()) {
             if (c.getSetting().isVisible() && c.charTyped((char) input.codepoint(), input.modifiers())) return true;
@@ -388,6 +470,7 @@ public class ClickGui extends Screen implements IMinecraft {
 
             TextComponent.typing = false;
             moduleComponent.setBindingModule(null);
+            background.setSearchActive(false);
             dragHandler.stopDrag();
         }
     }

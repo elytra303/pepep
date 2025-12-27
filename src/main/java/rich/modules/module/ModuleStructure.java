@@ -42,6 +42,9 @@ public class ModuleStructure extends SettingRepository implements IMinecraft {
     @NonFinal
     public boolean state;
 
+    @NonFinal
+    public boolean favorite;
+
     public void switchState() {
         setState(!state);
     }
@@ -52,6 +55,14 @@ public class ModuleStructure extends SettingRepository implements IMinecraft {
             this.state = state;
             handleStateChange();
         }
+    }
+
+    public void switchFavorite() {
+        setFavorite(!favorite);
+    }
+
+    public void setFavorite(boolean favorite) {
+        this.favorite = favorite;
     }
 
     private void handleStateChange() {

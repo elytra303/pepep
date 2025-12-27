@@ -1,9 +1,10 @@
-package rich.modules.module;
+package rich.util.modules;
 
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import rich.modules.module.ModuleStructure;
 
 import java.util.List;
 

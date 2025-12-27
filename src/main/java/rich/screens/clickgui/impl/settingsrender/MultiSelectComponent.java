@@ -243,7 +243,7 @@ public class MultiSelectComponent extends AbstractSettingComponent {
         float rotatedX = centerX + (offsetX * cos - offsetY * sin);
         float rotatedY = centerY + (offsetX * sin + offsetY * cos);
 
-        Fonts.GUI_ICONS.draw("W", rotatedX, rotatedY, 8, applyAlpha(new Color(180, 180, 185, arrowAlpha)).getRGB());
+//        Fonts.GUI_ICONS.draw("W", rotatedX, rotatedY, 8, applyAlpha(new Color(180, 180, 185, arrowAlpha)).getRGB());
     }
 
     private void renderScrollingDescription(String description, float deltaTime) {
@@ -304,7 +304,7 @@ public class MultiSelectComponent extends AbstractSettingComponent {
 
     private void renderSelectedText(float boxX, float boxY, float boxWidth, float boxHeight, float deltaTime) {
         float textY = boxY + boxHeight / 2 - 2.5f;
-        float availableWidth = boxWidth - 14;
+        float availableWidth = boxWidth - 4;
         float baseX = boxX + 4;
 
         Scissor.enable(boxX + 1, boxY, availableWidth + 2, boxHeight);

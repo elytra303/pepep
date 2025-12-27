@@ -29,7 +29,17 @@ public class ModuleComponent implements IMinecraft {
     private static final float SETTINGS_PANEL_CORNER_RADIUS = 7f;
     private static final float CORNER_INSET = 3f;
 
+    private static final float STATE_BALL_SIZE = 3f;
+    private static final float STATE_TEXT_OFFSET = 6f;
+    private static final float STATE_ANIM_SPEED = 10f;
+
+    private static final float HIGHLIGHT_DURATION = 2000f;
+    private static final float ICON_ANIM_SPEED = 10f;
+    private static final float FAVORITE_ANIM_SPEED = 8f;
+    private static final float POSITION_ANIM_SPEED = 6f;
+
     private List<ModuleStructure> modules = new ArrayList<>();
+    private List<ModuleStructure> displayModules = new ArrayList<>();
     private List<ModuleStructure> oldModules = new ArrayList<>();
     private ModuleStructure selectedModule = null;
     private ModuleStructure bindingModule = null;
@@ -43,6 +53,29 @@ public class ModuleComponent implements IMinecraft {
     private Map<AbstractSettingComponent, Float> visibilityAnimations = new HashMap<>();
     private Map<AbstractSettingComponent, Float> heightAnimations = new HashMap<>();
 
+    private Map<ModuleStructure, Float> hoverAnimations = new HashMap<>();
+    private Map<ModuleStructure, Float> stateAnimations = new HashMap<>();
+    private Map<ModuleStructure, Float> selectedIconAnimations = new HashMap<>();
+    private Map<ModuleStructure, Float> favoriteAnimations = new HashMap<>();
+    private Map<ModuleStructure, Float> positionAnimations = new HashMap<>();
+    private Map<ModuleStructure, Float> moduleAlphaAnimations = new HashMap<>();
+
+    private float selectedPulseAnimation = 0f;
+    private long lastHoverUpdateTime = System.currentTimeMillis();
+    private long lastStateUpdateTime = System.currentTimeMillis();
+    private long lastIconUpdateTime = System.currentTimeMillis();
+    private long lastFavoriteUpdateTime = System.currentTimeMillis();
+
+    private ModuleStructure highlightedModule = null;
+    private long highlightStartTime = 0;
+    private float highlightAnimation = 0f;
+
+    private boolean scrollToModule = false;
+    private ModuleStructure scrollTargetModule = null;
+
+    private static final float HOVER_ANIM_SPEED = 8f;
+    private static final float PULSE_SPEED = 5.5f;
+
     private ModuleCategory currentCategory = null;
 
     private double moduleTargetScroll = 0, moduleDisplayScroll = 0;
@@ -51,6 +84,7 @@ public class ModuleComponent implements IMinecraft {
     private float settingScrollTopFade = 0f, settingScrollBottomFade = 0f;
 
     private float lastSettingsPanelHeight = 0f;
+    private float lastModuleListHeight = 0f;
 
     private long lastScrollUpdateTime = System.currentTimeMillis();
     private long lastVisibilityUpdateTime = System.currentTimeMillis();
@@ -72,6 +106,15 @@ public class ModuleComponent implements IMinecraft {
 
     private int savedGuiScale = 1;
 
+    private float lastMouseX = 0;
+    private float lastMouseY = 0;
+    private float lastListX = 0;
+    private float lastListY = 0;
+    private float lastListWidth = 0;
+    private float lastListHeight = 0;
+
+    private Set<ModuleStructure> modulesWithSettings = new HashSet<>();
+
     public void updateModules(List<ModuleStructure> newModules, ModuleCategory category) {
         if (category == currentCategory) {
             return;
@@ -88,24 +131,118 @@ public class ModuleComponent implements IMinecraft {
 
         currentCategory = category;
         modules = newModules;
+        rebuildDisplayList();
+
         moduleTargetScroll = moduleDisplayScroll = 0;
         moduleAnimations.clear();
         moduleAnimStartTimes.clear();
+        hoverAnimations.clear();
+        stateAnimations.clear();
+        selectedIconAnimations.clear();
+        modulesWithSettings.clear();
 
         long currentTime = System.currentTimeMillis();
         long delayBase = (long) (CATEGORY_TRANSITION_DURATION * 0.3f);
-        for (int i = 0; i < modules.size(); i++) {
-            ModuleStructure mod = modules.get(i);
+        for (int i = 0; i < displayModules.size(); i++) {
+            ModuleStructure mod = displayModules.get(i);
             moduleAnimations.put(mod, 0f);
             moduleAnimStartTimes.put(mod, currentTime + delayBase + i * 25L);
+            hoverAnimations.put(mod, 0f);
+            stateAnimations.put(mod, mod.isState() ? 1f : 0f);
+            selectedIconAnimations.put(mod, mod == selectedModule ? 1f : 0f);
+            favoriteAnimations.put(mod, mod.isFavorite() ? 1f : 0f);
+            positionAnimations.put(mod, 1f);
+            moduleAlphaAnimations.put(mod, 1f);
+
+            if (hasModuleSettings(mod)) {
+                modulesWithSettings.add(mod);
+            }
         }
 
-        if (!modules.isEmpty() && (selectedModule == null || !modules.contains(selectedModule))) {
-            selectModule(modules.get(0));
-        } else if (modules.isEmpty()) {
+        if (scrollToModule && scrollTargetModule != null && displayModules.contains(scrollTargetModule)) {
+            scrollToModuleAndHighlight(scrollTargetModule);
+            scrollToModule = false;
+            scrollTargetModule = null;
+        } else if (!displayModules.isEmpty() && (selectedModule == null || !displayModules.contains(selectedModule))) {
+            selectModule(displayModules.get(0));
+        } else if (displayModules.isEmpty()) {
             selectedModule = null;
             settingComponents.clear();
         }
+    }
+
+    private void rebuildDisplayList() {
+        displayModules.clear();
+
+        List<ModuleStructure> favorites = new ArrayList<>();
+        List<ModuleStructure> nonFavorites = new ArrayList<>();
+
+        for (ModuleStructure mod : modules) {
+            if (mod.isFavorite()) {
+                favorites.add(mod);
+            } else {
+                nonFavorites.add(mod);
+            }
+        }
+
+        displayModules.addAll(favorites);
+        displayModules.addAll(nonFavorites);
+    }
+
+    public void toggleFavorite(ModuleStructure module) {
+        if (module == null) return;
+
+        module.switchFavorite();
+
+        int oldIndex = displayModules.indexOf(module);
+        rebuildDisplayList();
+        int newIndex = displayModules.indexOf(module);
+
+        if (oldIndex != newIndex) {
+            for (ModuleStructure mod : displayModules) {
+                if (!positionAnimations.containsKey(mod) || positionAnimations.get(mod) >= 0.99f) {
+                    positionAnimations.put(mod, 0f);
+                }
+                if (!moduleAlphaAnimations.containsKey(mod)) {
+                    moduleAlphaAnimations.put(mod, 1f);
+                }
+            }
+            moduleAlphaAnimations.put(module, 0f);
+        }
+    }
+
+    private boolean hasModuleSettings(ModuleStructure module) {
+        if (module == null) return false;
+        var settings = module.settings();
+        return settings != null && !settings.isEmpty();
+    }
+
+    public void selectModuleFromSearch(ModuleStructure module) {
+        scrollToModule = true;
+        scrollTargetModule = module;
+    }
+
+    public void scrollToModuleAndHighlight(ModuleStructure module) {
+        if (module == null || !displayModules.contains(module)) return;
+
+        selectModule(module);
+
+        int moduleIndex = displayModules.indexOf(module);
+        if (moduleIndex >= 0 && lastModuleListHeight > 0) {
+            float moduleY = moduleIndex * (MODULE_ITEM_HEIGHT + 2);
+            float visibleHeight = lastModuleListHeight - CORNER_INSET * 2 - 4;
+            float centerOffset = (visibleHeight - MODULE_ITEM_HEIGHT) / 2f;
+            float targetScroll = -(moduleY - centerOffset);
+
+            float maxScroll = Math.max(0, displayModules.size() * (MODULE_ITEM_HEIGHT + 2) - visibleHeight);
+            targetScroll = Math.max(-maxScroll, Math.min(0, targetScroll));
+
+            moduleTargetScroll = targetScroll;
+        }
+
+        highlightedModule = module;
+        highlightStartTime = System.currentTimeMillis();
+        highlightAnimation = 1f;
     }
 
     public void selectModule(ModuleStructure module) {
@@ -135,6 +272,125 @@ public class ModuleComponent implements IMinecraft {
         }
     }
 
+    private void updateHighlightAnimation() {
+        if (highlightedModule == null) return;
+
+        long elapsed = System.currentTimeMillis() - highlightStartTime;
+
+        if (elapsed >= HIGHLIGHT_DURATION) {
+            long fadeElapsed = elapsed - (long) HIGHLIGHT_DURATION;
+            float fadeProgress = fadeElapsed / 500f;
+
+            if (fadeProgress >= 1f) {
+                highlightedModule = null;
+                highlightAnimation = 0f;
+            } else {
+                highlightAnimation = 1f - fadeProgress;
+            }
+        } else {
+            highlightAnimation = 1f;
+        }
+    }
+
+    private void updateFavoriteAnimations() {
+        long currentTime = System.currentTimeMillis();
+        float deltaTime = Math.min((currentTime - lastFavoriteUpdateTime) / 1000f, 0.1f);
+        lastFavoriteUpdateTime = currentTime;
+
+        for (ModuleStructure module : displayModules) {
+            float currentFavAnim = favoriteAnimations.getOrDefault(module, 0f);
+            float targetFavAnim = module.isFavorite() ? 1f : 0f;
+
+            float diff = targetFavAnim - currentFavAnim;
+            if (Math.abs(diff) < 0.001f) {
+                favoriteAnimations.put(module, targetFavAnim);
+            } else {
+                favoriteAnimations.put(module, currentFavAnim + diff * FAVORITE_ANIM_SPEED * deltaTime);
+            }
+
+            float currentPosAnim = positionAnimations.getOrDefault(module, 1f);
+            if (currentPosAnim < 1f) {
+                float newPosAnim = currentPosAnim + POSITION_ANIM_SPEED * deltaTime;
+                positionAnimations.put(module, Math.min(1f, newPosAnim));
+            }
+
+            float currentAlphaAnim = moduleAlphaAnimations.getOrDefault(module, 1f);
+            if (currentAlphaAnim < 1f) {
+                float newAlphaAnim = currentAlphaAnim + POSITION_ANIM_SPEED * deltaTime;
+                moduleAlphaAnimations.put(module, Math.min(1f, newAlphaAnim));
+            }
+        }
+    }
+
+    private void updateSelectedIconAnimations() {
+        long currentTime = System.currentTimeMillis();
+        float deltaTime = Math.min((currentTime - lastIconUpdateTime) / 1000f, 0.1f);
+        lastIconUpdateTime = currentTime;
+
+        for (ModuleStructure module : displayModules) {
+            float currentAnim = selectedIconAnimations.getOrDefault(module, 0f);
+            float targetAnim = (module == selectedModule) ? 1f : 0f;
+
+            float diff = targetAnim - currentAnim;
+            if (Math.abs(diff) < 0.001f) {
+                selectedIconAnimations.put(module, targetAnim);
+            } else {
+                selectedIconAnimations.put(module, currentAnim + diff * ICON_ANIM_SPEED * deltaTime);
+            }
+        }
+    }
+
+    private void updateStateAnimations() {
+        long currentTime = System.currentTimeMillis();
+        float deltaTime = Math.min((currentTime - lastStateUpdateTime) / 1000f, 0.1f);
+        lastStateUpdateTime = currentTime;
+
+        for (ModuleStructure module : displayModules) {
+            float currentAnim = stateAnimations.getOrDefault(module, module.isState() ? 1f : 0f);
+            float targetAnim = module.isState() ? 1f : 0f;
+
+            float diff = targetAnim - currentAnim;
+            if (Math.abs(diff) < 0.001f) {
+                stateAnimations.put(module, targetAnim);
+            } else {
+                stateAnimations.put(module, currentAnim + diff * STATE_ANIM_SPEED * deltaTime);
+            }
+        }
+    }
+
+    private void updateHoverAnimations(float mouseX, float mouseY, float listX, float listY, float listWidth, float listHeight) {
+        long currentTime = System.currentTimeMillis();
+        float deltaTime = Math.min((currentTime - lastHoverUpdateTime) / 1000f, 0.1f);
+        lastHoverUpdateTime = currentTime;
+
+        selectedPulseAnimation += deltaTime * PULSE_SPEED;
+        if (selectedPulseAnimation > Math.PI * 2) {
+            selectedPulseAnimation -= (float) (Math.PI * 2);
+        }
+
+        float startY = listY + CORNER_INSET + 2f + (float) moduleDisplayScroll;
+
+        for (int i = 0; i < displayModules.size(); i++) {
+            ModuleStructure module = displayModules.get(i);
+            float modY = startY + i * (MODULE_ITEM_HEIGHT + 2);
+
+            boolean isHovered = !isCategoryTransitioning &&
+                    mouseX >= listX + 3 && mouseX <= listX + listWidth - 3 &&
+                    mouseY >= modY && mouseY <= modY + MODULE_ITEM_HEIGHT &&
+                    mouseY >= listY && mouseY <= listY + listHeight;
+
+            float currentHover = hoverAnimations.getOrDefault(module, 0f);
+            float targetHover = isHovered ? 1f : 0f;
+
+            float diff = targetHover - currentHover;
+            if (Math.abs(diff) < 0.001f) {
+                hoverAnimations.put(module, targetHover);
+            } else {
+                hoverAnimations.put(module, currentHover + diff * HOVER_ANIM_SPEED * deltaTime);
+            }
+        }
+    }
+
     private void updateCategoryTransition() {
         if (!isCategoryTransitioning) return;
 
@@ -152,7 +408,7 @@ public class ModuleComponent implements IMinecraft {
 
     private void updateModuleAnimations() {
         long currentTime = System.currentTimeMillis();
-        for (ModuleStructure mod : modules) {
+        for (ModuleStructure mod : displayModules) {
             Long startTime = moduleAnimStartTimes.get(mod);
             if (startTime == null) continue;
 
@@ -250,11 +506,12 @@ public class ModuleComponent implements IMinecraft {
 
     public void updateScrollFades(float delta, float scrollSpeed, float moduleListHeight, float settingsPanelHeight) {
         lastSettingsPanelHeight = settingsPanelHeight;
+        lastModuleListHeight = moduleListHeight;
 
         long currentTime = System.currentTimeMillis();
         float deltaTime = Math.min((currentTime - lastScrollUpdateTime) / 1000f, 0.1f);
 
-        float maxModuleScroll = Math.max(0, modules.size() * 24f - moduleListHeight + 10);
+        float maxModuleScroll = Math.max(0, displayModules.size() * 24f - moduleListHeight + 10);
         float maxSettingScroll = Math.max(0, calculateTotalSettingHeight() - settingsPanelHeight + 45);
 
         moduleScrollTopFade = updateFadeDelta(moduleScrollTopFade, moduleDisplayScroll < -0.5f, deltaTime);
@@ -290,8 +547,20 @@ public class ModuleComponent implements IMinecraft {
     }
 
     public void renderModuleList(DrawContext context, float x, float y, float width, float height, float mouseX, float mouseY, int guiScale, float alphaMultiplier) {
+        lastMouseX = mouseX;
+        lastMouseY = mouseY;
+        lastListX = x;
+        lastListY = y;
+        lastListWidth = width;
+        lastListHeight = height;
+
         updateCategoryTransition();
         updateModuleAnimations();
+        updateStateAnimations();
+        updateSelectedIconAnimations();
+        updateFavoriteAnimations();
+        updateHighlightAnimation();
+        updateHoverAnimations(mouseX, mouseY, x, y, width, height);
 
         int panelAlpha = (int) (15 * alphaMultiplier);
         int outlineAlpha = (int) (215 * alphaMultiplier);
@@ -299,14 +568,14 @@ public class ModuleComponent implements IMinecraft {
         Render2D.outline(x, y, width, height, 0.5f, new Color(55, 55, 55, outlineAlpha).getRGB(), MODULE_LIST_CORNER_RADIUS);
 
         float topInset = CORNER_INSET;
-        float bottomInset = CORNER_INSET + 2;
+        float bottomInset = CORNER_INSET;
         float sideInset = CORNER_INSET;
 
         Scissor.enable(
                 x + sideInset,
-                y + topInset,
+                y + topInset - 1.5f,
                 width - sideInset * 2,
-                height - topInset - bottomInset,
+                height - topInset - bottomInset + 3,
                 guiScale
         );
 
@@ -334,7 +603,7 @@ public class ModuleComponent implements IMinecraft {
             newScale = 1f;
         }
 
-        renderModuleItems(context, modules, moduleAnimations, x, y, width, height, mouseX, mouseY, newAlpha, newOffsetX, newScale, (float) moduleDisplayScroll, true, topInset, bottomInset);
+        renderModuleItems(context, displayModules, moduleAnimations, x, y, width, height, mouseX, mouseY, newAlpha, newOffsetX, newScale, (float) moduleDisplayScroll, true, topInset, bottomInset);
 
         Scissor.disable();
 
@@ -356,35 +625,79 @@ public class ModuleComponent implements IMinecraft {
             if (modY + MODULE_ITEM_HEIGHT < visibleTop || modY > visibleBottom) continue;
 
             float itemProgress = animations.getOrDefault(module, 1f);
-            float combinedAlpha = itemProgress * alphaMultiplier;
+            float posAnim = positionAnimations.getOrDefault(module, 1f);
+            float alphaAnim = moduleAlphaAnimations.getOrDefault(module, 1f);
+            float combinedAlpha = itemProgress * alphaMultiplier * alphaAnim;
 
             if (combinedAlpha <= 0.01f) continue;
 
             float itemAnimOffset = (1f - itemProgress) * 20f;
+            float posAnimOffset = (1f - easeOutCubic(posAnim)) * 15f;
 
             float scaledModY = centerY + (modY - centerY) * scale;
             float scaledHeight = MODULE_ITEM_HEIGHT * scale;
 
-            float animX = x + 3 + offsetX + itemAnimOffset;
+            float animX = x + 3 + offsetX + itemAnimOffset + posAnimOffset;
 
             boolean selected = interactive && module == selectedModule;
-            boolean hovered = interactive && mouseX >= x + 3 && mouseX <= x + width - 3 && mouseY >= modY && mouseY <= modY + MODULE_ITEM_HEIGHT;
+            boolean isHighlighted = interactive && module == highlightedModule && highlightAnimation > 0.01f;
+            float hoverAnim = interactive ? hoverAnimations.getOrDefault(module, 0f) : 0f;
+            float stateAnim = interactive ? stateAnimations.getOrDefault(module, module.isState() ? 1f : 0f) : (module.isState() ? 1f : 0f);
+            float selectedIconAnim = interactive ? selectedIconAnimations.getOrDefault(module, 0f) : 0f;
+            float favoriteAnim = interactive ? favoriteAnimations.getOrDefault(module, 0f) : 0f;
+            boolean hasSettings = modulesWithSettings.contains(module);
 
-            Color bg;
+            int baseBgAlpha = 25;
+            int hoverBgAlpha = 45;
+            int selectedBgAlpha = 55;
+
+            int bgAlpha;
+            int bgColor;
+
             if (selected) {
-                bg = new Color(100, 150, 200, (int) (60 * combinedAlpha));
-            } else if (hovered) {
-                bg = new Color(100, 100, 100, (int) (40 * combinedAlpha));
+                bgAlpha = (int) ((selectedBgAlpha + hoverAnim * 10) * combinedAlpha);
+                bgColor = new Color(71, 71, 71, bgAlpha).getRGB();
             } else {
-                bg = new Color(64, 64, 64, (int) (25 * combinedAlpha));
+                bgAlpha = (int) ((baseBgAlpha + (hoverBgAlpha - baseBgAlpha) * hoverAnim) * combinedAlpha);
+                int gray = (int) (64 + 36 * hoverAnim);
+                bgColor = new Color(gray, gray, gray, bgAlpha).getRGB();
             }
 
             float scaledWidth = (width - 6) * scale;
 
-            Render2D.rect(animX, scaledModY, scaledWidth, scaledHeight, bg.getRGB(), 5);
+            Render2D.rect(animX, scaledModY, scaledWidth, scaledHeight, bgColor, 5);
 
             if (selected) {
-                Render2D.outline(animX, scaledModY, scaledWidth, scaledHeight, 0.5f, new Color(100, 150, 200, (int) (100 * combinedAlpha)).getRGB(), 5);
+                float pulseValue = (float) (Math.sin(selectedPulseAnimation) * 0.5 + 0.5);
+
+                float highlightBoost = isHighlighted ? highlightAnimation * 0.5f : 0f;
+
+                int baseOutlineAlpha = (int) (80 + 80 * highlightBoost);
+                int pulseOutlineAlpha = (int) (40 + 40 * highlightBoost);
+                int outlineAlpha = (int) ((baseOutlineAlpha + pulseOutlineAlpha * pulseValue) * combinedAlpha);
+
+                int baseColorValue = (int) (80 + 50 * highlightBoost);
+                int outlineColorValue = (int) (baseColorValue + 30 * pulseValue);
+                int outlineG = (int) (80 + 20 * pulseValue + 40 * highlightBoost);
+                int outlineB = (int) (80 + 20 * pulseValue + 40 * highlightBoost);
+
+                Render2D.outline(animX, scaledModY, scaledWidth, scaledHeight, 0.5f,
+                        new Color(Math.min(255, outlineColorValue), Math.min(255, outlineG), Math.min(255, outlineB), outlineAlpha).getRGB(), 5);
+            } else if (hoverAnim > 0.01f) {
+                int outlineAlpha = (int) (60 * hoverAnim * combinedAlpha);
+                Render2D.outline(animX, scaledModY, scaledWidth, scaledHeight, 0.5f,
+                        new Color(120, 120, 120, outlineAlpha).getRGB(), 5);
+            }
+
+            float stateTextOffset = stateAnim * STATE_TEXT_OFFSET;
+
+            if (stateAnim > 0.01f) {
+                float ballAlpha = stateAnim * 200 * combinedAlpha;
+                float ballX = animX + 4;
+                float ballY = scaledModY + (scaledHeight - STATE_BALL_SIZE * scale) / 2f;
+                Render2D.rect(ballX, ballY, STATE_BALL_SIZE * scale, STATE_BALL_SIZE * scale,
+                        new Color(255, 255, 255, (int) ballAlpha).getRGB(),
+                        STATE_BALL_SIZE * scale / 2f);
             }
 
             String name = module.getName();
@@ -395,15 +708,57 @@ public class ModuleComponent implements IMinecraft {
                 name += " [" + (key != null ? key.toUpperCase() : "KEY" + module.getKey()) + "]";
             }
 
-            Color textColor;
-            if (module.isState()) {
-                textColor = new Color(255, 255, 255, (int) (255 * combinedAlpha));
-            } else {
-                textColor = new Color(128, 128, 128, (int) (180 * combinedAlpha));
+            int baseGray = 128;
+            int targetWhite = 255;
+            int textBrightness = (int) (baseGray + (targetWhite - baseGray) * stateAnim);
+            int textAlphaValue = (int) ((180 + 75 * stateAnim) * combinedAlpha);
+
+            if (hoverAnim > 0.01f && stateAnim < 0.99f) {
+                textBrightness = (int) (textBrightness + (40 * hoverAnim * (1 - stateAnim)));
+                textAlphaValue = (int) (textAlphaValue + (40 * hoverAnim * (1 - stateAnim)));
             }
 
+            if (isHighlighted) {
+                textBrightness = (int) Math.min(255, textBrightness + 30 * highlightAnimation);
+            }
+
+            Color textColor = new Color(textBrightness, textBrightness, textBrightness, Math.min(255, textAlphaValue));
+
+            float textX = animX + 5 + stateTextOffset;
             float textY = scaledModY + (scaledHeight - 6f * scale) / 2f;
-            Fonts.BOLD.draw(name, animX + 5, textY, 6 * scale, textColor.getRGB());
+            Fonts.BOLD.draw(name, textX, textY, 6 * scale, textColor.getRGB());
+
+            if (interactive) {
+                float iconBaseX = animX + scaledWidth - 14;
+                float iconY = scaledModY + (scaledHeight - 8f * scale) / 2f;
+
+                float starX;
+                if (hasSettings) {
+                    starX = iconBaseX - 12;
+                } else {
+                    starX = iconBaseX;
+                }
+
+                int starGray = 100;
+                int starR = (int) (starGray + (255 - starGray) * favoriteAnim);
+                int starG = (int) (starGray + (215 - starGray) * favoriteAnim);
+                int starB = (int) (starGray + (0 - starGray) * favoriteAnim);
+                float starAlpha = (80 + 120 * favoriteAnim + 55 * hoverAnim) * combinedAlpha;
+
+                Fonts.GUI_ICONS.draw("D", starX, iconY + 1, 8 * scale, new Color(starR, starG, starB, (int) starAlpha).getRGB());
+
+                if (hasSettings) {
+                    if (selectedIconAnim > 0.01f) {
+                        float gearAlpha = (150 + 50 * (isHighlighted ? highlightAnimation : 0f)) * selectedIconAnim * combinedAlpha;
+                        Fonts.GUI_ICONS.draw("B", iconBaseX, iconY + 1, 8 * scale, new Color(200, 200, 200, (int) gearAlpha).getRGB());
+                    }
+
+                    if (selectedIconAnim < 0.99f) {
+                        float dotsAlpha = 120 * (1f - selectedIconAnim) * combinedAlpha;
+                        Fonts.BOLD.draw("...", iconBaseX + 1f, iconY - 1f, 7 * scale, new Color(150, 150, 150, (int) dotsAlpha).getRGB());
+                    }
+                }
+            }
         }
     }
 
@@ -431,7 +786,7 @@ public class ModuleComponent implements IMinecraft {
         Fonts.BOLD.draw(selectedModule.getName(), x + 8, y + 8, 7, new Color(255, 255, 255, (int) (200 * alphaMultiplier)).getRGB());
         String desc = selectedModule.getDescription();
         if (desc != null && !desc.isEmpty()) {
-            Fonts.BOLD.draw(desc.length() > 52   ? desc.substring(0, 55) + "..." : desc, x + 15, y + 20, 5, new Color(128, 128, 128, (int) (150 * alphaMultiplier)).getRGB());
+            Fonts.BOLD.draw(desc.length() > 52 ? desc.substring(0, 55) + "..." : desc, x + 15, y + 20, 5, new Color(128, 128, 128, (int) (150 * alphaMultiplier)).getRGB());
             Fonts.GUI_ICONS.draw("C", x + 8, y + 20, 6, new Color(128, 128, 128, (int) (150 * alphaMultiplier)).getRGB());
         }
         Render2D.rect(x + 8, y + 30, width - 16, 1.25f, new Color(64, 64, 64, (int) (64 * alphaMultiplier)).getRGB(), 10);
@@ -518,7 +873,7 @@ public class ModuleComponent implements IMinecraft {
         }
 
         if (!hasVisibleSettings) {
-            String text = "No settings";
+            String text = "This module doesn't have settings";
             float textSize = 6f;
             float textWidth = Fonts.BOLD.getWidth(text, textSize);
             float textHeight = Fonts.BOLD.getHeight(textSize);
@@ -550,10 +905,66 @@ public class ModuleComponent implements IMinecraft {
         if (mouseX < listX || mouseX > listX + listWidth || mouseY < listY || mouseY > listY + listHeight) return null;
 
         float startY = listY + CORNER_INSET + 2f + (float) moduleDisplayScroll;
-        for (int i = 0; i < modules.size(); i++) {
+        for (int i = 0; i < displayModules.size(); i++) {
             float modY = startY + i * (MODULE_ITEM_HEIGHT + 2);
             if (mouseX >= listX + 3 && mouseX <= listX + listWidth - 3 && mouseY >= modY && mouseY <= modY + MODULE_ITEM_HEIGHT) {
-                return modules.get(i);
+                return displayModules.get(i);
+            }
+        }
+        return null;
+    }
+
+    public boolean isStarClicked(double mouseX, double mouseY, float listX, float listY, float listWidth, float listHeight) {
+        if (isCategoryTransitioning) return false;
+
+        float startY = listY + CORNER_INSET + 2f + (float) moduleDisplayScroll;
+        for (int i = 0; i < displayModules.size(); i++) {
+            ModuleStructure module = displayModules.get(i);
+            float modY = startY + i * (MODULE_ITEM_HEIGHT + 2);
+
+            if (mouseY >= modY && mouseY <= modY + MODULE_ITEM_HEIGHT) {
+                float scaledWidth = listWidth - 6;
+                float animX = listX + 3;
+                boolean hasSettings = modulesWithSettings.contains(module);
+
+                float starX;
+                if (hasSettings) {
+                    starX = animX + scaledWidth - 14 - 12;
+                } else {
+                    starX = animX + scaledWidth - 14;
+                }
+
+                if (mouseX >= starX && mouseX <= starX + 10) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    public ModuleStructure getModuleForStarClick(double mouseX, double mouseY, float listX, float listY, float listWidth, float listHeight) {
+        if (isCategoryTransitioning) return null;
+
+        float startY = listY + CORNER_INSET + 2f + (float) moduleDisplayScroll;
+        for (int i = 0; i < displayModules.size(); i++) {
+            ModuleStructure module = displayModules.get(i);
+            float modY = startY + i * (MODULE_ITEM_HEIGHT + 2);
+
+            if (mouseY >= modY && mouseY <= modY + MODULE_ITEM_HEIGHT) {
+                float scaledWidth = listWidth - 6;
+                float animX = listX + 3;
+                boolean hasSettings = modulesWithSettings.contains(module);
+
+                float starX;
+                if (hasSettings) {
+                    starX = animX + scaledWidth - 14 - 12;
+                } else {
+                    starX = animX + scaledWidth - 14;
+                }
+
+                if (mouseX >= starX && mouseX <= starX + 10) {
+                    return module;
+                }
             }
         }
         return null;
@@ -562,7 +973,7 @@ public class ModuleComponent implements IMinecraft {
     public void handleModuleScroll(double vertical, float listHeight) {
         if (isCategoryTransitioning) return;
         float effectiveHeight = listHeight - CORNER_INSET * 2 - 2;
-        float maxScroll = Math.max(0, modules.size() * 24f - effectiveHeight + 10);
+        float maxScroll = Math.max(0, displayModules.size() * 24f - effectiveHeight + 10);
         moduleTargetScroll = Math.max(-maxScroll, Math.min(0, moduleTargetScroll + vertical * 25));
     }
 
