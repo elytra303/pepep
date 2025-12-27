@@ -76,10 +76,10 @@ public class TestModuleStructure extends ModuleStructure {
             textInput,
             textShort,
             bindKey,
+                advancedSlider,
             buttonAction,
             buttonReset,
             advancedMode,
-            advancedSlider,
             advancedColor
         );
     }

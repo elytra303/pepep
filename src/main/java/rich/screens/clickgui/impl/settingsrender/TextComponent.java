@@ -73,7 +73,10 @@ public class TextComponent extends AbstractSettingComponent {
             cursorBlinkAnimation = 0f;
         }
 
-        Fonts.BOLD.draw(textSetting.getName(), x + 0.5f, y + height / 2 - 7.5f, 6, applyAlpha(new Color(210, 210, 220, 200)).getRGB());
+        int iconAlpha = (int)(200 * alphaMultiplier);
+        Fonts.GUI_ICONS.draw("S", x + 0.5f, y + height / 2 - 10.25f, 11, new Color(210, 210, 220, iconAlpha).getRGB());
+
+        Fonts.BOLD.draw(textSetting.getName(), x + 9.5f, y + height / 2 - 7.5f, 6, applyAlpha(new Color(210, 210, 220, 200)).getRGB());
 
         String description = textSetting.getDescription();
         if (description != null && !description.isEmpty()) {

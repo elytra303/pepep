@@ -29,7 +29,11 @@ public class ColorComponent extends AbstractSettingComponent {
     private boolean hexInputActive = false;
     private String hexInputText = "";
     private int hexCursorPosition = 0;
+    private int hexSelectionStart = -1;
+    private int hexSelectionEnd = -1;
     private float hexInputAnimation = 0f;
+    private float hexSelectionAnimation = 0f;
+    private float hexCursorBlinkAnimation = 0f;
 
     private float displayHue;
     private float displaySaturation;
@@ -40,9 +44,9 @@ public class ColorComponent extends AbstractSettingComponent {
     private long lastUpdateTime = System.currentTimeMillis();
 
     private static final float ANIMATION_SPEED = 8f;
-    private static final float FAST_ANIMATION_SPEED = 12f;
+    private static final float FAST_ANIMATION_SPEED = 15f;
     private static final float COLOR_TRANSITION_SPEED = 6f;
-    private static final float CONTENT_FADE_SPEED = 10f;
+    private static final float CONTENT_FADE_SPEED = 15f;
     private static final float PALETTE_SIZE = 70f;
     private static final float SLIDER_WIDTH = 8f;
     private static final float SPACING = 4f;
@@ -87,7 +91,6 @@ public class ColorComponent extends AbstractSettingComponent {
         if (Math.abs(diff) < 0.001f) {
             return target;
         }
-
         float result = current + diff * Math.min(speed, 1f);
 
         if (result < 0f) result += 1f;
@@ -149,6 +152,114 @@ public class ColorComponent extends AbstractSettingComponent {
         return (newAlpha << 24) | (r << 16) | (g << 8) | b;
     }
 
+    private boolean isControlDown() {
+        long window = mc.getWindow().getHandle();
+        return GLFW.glfwGetKey(window, GLFW.GLFW_KEY_LEFT_CONTROL) == GLFW.GLFW_PRESS ||
+                GLFW.glfwGetKey(window, GLFW.GLFW_KEY_RIGHT_CONTROL) == GLFW.GLFW_PRESS;
+    }
+
+    private boolean isShiftDown() {
+        long window = mc.getWindow().getHandle();
+        return GLFW.glfwGetKey(window, GLFW.GLFW_KEY_LEFT_SHIFT) == GLFW.GLFW_PRESS ||
+                GLFW.glfwGetKey(window, GLFW.GLFW_KEY_RIGHT_SHIFT) == GLFW.GLFW_PRESS;
+    }
+
+    private boolean hasHexSelection() {
+        return hexSelectionStart != -1 && hexSelectionEnd != -1 && hexSelectionStart != hexSelectionEnd;
+    }
+
+    private int getHexSelectionStart() {
+        return Math.min(hexSelectionStart, hexSelectionEnd);
+    }
+
+    private int getHexSelectionEnd() {
+        return Math.max(hexSelectionStart, hexSelectionEnd);
+    }
+
+    private String getHexSelectedText() {
+        if (!hasHexSelection()) return "";
+        return hexInputText.substring(getHexSelectionStart(), getHexSelectionEnd());
+    }
+
+    private void clearHexSelection() {
+        hexSelectionStart = -1;
+        hexSelectionEnd = -1;
+    }
+
+    private void selectAllHexText() {
+        hexSelectionStart = 0;
+        hexSelectionEnd = hexInputText.length();
+        hexCursorPosition = hexInputText.length();
+    }
+
+    private void deleteHexSelectedText() {
+        if (hasHexSelection()) {
+            int start = getHexSelectionStart();
+            int end = getHexSelectionEnd();
+            hexInputText = hexInputText.substring(0, start) + hexInputText.substring(end);
+            hexCursorPosition = start;
+            clearHexSelection();
+        }
+    }
+
+    private void pasteHexFromClipboard() {
+        String clipboardText = GLFW.glfwGetClipboardString(mc.getWindow().getHandle());
+        if (clipboardText != null && !clipboardText.isEmpty()) {
+            clipboardText = clipboardText.replace("#", "").replaceAll("[^0-9A-Fa-f]", "").toUpperCase();
+
+            if (hasHexSelection()) {
+                deleteHexSelectedText();
+            }
+
+            int remainingSpace = 8 - hexInputText.length();
+            if (clipboardText.length() > remainingSpace) {
+                clipboardText = clipboardText.substring(0, remainingSpace);
+            }
+
+            if (!clipboardText.isEmpty()) {
+                hexInputText = hexInputText.substring(0, hexCursorPosition) + clipboardText + hexInputText.substring(hexCursorPosition);
+                hexCursorPosition += clipboardText.length();
+            }
+        }
+    }
+
+    private void copyHexToClipboard() {
+        if (hasHexSelection()) {
+            GLFW.glfwSetClipboardString(mc.getWindow().getHandle(), "#" + getHexSelectedText());
+        } else if (!hexInputText.isEmpty()) {
+            GLFW.glfwSetClipboardString(mc.getWindow().getHandle(), "#" + hexInputText);
+        }
+    }
+
+    private void moveHexCursor(int direction) {
+        if (hasHexSelection() && !isShiftDown()) {
+            if (direction < 0) {
+                hexCursorPosition = getHexSelectionStart();
+            } else {
+                hexCursorPosition = getHexSelectionEnd();
+            }
+            clearHexSelection();
+        } else {
+            if (direction < 0 && hexCursorPosition > 0) {
+                hexCursorPosition--;
+            } else if (direction > 0 && hexCursorPosition < hexInputText.length()) {
+                hexCursorPosition++;
+            }
+            updateHexSelectionAfterCursorMove();
+        }
+    }
+
+    private void updateHexSelectionAfterCursorMove() {
+        if (isShiftDown()) {
+            if (hexSelectionStart == -1) {
+                hexSelectionStart = hexSelectionEnd != -1 ? hexSelectionEnd : hexCursorPosition;
+            }
+            hexSelectionEnd = hexCursorPosition;
+        } else {
+            clearHexSelection();
+        }
+    }
+
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         float deltaTime = getDeltaTime();
@@ -172,6 +283,14 @@ public class ColorComponent extends AbstractSettingComponent {
         previewHoverAnimation = lerp(previewHoverAnimation, previewHovered ? 1f : 0f, deltaTime * ANIMATION_SPEED);
         expandAnimation = lerp(expandAnimation, expanded ? 1f : 0f, deltaTime * ANIMATION_SPEED);
         hexInputAnimation = lerp(hexInputAnimation, hexInputActive ? 1f : 0f, deltaTime * FAST_ANIMATION_SPEED);
+        hexSelectionAnimation = lerp(hexSelectionAnimation, hasHexSelection() ? 1f : 0f, deltaTime * ANIMATION_SPEED);
+
+        if (hexInputActive) {
+            hexCursorBlinkAnimation += deltaTime * 2f;
+            if (hexCursorBlinkAnimation > 1f) hexCursorBlinkAnimation -= 1f;
+        } else {
+            hexCursorBlinkAnimation = 0f;
+        }
 
         float contentAlphaTarget = expanded ? 1f : 0f;
         float contentAlphaSpeed = expanded ? CONTENT_FADE_SPEED : CONTENT_FADE_SPEED * 1.5f;
@@ -181,11 +300,14 @@ public class ColorComponent extends AbstractSettingComponent {
         hueHandleAnimation = lerp(hueHandleAnimation, draggingHue ? 1f : 0f, deltaTime * FAST_ANIMATION_SPEED);
         alphaHandleAnimation = lerp(alphaHandleAnimation, draggingAlpha ? 1f : 0f, deltaTime * FAST_ANIMATION_SPEED);
 
-        Fonts.BOLD.draw(colorSetting.getName(), x + 0.5f, y + height / 2 - 7.5f, 6, applyAlpha(new Color(210, 210, 220, 200)).getRGB());
+        int iconAlpha = (int)(200 * alphaMultiplier);
+        Fonts.GUI_ICONS.draw("R", x + 0.5f, y + height / 2 - 11.5f, 16, new Color(210, 210, 210, iconAlpha).getRGB());
+
+        Fonts.BOLD.draw(colorSetting.getName(), x + 11.5f, y + height / 2 - 6.5f, 6, applyAlpha(new Color(210, 210, 220, 200)).getRGB());
 
         String description = colorSetting.getDescription();
         if (description != null && !description.isEmpty()) {
-            Fonts.BOLD.draw(description, x + 0.5f, y + height / 2 + 0.5f, 5, applyAlpha(new Color(128, 128, 128, 128)).getRGB());
+            Fonts.BOLD.draw(description, x + 8.5f, y + height / 2 + 0.5f, 5, applyAlpha(new Color(128, 128, 128, 128)).getRGB());
         }
 
         renderColorPreview(mouseX, mouseY);
@@ -218,9 +340,6 @@ public class ColorComponent extends AbstractSettingComponent {
 
         float totalExpandedHeight = PALETTE_SIZE + SPACING + 18 + SPACING;
         float visibleHeight = totalExpandedHeight * expandAnimation;
-
-        int bgAlpha = clamp((int)(220 * expandAnimation * contentAlpha * alphaMultiplier));
-        Render2D.rect(pickerX, pickerY, pickerWidth, visibleHeight + 2, new Color(25, 25, 25, bgAlpha).getRGB(), 4f);
 
         int outlineAlpha = clamp((int)(60 * expandAnimation * contentAlpha * alphaMultiplier));
         Render2D.outline(pickerX, pickerY, pickerWidth, visibleHeight + 2, 0.5f,
@@ -257,7 +376,7 @@ public class ColorComponent extends AbstractSettingComponent {
                 applyContentAlpha(pure).getRGB(),
                 applyContentAlpha(Color.WHITE).getRGB()
         };
-        Render2D.gradientRect(paletteX, paletteY, paletteWidth, paletteHeight, gradientColors, 4f);
+        Render2D.gradientRect(paletteX, paletteY, paletteWidth, paletteHeight - 0.5f, gradientColors, 5f);
 
         int[] blackGradient = {
                 new Color(0, 0, 0, 0).getRGB(),
@@ -301,11 +420,11 @@ public class ColorComponent extends AbstractSettingComponent {
         for (int i = 1; i < 5; i++) {
             float segY = sliderY + i * segmentHeight;
             int[] colors = { applyContentAlpha(new Color(hueColors[i])).getRGB(), applyContentAlpha(new Color(hueColors[i])).getRGB(), applyContentAlpha(new Color(hueColors[i + 1])).getRGB(), applyContentAlpha(new Color(hueColors[i + 1])).getRGB() };
-            Render2D.gradientRect(sliderX, segY, sliderWidth, segmentHeight + 0.5f, colors, 0f);
+            Render2D.gradientRect(sliderX, segY - 0.5f, sliderWidth, segmentHeight + 0.5f, colors, 0f);
         }
 
         int[] colorsBottom = { applyContentAlpha(new Color(hueColors[5])).getRGB(), applyContentAlpha(new Color(hueColors[5])).getRGB(), applyContentAlpha(new Color(hueColors[6])).getRGB(), applyContentAlpha(new Color(hueColors[6])).getRGB() };
-        Render2D.gradientRect(sliderX, sliderY + 5 * segmentHeight, sliderWidth, segmentHeight, colorsBottom, 0f, 0f, 2f, 2f);
+        Render2D.gradientRect(sliderX, sliderY + 5 * segmentHeight - 0.5f, sliderWidth, segmentHeight, colorsBottom, 0f, 0f, 2f, 2f);
 
         int hueOutlineAlpha = clamp((int)(80 * expandAnimation * contentAlpha * alphaMultiplier));
         Render2D.outline(sliderX, sliderY, sliderWidth, sliderHeight, 0.5f,
@@ -374,25 +493,46 @@ public class ColorComponent extends AbstractSettingComponent {
                 : new Color(80, 80, 85, hexOutlineAlpha);
         Render2D.outline(inputX, inputY, inputWidth, inputHeight, 0.5f, outlineColor.getRGB(), 3f);
 
+        int iconAlpha = clamp((int)(200 * expandAnimation * contentAlpha * alphaMultiplier));
+        Fonts.GUI_ICONS.draw("V", inputX + 4, inputY + inputHeight / 2 - 7.5f, 12, new Color(210, 210, 210, iconAlpha).getRGB());
+
         String label = "HEX: ";
+        float iconOffset = 10f;
         float labelWidth = Fonts.BOLD.getWidth(label, 5);
         int labelAlpha = clamp((int)(150 * expandAnimation * contentAlpha * alphaMultiplier));
-        Fonts.BOLD.draw(label, inputX + 4, inputY + inputHeight / 2 - 2.5f, 5,
+        Fonts.BOLD.draw(label, inputX + 4 + iconOffset, inputY + inputHeight / 2 - 2.5f, 5,
                 new Color(140, 140, 150, labelAlpha).getRGB());
 
         String displayText = hexInputActive ? hexInputText : getDisplayHexString();
+        float textStartX = inputX + 4 + iconOffset + labelWidth;
+        float textY = inputY + inputHeight / 2 - 2.5f;
+
+        if (hexInputActive && hasHexSelection() && hexSelectionAnimation > 0.01f) {
+            int start = getHexSelectionStart();
+            int end = getHexSelectionEnd();
+            String beforeSelection = "#" + hexInputText.substring(0, start);
+            String selection = hexInputText.substring(start, end);
+
+            float selectionX = textStartX + Fonts.BOLD.getWidth(beforeSelection, 5);
+            float selectionWidth = Fonts.BOLD.getWidth(selection, 5);
+
+            int selAlpha = clamp((int)(100 * hexSelectionAnimation * expandAnimation * contentAlpha * alphaMultiplier));
+            Render2D.rect(selectionX, inputY + 3, selectionWidth, inputHeight - 6,
+                    new Color(100, 140, 180, selAlpha).getRGB(), 2f);
+        }
+
         int textAlpha = clamp((int)((180 + hexInputAnimation * 40) * expandAnimation * contentAlpha * alphaMultiplier));
-        Fonts.BOLD.draw("#" + displayText, inputX + 4 + labelWidth, inputY + inputHeight / 2 - 2.5f, 5,
+        Fonts.BOLD.draw("#" + displayText, textStartX, textY, 5,
                 new Color(210, 210, 220, textAlpha).getRGB());
 
-        if (hexInputActive) {
-            long currentTime = System.currentTimeMillis();
-            if ((currentTime % 1000) < 500) {
-                String beforeCursor = hexInputText.substring(0, hexCursorPosition);
-                float cursorX = inputX + 4 + labelWidth + Fonts.BOLD.getWidth("#" + beforeCursor, 5);
-                int cursorAlpha = clamp((int)(255 * hexInputAnimation * expandAnimation * contentAlpha * alphaMultiplier));
+        if (hexInputActive && !hasHexSelection()) {
+            float cursorAlpha = (float)(Math.sin(hexCursorBlinkAnimation * Math.PI * 2) * 0.5 + 0.5);
+            if (cursorAlpha > 0.3f) {
+                String beforeCursor = "#" + hexInputText.substring(0, hexCursorPosition);
+                float cursorX = textStartX + Fonts.BOLD.getWidth(beforeCursor, 5);
+                int cursorAlphaInt = clamp((int)(255 * cursorAlpha * hexInputAnimation * expandAnimation * contentAlpha * alphaMultiplier));
                 Render2D.rect(cursorX, inputY + 3, 0.5f, inputHeight - 6,
-                        new Color(180, 180, 185, cursorAlpha).getRGB(), 0f);
+                        new Color(180, 180, 185, cursorAlphaInt).getRGB(), 0f);
             }
         }
 
@@ -478,6 +618,7 @@ public class ColorComponent extends AbstractSettingComponent {
                     draggingPalette = false;
                     draggingHue = false;
                     draggingAlpha = false;
+                    clearHexSelection();
                 }
                 return true;
             }
@@ -487,6 +628,7 @@ public class ColorComponent extends AbstractSettingComponent {
                     draggingPalette = true;
                     updatePalette(mouseX, mouseY);
                     hexInputActive = false;
+                    clearHexSelection();
                     return true;
                 }
 
@@ -494,6 +636,7 @@ public class ColorComponent extends AbstractSettingComponent {
                     draggingHue = true;
                     updateHue(mouseY);
                     hexInputActive = false;
+                    clearHexSelection();
                     return true;
                 }
 
@@ -501,6 +644,7 @@ public class ColorComponent extends AbstractSettingComponent {
                     draggingAlpha = true;
                     updateAlpha(mouseY);
                     hexInputActive = false;
+                    clearHexSelection();
                     return true;
                 }
 
@@ -508,10 +652,13 @@ public class ColorComponent extends AbstractSettingComponent {
                     hexInputActive = true;
                     hexInputText = getHexString();
                     hexCursorPosition = hexInputText.length();
+                    hexSelectionStart = 0;
+                    hexSelectionEnd = hexInputText.length();
                     return true;
                 } else if (hexInputActive) {
                     applyHexInput();
                     hexInputActive = false;
+                    clearHexSelection();
                 }
             }
         }
@@ -556,57 +703,76 @@ public class ColorComponent extends AbstractSettingComponent {
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
         if (!hexInputActive) return false;
 
+        if (isControlDown()) {
+            switch (keyCode) {
+                case GLFW.GLFW_KEY_A -> {
+                    selectAllHexText();
+                    return true;
+                }
+                case GLFW.GLFW_KEY_V -> {
+                    pasteHexFromClipboard();
+                    return true;
+                }
+                case GLFW.GLFW_KEY_C -> {
+                    copyHexToClipboard();
+                    return true;
+                }
+                case GLFW.GLFW_KEY_X -> {
+                    if (hasHexSelection()) {
+                        copyHexToClipboard();
+                        deleteHexSelectedText();
+                    }
+                    return true;
+                }
+            }
+        }
+
         switch (keyCode) {
             case GLFW.GLFW_KEY_ENTER, GLFW.GLFW_KEY_KP_ENTER -> {
                 applyHexInput();
                 hexInputActive = false;
+                clearHexSelection();
                 return true;
             }
             case GLFW.GLFW_KEY_ESCAPE -> {
                 hexInputActive = false;
+                clearHexSelection();
                 return true;
             }
             case GLFW.GLFW_KEY_BACKSPACE -> {
-                if (hexCursorPosition > 0) {
+                if (hasHexSelection()) {
+                    deleteHexSelectedText();
+                } else if (hexCursorPosition > 0) {
                     hexInputText = hexInputText.substring(0, hexCursorPosition - 1) + hexInputText.substring(hexCursorPosition);
                     hexCursorPosition--;
                 }
                 return true;
             }
             case GLFW.GLFW_KEY_DELETE -> {
-                if (hexCursorPosition < hexInputText.length()) {
+                if (hasHexSelection()) {
+                    deleteHexSelectedText();
+                } else if (hexCursorPosition < hexInputText.length()) {
                     hexInputText = hexInputText.substring(0, hexCursorPosition) + hexInputText.substring(hexCursorPosition + 1);
                 }
                 return true;
             }
             case GLFW.GLFW_KEY_LEFT -> {
-                if (hexCursorPosition > 0) hexCursorPosition--;
+                moveHexCursor(-1);
                 return true;
             }
             case GLFW.GLFW_KEY_RIGHT -> {
-                if (hexCursorPosition < hexInputText.length()) hexCursorPosition++;
+                moveHexCursor(1);
                 return true;
             }
             case GLFW.GLFW_KEY_HOME -> {
                 hexCursorPosition = 0;
+                updateHexSelectionAfterCursorMove();
                 return true;
             }
             case GLFW.GLFW_KEY_END -> {
                 hexCursorPosition = hexInputText.length();
+                updateHexSelectionAfterCursorMove();
                 return true;
-            }
-            case GLFW.GLFW_KEY_V -> {
-                if ((modifiers & GLFW.GLFW_MOD_CONTROL) != 0) {
-                    String clipboard = GLFW.glfwGetClipboardString(mc.getWindow().getHandle());
-                    if (clipboard != null) {
-                        clipboard = clipboard.replaceAll("[^0-9A-Fa-f]", "");
-                        if (hexInputText.length() + clipboard.length() <= 8) {
-                            hexInputText = hexInputText.substring(0, hexCursorPosition) + clipboard + hexInputText.substring(hexCursorPosition);
-                            hexCursorPosition += clipboard.length();
-                        }
-                    }
-                    return true;
-                }
             }
         }
 
@@ -617,9 +783,14 @@ public class ColorComponent extends AbstractSettingComponent {
     public boolean charTyped(char chr, int modifiers) {
         if (!hexInputActive) return false;
 
-        if (isHexChar(chr) && hexInputText.length() < 8) {
-            hexInputText = hexInputText.substring(0, hexCursorPosition) + Character.toUpperCase(chr) + hexInputText.substring(hexCursorPosition);
-            hexCursorPosition++;
+        if (isHexChar(chr)) {
+            if (hasHexSelection()) {
+                deleteHexSelectedText();
+            }
+            if (hexInputText.length() < 8) {
+                hexInputText = hexInputText.substring(0, hexCursorPosition) + Character.toUpperCase(chr) + hexInputText.substring(hexCursorPosition);
+                hexCursorPosition++;
+            }
             return true;
         }
 

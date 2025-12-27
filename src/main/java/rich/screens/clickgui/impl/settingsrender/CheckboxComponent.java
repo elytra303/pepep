@@ -49,7 +49,10 @@ public class CheckboxComponent extends AbstractSettingComponent {
         stretchAnimation += (targetStretch - stretchAnimation) * stretchSpeed;
         stretchAnimation = clamp(stretchAnimation, 0f, 1f);
 
-        Fonts.BOLD.draw(booleanSetting.getName(), x + 0.5f, y + height / 2 - 7.5f, 6, applyAlpha(new Color(210, 210, 220, 200)).getRGB());
+        int iconAlpha = (int)(200 * alphaMultiplier);
+        Fonts.GUI_ICONS.draw("T", x + 0.5f, y + height / 2 - 11f, 11, new Color(210, 210, 210, iconAlpha).getRGB());
+
+        Fonts.BOLD.draw(booleanSetting.getName(), x + 9.5f, y + height / 2 - 7.5f, 6, applyAlpha(new Color(210, 210, 220, 200)).getRGB());
         Fonts.BOLD.draw(booleanSetting.getDescription(), x + 0.5f, y + height / 2 + 0.5f, 5, applyAlpha(new Color(128, 128, 128, 128)).getRGB());
 
         float checkboxSize = 10;

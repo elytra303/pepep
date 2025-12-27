@@ -22,8 +22,18 @@ public class SelectComponent extends AbstractSettingComponent {
     private boolean descScrollingRight = true;
     private long descScrollPauseTime = 0;
 
+    private float arrowRotation = 0f;
+
     private final Map<String, Float> optionHoverAnimations = new HashMap<>();
     private final Map<String, Float> selectAnimations = new HashMap<>();
+
+    private String previousSelected = "";
+    private float selectedTextAlpha = 1f;
+    private float selectedTextSlide = 1f;
+    private float newSelectedTextAlpha = 0f;
+    private float newSelectedTextSlide = 0f;
+    private String animatingFromText = "";
+    private boolean isAnimatingSelection = false;
 
     private long lastUpdateTime = System.currentTimeMillis();
 
@@ -34,10 +44,12 @@ public class SelectComponent extends AbstractSettingComponent {
     private static final long SCROLL_PAUSE_DURATION = 2000;
     private static final float SCROLL_PIXELS_PER_SECOND = 20f;
     private static final float DESC_PADDING = 8f;
+    private static final float SELECTION_ANIMATION_SPEED = 10f;
 
     public SelectComponent(SelectSetting setting) {
         super(setting);
         this.selectSetting = setting;
+        this.previousSelected = setting.getSelected();
         for (String option : setting.getList()) {
             optionHoverAnimations.put(option, 0f);
             selectAnimations.put(option, setting.isSelected(option) ? 1f : 0f);
@@ -59,9 +71,45 @@ public class SelectComponent extends AbstractSettingComponent {
         return current + diff * Math.min(speed, 1f);
     }
 
+    private void updateSelectionAnimation(float deltaTime) {
+        String currentSelected = selectSetting.getSelected();
+
+        if (!currentSelected.equals(previousSelected) && !isAnimatingSelection) {
+            animatingFromText = previousSelected;
+            isAnimatingSelection = true;
+            selectedTextAlpha = 1f;
+            selectedTextSlide = 1f;
+            newSelectedTextAlpha = 0f;
+            newSelectedTextSlide = 0f;
+        }
+
+        if (isAnimatingSelection) {
+            selectedTextAlpha = lerp(selectedTextAlpha, 0f, deltaTime * SELECTION_ANIMATION_SPEED);
+            selectedTextSlide = lerp(selectedTextSlide, 0f, deltaTime * SELECTION_ANIMATION_SPEED);
+
+            if (selectedTextAlpha < 0.5f) {
+                newSelectedTextAlpha = lerp(newSelectedTextAlpha, 1f, deltaTime * SELECTION_ANIMATION_SPEED);
+                newSelectedTextSlide = lerp(newSelectedTextSlide, 1f, deltaTime * SELECTION_ANIMATION_SPEED);
+            }
+
+            if (newSelectedTextAlpha > 0.99f && newSelectedTextSlide > 0.99f) {
+                isAnimatingSelection = false;
+                previousSelected = currentSelected;
+                selectedTextAlpha = 1f;
+                selectedTextSlide = 1f;
+                newSelectedTextAlpha = 1f;
+                newSelectedTextSlide = 1f;
+            }
+        } else {
+            previousSelected = currentSelected;
+        }
+    }
+
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         float deltaTime = getDeltaTime();
+
+        updateSelectionAnimation(deltaTime);
 
         boolean mainHovered = isMainHover(mouseX, mouseY);
         hoverAnimation = lerp(hoverAnimation, mainHovered ? 1f : 0f, deltaTime * ANIMATION_SPEED);
@@ -69,7 +117,12 @@ public class SelectComponent extends AbstractSettingComponent {
         float expandSpeed = expanded ? ANIMATION_SPEED : COLLAPSE_SPEED;
         expandAnimation = lerp(expandAnimation, expanded ? 1f : 0f, deltaTime * expandSpeed);
 
-        Fonts.BOLD.draw(selectSetting.getName(), x + 0.5f, y + height / 2 - 7.5f, 6, applyAlpha(new Color(210, 210, 220, 200)).getRGB());
+        float targetRotation = expanded ? 90f : 0f;
+        arrowRotation = lerp(arrowRotation, targetRotation, deltaTime * ANIMATION_SPEED);
+
+        Fonts.GUI_ICONS.draw("J", x - 0.5f, y + height / 2 - 8.5f, 9, applyAlpha(new Color(210, 210, 210, 200)).getRGB());
+
+        Fonts.BOLD.draw(selectSetting.getName(), x + 9.5f, y + height / 2 - 7.5f, 6, applyAlpha(new Color(210, 210, 220, 200)).getRGB());
 
         String description = selectSetting.getDescription();
         if (description != null && !description.isEmpty()) {
@@ -86,28 +139,73 @@ public class SelectComponent extends AbstractSettingComponent {
         int outlineAlpha = 60 + (int)(hoverAnimation * 40);
         Render2D.outline(boxX, boxY, BOX_WIDTH, boxHeight, 0.5f, applyAlpha(new Color(155, 155, 155, outlineAlpha)).getRGB(), 3f);
 
-        String selected = selectSetting.getSelected();
-        float maxTextWidth = BOX_WIDTH - 14;
+        renderAnimatedSelectedText(boxX, boxY, boxHeight);
 
-        String displaySelected = selected;
-        float selectedWidth = Fonts.BOLD.getWidth(selected, 5);
-        if (selectedWidth > maxTextWidth) {
-            while (Fonts.BOLD.getWidth(displaySelected + "..", 5) > maxTextWidth && displaySelected.length() > 1) {
-                displaySelected = displaySelected.substring(0, displaySelected.length() - 1);
-            }
-            displaySelected += "..";
-        }
-
-        Fonts.BOLD.draw(displaySelected, boxX + 4, boxY + boxHeight / 2 - 2.5f, 5, applyAlpha(new Color(160, 160, 165, 200)).getRGB());
-
-        String arrow = expanded ? "▲" : "▼";
-        float arrowSize = 4f;
-        int arrowAlpha = 120 + (int)(hoverAnimation * 60);
-        Fonts.BOLD.draw(arrow, boxX + BOX_WIDTH - 8, boxY + boxHeight / 2 - 2f, arrowSize, applyAlpha(new Color(180, 180, 185, arrowAlpha)).getRGB());
+        renderArrowIcon(boxX + BOX_WIDTH - 8, boxY + boxHeight / 2 - 4f);
 
         if (expandAnimation > 0.01f) {
             renderExpandedOptions(context, mouseX, mouseY, boxX, boxY + boxHeight + 2, deltaTime);
         }
+    }
+
+    private void renderArrowIcon(float iconX, float iconY) {
+        int arrowAlpha = 120 + (int)(hoverAnimation * 60);
+
+        float centerX = iconX + 4f;
+        float centerY = iconY + 4f;
+
+        float rad = (float) Math.toRadians(arrowRotation);
+        float cos = (float) Math.cos(rad);
+        float sin = (float) Math.sin(rad);
+
+        float offsetX = -4f;
+        float offsetY = -4f;
+
+        float rotatedX = centerX + (offsetX * cos - offsetY * sin);
+        float rotatedY = centerY + (offsetX * sin + offsetY * cos);
+
+        Fonts.GUI_ICONS.draw("W", rotatedX, rotatedY, 8, applyAlpha(new Color(180, 180, 185, arrowAlpha)).getRGB());
+    }
+
+    private void renderAnimatedSelectedText(float boxX, float boxY, float boxHeight) {
+        float maxTextWidth = BOX_WIDTH - 14;
+        float textY = boxY + boxHeight / 2 - 2.5f;
+
+        Scissor.enable(boxX + 2, boxY, maxTextWidth + 2, boxHeight);
+
+        if (isAnimatingSelection) {
+            if (selectedTextAlpha > 0.01f) {
+                String displayOld = truncateText(animatingFromText, maxTextWidth);
+                float slideOffset = (1f - selectedTextSlide) * -15f;
+                int alpha = (int)(200 * selectedTextAlpha * alphaMultiplier);
+                Fonts.BOLD.draw(displayOld, boxX + 4 + slideOffset, textY, 5, new Color(160, 160, 165, alpha).getRGB());
+            }
+
+            if (newSelectedTextAlpha > 0.01f) {
+                String selected = selectSetting.getSelected();
+                String displayNew = truncateText(selected, maxTextWidth);
+                float slideOffset = (1f - newSelectedTextSlide) * 20f;
+                int alpha = (int)(200 * newSelectedTextAlpha * alphaMultiplier);
+                Fonts.BOLD.draw(displayNew, boxX + 4 + slideOffset, textY, 5, new Color(160, 160, 165, alpha).getRGB());
+            }
+        } else {
+            String selected = selectSetting.getSelected();
+            String displaySelected = truncateText(selected, maxTextWidth);
+            Fonts.BOLD.draw(displaySelected, boxX + 4, textY, 5, applyAlpha(new Color(160, 160, 165, 200)).getRGB());
+        }
+
+        Scissor.disable();
+    }
+
+    private String truncateText(String text, float maxWidth) {
+        if (Fonts.BOLD.getWidth(text, 5) <= maxWidth) {
+            return text;
+        }
+        String truncated = text;
+        while (Fonts.BOLD.getWidth(truncated + "..", 5) > maxWidth && truncated.length() > 1) {
+            truncated = truncated.substring(0, truncated.length() - 1);
+        }
+        return truncated + "..";
     }
 
     private void renderScrollingDescription(String description, float deltaTime) {

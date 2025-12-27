@@ -9,7 +9,7 @@ import java.util.Map;
 
 public class FontRenderer {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("Initialization/FontRenderer");
+    private static final Logger LOGGER = LoggerFactory.getLogger("minecraft/FontRenderer");
 
     private final FontPipeline pipeline;
     private final Map<String, FontAtlas> fonts;
@@ -40,21 +40,44 @@ public class FontRenderer {
     public void drawText(String fontName, String text, float x, float y, float size, int color) {
         FontAtlas atlas = fonts.get(fontName);
         if (atlas == null) return;
-        pipeline.drawText(atlas, text, x, y, size, color);
+        pipeline.drawText(atlas, text, x, y, size, color, 0, 0, 0);
+    }
+
+    public void drawText(String fontName, String text, float x, float y, float size, int color, float rotation) {
+        FontAtlas atlas = fonts.get(fontName);
+        if (atlas == null) return;
+        pipeline.drawText(atlas, text, x, y, size, color, 0, 0, rotation);
     }
 
     public void drawTextWithOutline(String fontName, String text, float x, float y, float size,
                                     int color, float outlineWidth, int outlineColor) {
         FontAtlas atlas = fonts.get(fontName);
         if (atlas == null) return;
-        pipeline.drawText(atlas, text, x, y, size, color, outlineWidth, outlineColor);
+        pipeline.drawText(atlas, text, x, y, size, color, outlineWidth, outlineColor, 0);
+    }
+
+    public void drawTextWithOutline(String fontName, String text, float x, float y, float size,
+                                    int color, float outlineWidth, int outlineColor, float rotation) {
+        FontAtlas atlas = fonts.get(fontName);
+        if (atlas == null) return;
+        pipeline.drawText(atlas, text, x, y, size, color, outlineWidth, outlineColor, rotation);
     }
 
     public void drawCenteredText(String fontName, String text, float x, float y, float size, int color) {
         FontAtlas atlas = fonts.get(fontName);
         if (atlas == null) return;
         float width = pipeline.getTextWidth(atlas, text, size);
-        pipeline.drawText(atlas, text, x - width / 2, y, size, color);
+        pipeline.drawText(atlas, text, x - width / 2, y, size, color, 0, 0, 0);
+    }
+
+    public void drawCenteredText(String fontName, String text, float x, float y, float size, int color, float rotation) {
+        FontAtlas atlas = fonts.get(fontName);
+        if (atlas == null) return;
+        float width = pipeline.getTextWidth(atlas, text, size);
+        float height = pipeline.getTextHeight(atlas, text, size);
+        float centerX = x;
+        float centerY = y + height / 2;
+        pipeline.drawTextRotatedAroundPoint(atlas, text, x - width / 2, y, size, color, 0, 0, rotation, centerX, centerY);
     }
 
     public float getTextWidth(String fontName, String text, float size) {

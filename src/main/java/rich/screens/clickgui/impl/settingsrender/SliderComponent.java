@@ -39,6 +39,10 @@ public class SliderComponent extends AbstractSettingComponent {
         }
     }
 
+    private int clampAlpha(float alpha) {
+        return Math.max(0, Math.min(255, (int) alpha));
+    }
+
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         if (dragging) {
@@ -56,7 +60,10 @@ public class SliderComponent extends AbstractSettingComponent {
         knobAnimation += (knobTarget - knobAnimation) * 0.25f;
         knobAnimation = Math.max(0f, Math.min(1f, knobAnimation));
 
-        Fonts.BOLD.draw(sliderSettings.getName(), x + 0.5f, y + 0.5f, 6, applyAlpha(new Color(210, 210, 220, 200)).getRGB());
+        int iconAlpha = (int)(200 * alphaMultiplier);
+        Fonts.GUI_ICONS.draw("H", x - 0.5f, y + 0.5f, 9, new Color(210, 210, 210, iconAlpha).getRGB());
+
+        Fonts.BOLD.draw(sliderSettings.getName(), x + 9.5f, y + 1f, 6, applyAlpha(new Color(210, 210, 220, 200)).getRGB());
 
         renderValueInput(mouseX, mouseY);
         renderSlider();
@@ -107,7 +114,7 @@ public class SliderComponent extends AbstractSettingComponent {
         float unitsTextWidth = Fonts.BOLD.getWidth(unitsText, 5);
 
         float baseX = x + width - fullTextWidth - 4;
-        float textY = y + 1f;
+        float textY = y + 2f;
 
         float centerOffset = (unitsTextWidth / 2f) * valueOffsetX;
         float currentValueX = baseX + centerOffset;
@@ -118,14 +125,14 @@ public class SliderComponent extends AbstractSettingComponent {
         float inputBoxHeight = 8;
 
         if (backgroundAlpha > 0.01f) {
-            int bgAlpha = (int) (200 * backgroundAlpha * alphaMultiplier);
+            int bgAlpha = clampAlpha(200 * backgroundAlpha * alphaMultiplier);
             Render2D.rect(inputBoxX, inputBoxY, inputBoxWidth, inputBoxHeight,
                     new Color(40, 40, 45, bgAlpha).getRGB(), 2f);
         }
 
         float combinedOutlineAlpha = Math.max(hoverAnimation * 0.4f, inputAnimation);
         if (combinedOutlineAlpha > 0.01f) {
-            int outlineAlpha = (int) (180 * combinedOutlineAlpha * alphaMultiplier);
+            int outlineAlpha = clampAlpha(180 * combinedOutlineAlpha * alphaMultiplier);
             Render2D.outline(inputBoxX, inputBoxY, inputBoxWidth, inputBoxHeight,
                     0.1f, new Color(180, 180, 180, outlineAlpha).getRGB(), 2f);
         }
@@ -135,7 +142,7 @@ public class SliderComponent extends AbstractSettingComponent {
             float displayTextWidth = Fonts.BOLD.getWidth(displayText, 5);
             float centeredX = inputBoxX + (inputBoxWidth - displayTextWidth) / 2f;
 
-            int textAlpha = (int) (220 * Math.min(1f, (inputAnimation - 0.5f) * 2f) * alphaMultiplier);
+            int textAlpha = clampAlpha(220 * Math.min(1f, (inputAnimation - 0.5f) * 2f) * alphaMultiplier);
             Fonts.BOLD.draw(displayText, centeredX, textY, 5,
                     new Color(230, 230, 235, textAlpha).getRGB());
 
@@ -143,13 +150,13 @@ public class SliderComponent extends AbstractSettingComponent {
             if ((currentTime % 1000) < 500) {
                 String beforeCursor = inputText.substring(0, cursorPosition);
                 float cursorX = centeredX + Fonts.BOLD.getWidth(beforeCursor, 5);
-                int cursorAlpha = (int) (255 * inputAnimation * alphaMultiplier);
+                int cursorAlpha = clampAlpha(255 * inputAnimation * alphaMultiplier);
                 Render2D.rect(cursorX, inputBoxY + 2, 0.5f, inputBoxHeight - 4,
                         new Color(180, 180, 180, cursorAlpha).getRGB(), 0f);
             }
         } else {
             float valueAlpha = 1f - (inputAnimation * 0.5f);
-            int valueAlphaInt = (int) (160 * valueAlpha * alphaMultiplier);
+            int valueAlphaInt = clampAlpha(160 * valueAlpha * alphaMultiplier);
 
             if (valueAlphaInt > 0) {
                 Fonts.BOLD.draw(valueText, currentValueX, textY, 5,
@@ -157,9 +164,11 @@ public class SliderComponent extends AbstractSettingComponent {
             }
 
             if (unitsAlpha > 0.01f) {
-                int unitsAlphaInt = (int) (160 * unitsAlpha * alphaMultiplier);
-                Fonts.BOLD.draw(unitsText, currentValueX + valueTextWidth, textY, 5,
-                        new Color(100, 100, 105, unitsAlphaInt).getRGB());
+                int unitsAlphaInt = clampAlpha(160 * unitsAlpha * alphaMultiplier);
+                if (unitsAlphaInt > 0) {
+                    Fonts.BOLD.draw(unitsText, currentValueX + valueTextWidth, textY, 5,
+                            new Color(100, 100, 105, unitsAlphaInt).getRGB());
+                }
             }
         }
     }

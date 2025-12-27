@@ -34,7 +34,7 @@ import java.util.OptionalInt;
 
 public class FontPipeline {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("Initialization/FontPipeline");
+    private static final Logger LOGGER = LoggerFactory.getLogger("minecraft/FontPipeline");
 
     private static final Identifier PIPELINE_ID = Identifier.of("minecraft", "pipeline/msdf");
     private static final Identifier VERTEX_SHADER = Identifier.of("minecraft", "core/msdf");
@@ -60,7 +60,7 @@ public class FontPipeline {
     private static final Matrix4f TEXTURE_MATRIX = new Matrix4f();
 
     private static final int MAX_CHARS = 256;
-    private static final int BUFFER_SIZE = 64 + MAX_CHARS * 48;
+    private static final int BUFFER_SIZE = 64 + MAX_CHARS * 64;
 
     private GpuBuffer uniformBuffer;
     private GpuBuffer dummyVertexBuffer;
@@ -73,8 +73,12 @@ public class FontPipeline {
         float x, y, width, height;
         float u0, v0, u1, v1;
         int color;
+        float rotation;
+        float pivotX, pivotY;
+        float glyphScale;
 
-        CharData(float x, float y, float w, float h, float u0, float v0, float u1, float v1, int color) {
+        CharData(float x, float y, float w, float h, float u0, float v0, float u1, float v1,
+                 int color, float rotation, float pivotX, float pivotY, float glyphScale) {
             this.x = x;
             this.y = y;
             this.width = w;
@@ -84,6 +88,10 @@ public class FontPipeline {
             this.u1 = u1;
             this.v1 = v1;
             this.color = color;
+            this.rotation = rotation;
+            this.pivotX = pivotX;
+            this.pivotY = pivotY;
+            this.glyphScale = glyphScale;
         }
     }
 
@@ -106,11 +114,11 @@ public class FontPipeline {
     }
 
     public void drawText(FontAtlas atlas, String text, float x, float y, float size, int color) {
-        drawText(atlas, text, x, y, size, color, 0, 0);
+        drawText(atlas, text, x, y, size, color, 0, 0, 0);
     }
 
     public void drawText(FontAtlas atlas, String text, float x, float y, float size, int color,
-                         float outlineWidth, int outlineColor) {
+                         float outlineWidth, int outlineColor, float rotation) {
 
         MinecraftClient client = MinecraftClient.getInstance();
         if (client.getFramebuffer() == null) return;
@@ -128,6 +136,13 @@ public class FontPipeline {
         float scale = size / atlas.getFontSize();
         float cursorX = x;
         float cursorY = y;
+
+        float textWidth = getTextWidth(atlas, text, size);
+        float textHeight = getTextHeight(atlas, text, size);
+        float pivotX = x + textWidth / 2;
+        float pivotY = y + textHeight / 2;
+
+        float rotationRad = (float) Math.toRadians(rotation);
 
         for (int i = 0; i < text.length(); i++) {
             char c = text.charAt(i);
@@ -159,10 +174,80 @@ public class FontPipeline {
             float glyphH = glyph.height * scale;
 
             if (glyphW > 0.1f && glyphH > 0.1f) {
+                float glyphScale = glyphH / glyph.height;
+
                 charBatch.add(new CharData(
                         glyphX, glyphY, glyphW, glyphH,
                         glyph.u0, glyph.v0, glyph.u1, glyph.v1,
-                        color
+                        color, rotationRad, pivotX, pivotY, glyphScale
+                ));
+            }
+
+            cursorX += glyph.xAdvance * scale;
+
+            if (charBatch.size() >= MAX_CHARS) {
+                flush(client, atlas, outlineWidth, outlineColor);
+            }
+        }
+
+        if (!charBatch.isEmpty()) {
+            flush(client, atlas, outlineWidth, outlineColor);
+        }
+    }
+
+    public void drawTextRotatedAroundPoint(FontAtlas atlas, String text, float x, float y, float size, int color,
+                                           float outlineWidth, int outlineColor, float rotation, float pivotX, float pivotY) {
+
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client.getFramebuffer() == null) return;
+        if (text == null || text.isEmpty()) return;
+
+        atlas.ensureLoaded();
+        if (atlas.getGlyphCount() == 0) return;
+
+        ensureInitialized();
+        charBatch.clear();
+
+        float scale = size / atlas.getFontSize();
+        float cursorX = x;
+        float cursorY = y;
+
+        float rotationRad = (float) Math.toRadians(rotation);
+
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+
+            if (c == '\n') {
+                cursorX = x;
+                cursorY += atlas.getLineHeight() * scale;
+                continue;
+            }
+
+            if (c == ' ') {
+                Glyph spaceGlyph = atlas.getGlyph(' ');
+                if (spaceGlyph != null) {
+                    cursorX += spaceGlyph.xAdvance * scale;
+                } else {
+                    cursorX += size * 0.25f;
+                }
+                continue;
+            }
+
+            Glyph glyph = atlas.getGlyph(c);
+            if (glyph == null) continue;
+
+            float glyphX = cursorX + glyph.xOffset * scale;
+            float glyphY = cursorY + glyph.yOffset * scale;
+            float glyphW = glyph.width * scale;
+            float glyphH = glyph.height * scale;
+
+            if (glyphW > 0.1f && glyphH > 0.1f) {
+                float glyphScale = glyphH / glyph.height;
+
+                charBatch.add(new CharData(
+                        glyphX, glyphY, glyphW, glyphH,
+                        glyph.u0, glyph.v0, glyph.u1, glyph.v1,
+                        color, rotationRad, pivotX, pivotY, glyphScale
                 ));
             }
 
@@ -197,7 +282,7 @@ public class FontPipeline {
             return;
         }
 
-        prepareUniformData(client, outlineWidth, outlineColor);
+        prepareUniformData(client, atlas, outlineWidth, outlineColor);
 
         int size = dataBuffer.remaining();
         if (uniformBuffer == null || uniformBuffer.size() < size) {
@@ -245,7 +330,7 @@ public class FontPipeline {
         charBatch.clear();
     }
 
-    private void prepareUniformData(MinecraftClient client, float outlineWidth, int outlineColor) {
+    private void prepareUniformData(MinecraftClient client, FontAtlas atlas, float outlineWidth, int outlineColor) {
         dataBuffer.clear();
 
         float screenWidth = client.getWindow().getScaledWidth();
@@ -266,10 +351,10 @@ public class FontPipeline {
         dataBuffer.putFloat(ob);
         dataBuffer.putFloat(oa);
 
-        dataBuffer.putFloat(0);
-        dataBuffer.putFloat(0);
-        dataBuffer.putFloat(0);
-        dataBuffer.putFloat(0);
+        dataBuffer.putFloat(atlas.getAtlasWidth());
+        dataBuffer.putFloat(atlas.getAtlasHeight());
+        dataBuffer.putFloat(atlas.getDistanceRange());
+        dataBuffer.putFloat(atlas.getFontSize());
 
         dataBuffer.putInt(charBatch.size());
         dataBuffer.putInt(0);
@@ -295,6 +380,11 @@ public class FontPipeline {
             dataBuffer.putFloat(g);
             dataBuffer.putFloat(b);
             dataBuffer.putFloat(a);
+
+            dataBuffer.putFloat(cd.rotation);
+            dataBuffer.putFloat(cd.pivotX);
+            dataBuffer.putFloat(cd.pivotY);
+            dataBuffer.putFloat(cd.glyphScale);
         }
 
         dataBuffer.flip();

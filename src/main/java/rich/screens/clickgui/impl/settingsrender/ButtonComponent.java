@@ -75,7 +75,10 @@ public class ButtonComponent extends AbstractSettingComponent {
             wasPressed = false;
         }
 
-        Fonts.BOLD.draw(buttonSetting.getName(), x + 0.5f, y + height / 2 - 7.5f, 6, applyAlpha(new Color(210, 210, 220, 200)).getRGB());
+        int iconAlpha = (int)(200 * alphaMultiplier);
+        Fonts.GUI_ICONS.draw("U", x + 0.5f, y + height / 2 - 12f, 13, new Color(210, 210, 210, iconAlpha).getRGB());
+
+        Fonts.BOLD.draw(buttonSetting.getName(), x + 9.5f, y + height / 2 - 7.5f, 6, applyAlpha(new Color(210, 210, 220, 200)).getRGB());
 
         String description = buttonSetting.getDescription();
         if (description != null && !description.isEmpty()) {

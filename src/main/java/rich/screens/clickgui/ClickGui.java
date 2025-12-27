@@ -14,6 +14,7 @@ import rich.modules.module.ModuleStructure;
 import rich.screens.clickgui.impl.DragHandler;
 import rich.screens.clickgui.impl.background.BackgroundComponent;
 import rich.screens.clickgui.impl.module.ModuleComponent;
+import rich.screens.clickgui.impl.settingsrender.BindComponent;
 import rich.screens.clickgui.impl.settingsrender.TextComponent;
 import rich.util.animations.Direction;
 import rich.util.animations.GuiAnimation;
@@ -39,6 +40,11 @@ public class ClickGui extends Screen implements IMinecraft {
     private final GuiAnimation openAnimation = new GuiAnimation();
     private boolean closing = false;
 
+    private float hintAlphaAnimation = 0f;
+    private long lastHintUpdateTime = System.currentTimeMillis();
+    private static final float HINT_ANIM_SPEED = 6f;
+    private static final float OFFSET_THRESHOLD = 5f;
+
     public ClickGui() {
         super(Text.of("MenuScreen"));
     }
@@ -52,6 +58,8 @@ public class ClickGui extends Screen implements IMinecraft {
         super.init();
         closing = false;
         openAnimation.setMs(250).setValue(1.0).setDirection(Direction.FORWARDS).reset();
+        hintAlphaAnimation = 0f;
+        lastHintUpdateTime = System.currentTimeMillis();
 
         long handle = mc.getWindow().getHandle();
         double centerX = mc.getWindow().getWidth() / 2.0;
@@ -97,6 +105,35 @@ public class ClickGui extends Screen implements IMinecraft {
         return new float[]{bgX, bgY, vw, vh};
     }
 
+    private boolean isAnyBindListening() {
+        for (AbstractSettingComponent c : moduleComponent.getSettingComponents()) {
+            if (c instanceof BindComponent bindComponent && bindComponent.isListening()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void updateHintAnimation() {
+        long currentTime = System.currentTimeMillis();
+        float deltaTime = Math.min((currentTime - lastHintUpdateTime) / 1000f, 0.1f);
+        lastHintUpdateTime = currentTime;
+
+        float offsetX = Math.abs(dragHandler.getOffsetX());
+        float offsetY = Math.abs(dragHandler.getOffsetY());
+        boolean shouldShow = (offsetX > OFFSET_THRESHOLD || offsetY > OFFSET_THRESHOLD);
+
+        float target = shouldShow ? 1f : 0f;
+        float diff = target - hintAlphaAnimation;
+
+        if (Math.abs(diff) < 0.001f) {
+            hintAlphaAnimation = target;
+        } else {
+            hintAlphaAnimation += diff * HINT_ANIM_SPEED * deltaTime;
+            hintAlphaAnimation = Math.max(0f, Math.min(1f, hintAlphaAnimation));
+        }
+    }
+
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         FrameRateCounter.INSTANCE.recordFrame();
@@ -130,12 +167,16 @@ public class ClickGui extends Screen implements IMinecraft {
             dragHandler.update(mx, my);
         }
 
+        updateHintAnimation();
+
         context.getMatrices().pushMatrix();
         context.getMatrices().scale(scale, scale);
 
         float[] bg = calculateBackground(scale);
         float bgX = bg[0];
         float bgY = bg[1];
+        int vw = (int) bg[2];
+        int vh = (int) bg[3];
 
         float yOffset;
         if (closing) {
@@ -162,14 +203,16 @@ public class ClickGui extends Screen implements IMinecraft {
         moduleComponent.renderModuleList(context, mlX, mlY, mlW, mlH, mx, my, FIXED_GUI_SCALE, alphaMultiplier);
         moduleComponent.renderSettingsPanel(context, spX, spY, spW, spH, mx, my, delta, FIXED_GUI_SCALE, alphaMultiplier);
 
-        int hintAlpha = (int) (255 * alphaMultiplier);
-        if (hintAlpha > 0) {
-            float centerX = bgX + BackgroundComponent.BG_WIDTH / 2f;
-            float textY = bgY + BackgroundComponent.BG_HEIGHT + 10f;
-            Fonts.BOLD.drawCentered("Press CTRL / ALT to reset position", centerX, textY, 6, new Color(200, 200, 200, hintAlpha).getRGB());
-        }
-
         context.getMatrices().popMatrix();
+
+        float finalHintAlpha = hintAlphaAnimation * alphaMultiplier;
+        if (finalHintAlpha > 0.01f) {
+            int hintAlpha = (int) (255 * finalHintAlpha);
+            float centerX = vw / 2f;
+            float centerY = vh / 2f;
+            float textY = centerY + BackgroundComponent.BG_HEIGHT / 2f + 10f;
+            Fonts.BOLD.drawCentered("Press CTRL / ALT to reset position", centerX, textY + 65, 6, new Color(150, 150, 150, hintAlpha).getRGB());
+        }
 
         context.getMatrices().popMatrix();
     }
@@ -188,6 +231,19 @@ public class ClickGui extends Screen implements IMinecraft {
         float mlX = bgX + 92f, mlY = bgY + 38f, mlW = 120f, mlH = BackgroundComponent.BG_HEIGHT - 48f;
 
         if (click.button() == 2) {
+            if (isAnyBindListening()) {
+                for (AbstractSettingComponent c : moduleComponent.getSettingComponents()) {
+                    if (c instanceof BindComponent bindComponent && bindComponent.isListening()) {
+                        bindComponent.handleMiddleMouseBind();
+                        return true;
+                    }
+                }
+            }
+
+            if (moduleComponent.getBindingModule() != null) {
+                return true;
+            }
+
             ModuleStructure module = moduleComponent.getModuleAtPosition(mx, my, mlX, mlY, mlW, mlH);
             if (module != null) {
                 moduleComponent.setBindingModule(module);
@@ -238,6 +294,19 @@ public class ClickGui extends Screen implements IMinecraft {
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double horizontal, double vertical) {
         if (closing) return false;
+
+        if (isAnyBindListening()) {
+            for (AbstractSettingComponent c : moduleComponent.getSettingComponents()) {
+                if (c instanceof BindComponent bindComponent && bindComponent.isListening()) {
+                    bindComponent.handleScrollBind(vertical);
+                    return true;
+                }
+            }
+        }
+
+        if (moduleComponent.getBindingModule() != null) {
+            return true;
+        }
 
         int guiScale = mc.getWindow().calculateScaleFactor(mc.options.getGuiScale().getValue(), mc.forcesUnicodeFont());
         float scale = (float) FIXED_GUI_SCALE / guiScale;

@@ -28,6 +28,10 @@ public class BindComponent extends AbstractSettingComponent {
     private static final float BIND_BOX_WIDTH = 32f;
     private static final float BIND_BOX_HEIGHT = 10f;
 
+    public static final int SCROLL_UP_BIND = 1000;
+    public static final int SCROLL_DOWN_BIND = 1001;
+    public static final int MIDDLE_MOUSE_BIND = 1002;
+
     public BindComponent(BindSetting setting) {
         super(setting);
         BindSetting bindSetting = (BindSetting) getSetting();
@@ -86,7 +90,10 @@ public class BindComponent extends AbstractSettingComponent {
 
         textChangeAnimation = lerp(textChangeAnimation, 1f, deltaTime * FAST_ANIMATION_SPEED);
 
-        Fonts.BOLD.draw(getSetting().getName(), x + 0.5f, y + height / 2 - 7.5f, 6, applyAlpha(new Color(210, 210, 220, 200)).getRGB());
+        int iconAlpha = (int)(200 * alphaMultiplier);
+        Fonts.GUI_ICONS.draw("L", x + 1.5f, y + height / 2 - 6f, 6, new Color(210, 210, 210, iconAlpha).getRGB());
+
+        Fonts.BOLD.draw(getSetting().getName(), x + 9.5f, y + height / 2 - 7.5f, 6, applyAlpha(new Color(210, 210, 220, 200)).getRGB());
 
         String description = getSetting().getDescription();
         if (description != null && !description.isEmpty()) {
@@ -218,6 +225,10 @@ public class BindComponent extends AbstractSettingComponent {
     private String getBindDisplayName(int key, int type) {
         if (key == GLFW.GLFW_KEY_UNKNOWN || key == -1) return "None";
 
+        if (key == SCROLL_UP_BIND) return "ScrollUp";
+        if (key == SCROLL_DOWN_BIND) return "ScrollDn";
+        if (key == MIDDLE_MOUSE_BIND) return "MMB";
+
         if (type == 0) {
             return switch (key) {
                 case GLFW.GLFW_MOUSE_BUTTON_LEFT -> "LMB";
@@ -300,6 +311,28 @@ public class BindComponent extends AbstractSettingComponent {
         float bindBoxY = y + height / 2 - BIND_BOX_HEIGHT / 2;
         return mouseX >= bindBoxX && mouseX <= bindBoxX + BIND_BOX_WIDTH &&
                 mouseY >= bindBoxY && mouseY <= bindBoxY + BIND_BOX_HEIGHT;
+    }
+
+    public void handleScrollBind(double vertical) {
+        if (listening) {
+            BindSetting bindSetting = (BindSetting) getSetting();
+            if (vertical > 0) {
+                bindSetting.setKey(SCROLL_UP_BIND);
+            } else {
+                bindSetting.setKey(SCROLL_DOWN_BIND);
+            }
+            bindSetting.setType(2);
+            listening = false;
+        }
+    }
+
+    public void handleMiddleMouseBind() {
+        if (listening) {
+            BindSetting bindSetting = (BindSetting) getSetting();
+            bindSetting.setKey(MIDDLE_MOUSE_BIND);
+            bindSetting.setType(2);
+            listening = false;
+        }
     }
 
     @Override

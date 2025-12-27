@@ -25,6 +25,10 @@ public class ModuleComponent implements IMinecraft {
     private static final int SETTING_SPACING = 2;
     private static final float MODULE_ITEM_HEIGHT = 22f;
 
+    private static final float MODULE_LIST_CORNER_RADIUS = 6f;
+    private static final float SETTINGS_PANEL_CORNER_RADIUS = 7f;
+    private static final float CORNER_INSET = 3f;
+
     private List<ModuleStructure> modules = new ArrayList<>();
     private List<ModuleStructure> oldModules = new ArrayList<>();
     private ModuleStructure selectedModule = null;
@@ -37,6 +41,7 @@ public class ModuleComponent implements IMinecraft {
     private Map<AbstractSettingComponent, Float> settingAnimations = new HashMap<>();
     private Map<AbstractSettingComponent, Long> settingAnimStartTimes = new HashMap<>();
     private Map<AbstractSettingComponent, Float> visibilityAnimations = new HashMap<>();
+    private Map<AbstractSettingComponent, Float> heightAnimations = new HashMap<>();
 
     private ModuleCategory currentCategory = null;
 
@@ -45,14 +50,17 @@ public class ModuleComponent implements IMinecraft {
     private float moduleScrollTopFade = 0f, moduleScrollBottomFade = 0f;
     private float settingScrollTopFade = 0f, settingScrollBottomFade = 0f;
 
+    private float lastSettingsPanelHeight = 0f;
+
     private long lastScrollUpdateTime = System.currentTimeMillis();
     private long lastVisibilityUpdateTime = System.currentTimeMillis();
 
     private static final float MODULE_ANIM_DURATION = 300f;
-    private static final float SETTING_ANIM_DURATION = 200f;
+    private static final float SETTING_ANIM_DURATION = 450f;
     private static final float SCROLL_SPEED = 12f;
     private static final float FADE_SPEED = 8f;
-    private static final float VISIBILITY_ANIM_SPEED = 10f;
+    private static final float VISIBILITY_ANIM_SPEED = 8f;
+    private static final float HEIGHT_ANIM_SPEED = 10f;
 
     private boolean isCategoryTransitioning = false;
     private float categoryTransitionProgress = 1f;
@@ -61,6 +69,8 @@ public class ModuleComponent implements IMinecraft {
     private static final float CATEGORY_SLIDE_DISTANCE = 40f;
 
     private double oldModuleDisplayScroll = 0;
+
+    private int savedGuiScale = 1;
 
     public void updateModules(List<ModuleStructure> newModules, ModuleCategory category) {
         if (category == currentCategory) {
@@ -109,6 +119,7 @@ public class ModuleComponent implements IMinecraft {
         settingAnimations.clear();
         settingAnimStartTimes.clear();
         visibilityAnimations.clear();
+        heightAnimations.clear();
 
         if (module == null) return;
 
@@ -118,7 +129,9 @@ public class ModuleComponent implements IMinecraft {
             AbstractSettingComponent comp = settingComponents.get(i);
             settingAnimations.put(comp, 0f);
             settingAnimStartTimes.put(comp, currentTime + i * 25L);
-            visibilityAnimations.put(comp, comp.getSetting().isVisible() ? 1f : 0f);
+            boolean visible = comp.getSetting().isVisible();
+            visibilityAnimations.put(comp, visible ? 1f : 0f);
+            heightAnimations.put(comp, visible ? 1f : 0f);
         }
     }
 
@@ -170,16 +183,41 @@ public class ModuleComponent implements IMinecraft {
 
         for (AbstractSettingComponent comp : settingComponents) {
             boolean isVisible = comp.getSetting().isVisible();
-            float currentAnim = visibilityAnimations.getOrDefault(comp, isVisible ? 1f : 0f);
-            float target = isVisible ? 1f : 0f;
+            float currentVisAnim = visibilityAnimations.getOrDefault(comp, isVisible ? 1f : 0f);
+            float currentHeightAnim = heightAnimations.getOrDefault(comp, isVisible ? 1f : 0f);
 
-            float diff = target - currentAnim;
-            if (Math.abs(diff) < 0.001f) {
-                visibilityAnimations.put(comp, target);
+            float visTarget = isVisible ? 1f : 0f;
+            float heightTarget = isVisible ? 1f : 0f;
+
+            float heightDiff = heightTarget - currentHeightAnim;
+            if (Math.abs(heightDiff) < 0.001f) {
+                heightAnimations.put(comp, heightTarget);
             } else {
-                float newValue = currentAnim + diff * VISIBILITY_ANIM_SPEED * deltaTime;
+                float newValue = currentHeightAnim + heightDiff * HEIGHT_ANIM_SPEED * deltaTime;
+                heightAnimations.put(comp, newValue);
+            }
+
+            float visDiff = visTarget - currentVisAnim;
+            if (Math.abs(visDiff) < 0.001f) {
+                visibilityAnimations.put(comp, visTarget);
+            } else {
+                float newValue = currentVisAnim + visDiff * VISIBILITY_ANIM_SPEED * deltaTime;
                 visibilityAnimations.put(comp, newValue);
             }
+        }
+
+        correctScrollPosition();
+    }
+
+    private void correctScrollPosition() {
+        if (lastSettingsPanelHeight <= 0) return;
+
+        float maxScroll = Math.max(0, calculateTotalSettingHeight() - lastSettingsPanelHeight + 45);
+        if (settingTargetScroll < -maxScroll) {
+            settingTargetScroll = -maxScroll;
+        }
+        if (settingDisplayScroll < -maxScroll) {
+            settingDisplayScroll = -maxScroll;
         }
     }
 
@@ -211,6 +249,8 @@ public class ModuleComponent implements IMinecraft {
     }
 
     public void updateScrollFades(float delta, float scrollSpeed, float moduleListHeight, float settingsPanelHeight) {
+        lastSettingsPanelHeight = settingsPanelHeight;
+
         long currentTime = System.currentTimeMillis();
         float deltaTime = Math.min((currentTime - lastScrollUpdateTime) / 1000f, 0.1f);
 
@@ -230,17 +270,21 @@ public class ModuleComponent implements IMinecraft {
         return current + diff * FADE_SPEED * deltaTime;
     }
 
+    private float getComponentBaseHeight(AbstractSettingComponent c) {
+        if (c instanceof SelectComponent) return ((SelectComponent) c).getTotalHeight();
+        if (c instanceof MultiSelectComponent) return ((MultiSelectComponent) c).getTotalHeight();
+        if (c instanceof ColorComponent) return ((ColorComponent) c).getTotalHeight();
+        return SETTING_HEIGHT;
+    }
+
     public float calculateTotalSettingHeight() {
         float total = 0;
         for (AbstractSettingComponent c : settingComponents) {
-            float visAnim = visibilityAnimations.getOrDefault(c, c.getSetting().isVisible() ? 1f : 0f);
-            if (visAnim <= 0.001f) continue;
+            float heightAnim = heightAnimations.getOrDefault(c, c.getSetting().isVisible() ? 1f : 0f);
+            if (heightAnim <= 0.001f) continue;
 
-            float baseHeight = c instanceof SelectComponent ? ((SelectComponent) c).getTotalHeight() :
-                    c instanceof MultiSelectComponent ? ((MultiSelectComponent) c).getTotalHeight() :
-                            c instanceof ColorComponent ? ((ColorComponent) c).getTotalHeight() : SETTING_HEIGHT;
-
-            total += (baseHeight + SETTING_SPACING) * visAnim;
+            float baseHeight = getComponentBaseHeight(c);
+            total += (baseHeight + SETTING_SPACING) * heightAnim;
         }
         return total;
     }
@@ -251,17 +295,27 @@ public class ModuleComponent implements IMinecraft {
 
         int panelAlpha = (int) (15 * alphaMultiplier);
         int outlineAlpha = (int) (215 * alphaMultiplier);
-        Render2D.rect(x, y, width, height, new Color(64, 64, 64, panelAlpha).getRGB(), 6);
-        Render2D.outline(x, y, width, height, 0.5f, new Color(55, 55, 55, outlineAlpha).getRGB(), 6);
+        Render2D.rect(x, y, width, height, new Color(64, 64, 64, panelAlpha).getRGB(), MODULE_LIST_CORNER_RADIUS);
+        Render2D.outline(x, y, width, height, 0.5f, new Color(55, 55, 55, outlineAlpha).getRGB(), MODULE_LIST_CORNER_RADIUS);
 
-        Scissor.enable(x, y + 0.5f, width, height - 1, guiScale);
+        float topInset = CORNER_INSET;
+        float bottomInset = CORNER_INSET + 2;
+        float sideInset = CORNER_INSET;
+
+        Scissor.enable(
+                x + sideInset,
+                y + topInset,
+                width - sideInset * 2,
+                height - topInset - bottomInset,
+                guiScale
+        );
 
         if (isCategoryTransitioning && !oldModules.isEmpty()) {
             float oldAlpha = (1f - categoryTransitionProgress) * alphaMultiplier;
             float oldOffsetX = easeInCubic(categoryTransitionProgress) * -CATEGORY_SLIDE_DISTANCE;
             float oldScale = 1f - categoryTransitionProgress * 0.1f;
 
-            renderModuleItems(context, oldModules, oldModuleAnimations, x, y, width, height, mouseX, mouseY, oldAlpha, oldOffsetX, oldScale, (float) oldModuleDisplayScroll, false);
+            renderModuleItems(context, oldModules, oldModuleAnimations, x, y, width, height, mouseX, mouseY, oldAlpha, oldOffsetX, oldScale, (float) oldModuleDisplayScroll, false, topInset, bottomInset);
         }
 
         float newAlpha;
@@ -280,24 +334,26 @@ public class ModuleComponent implements IMinecraft {
             newScale = 1f;
         }
 
-        renderModuleItems(context, modules, moduleAnimations, x, y, width, height, mouseX, mouseY, newAlpha, newOffsetX, newScale, (float) moduleDisplayScroll, true);
+        renderModuleItems(context, modules, moduleAnimations, x, y, width, height, mouseX, mouseY, newAlpha, newOffsetX, newScale, (float) moduleDisplayScroll, true, topInset, bottomInset);
 
         Scissor.disable();
 
-        renderScrollFade(x, y, width, height, moduleScrollTopFade * alphaMultiplier, moduleScrollBottomFade * alphaMultiplier, 80, 15);
+        renderScrollFade(x, y + topInset, width, height - topInset - bottomInset, moduleScrollTopFade * alphaMultiplier, moduleScrollBottomFade * alphaMultiplier, 80, 15);
     }
 
-    private void renderModuleItems(DrawContext context, List<ModuleStructure> moduleList, Map<ModuleStructure, Float> animations, float x, float y, float width, float height, float mouseX, float mouseY, float alphaMultiplier, float offsetX, float scale, float scrollOffset, boolean interactive) {
+    private void renderModuleItems(DrawContext context, List<ModuleStructure> moduleList, Map<ModuleStructure, Float> animations, float x, float y, float width, float height, float mouseX, float mouseY, float alphaMultiplier, float offsetX, float scale, float scrollOffset, boolean interactive, float topInset, float bottomInset) {
         if (alphaMultiplier <= 0.01f) return;
 
-        float startY = y + 5f + scrollOffset;
+        float startY = y + topInset + 2f + scrollOffset;
         float centerY = y + height / 2f;
+        float visibleTop = y + topInset;
+        float visibleBottom = y + height - bottomInset;
 
         for (int i = 0; i < moduleList.size(); i++) {
             ModuleStructure module = moduleList.get(i);
             float modY = startY + i * (MODULE_ITEM_HEIGHT + 2);
 
-            if (modY + MODULE_ITEM_HEIGHT < y || modY > y + height) continue;
+            if (modY + MODULE_ITEM_HEIGHT < visibleTop || modY > visibleBottom) continue;
 
             float itemProgress = animations.getOrDefault(module, 1f);
             float combinedAlpha = itemProgress * alphaMultiplier;
@@ -354,11 +410,12 @@ public class ModuleComponent implements IMinecraft {
     public void renderSettingsPanel(DrawContext context, float x, float y, float width, float height, float mouseX, float mouseY, float delta, int guiScale, float alphaMultiplier) {
         updateSettingAnimations();
         updateVisibilityAnimations();
+        savedGuiScale = guiScale;
 
         int panelAlpha = (int) (15 * alphaMultiplier);
         int outlineAlpha = (int) (215 * alphaMultiplier);
-        Render2D.rect(x, y, width, height, new Color(64, 64, 64, panelAlpha).getRGB(), 7);
-        Render2D.outline(x, y, width, height, 0.5f, new Color(55, 55, 55, outlineAlpha).getRGB(), 7);
+        Render2D.rect(x, y, width, height, new Color(64, 64, 64, panelAlpha).getRGB(), SETTINGS_PANEL_CORNER_RADIUS);
+        Render2D.outline(x, y, width, height, 0.5f, new Color(55, 55, 55, outlineAlpha).getRGB(), SETTINGS_PANEL_CORNER_RADIUS);
 
         if (selectedModule == null) {
             String text = "Select a module";
@@ -374,42 +431,81 @@ public class ModuleComponent implements IMinecraft {
         Fonts.BOLD.draw(selectedModule.getName(), x + 8, y + 8, 7, new Color(255, 255, 255, (int) (200 * alphaMultiplier)).getRGB());
         String desc = selectedModule.getDescription();
         if (desc != null && !desc.isEmpty()) {
-            Fonts.BOLD.draw(desc.length() > 30 ? desc.substring(0, 27) + "..." : desc, x + 8, y + 20, 5, new Color(128, 128, 128, (int) (150 * alphaMultiplier)).getRGB());
+            Fonts.BOLD.draw(desc.length() > 52   ? desc.substring(0, 55) + "..." : desc, x + 15, y + 20, 5, new Color(128, 128, 128, (int) (150 * alphaMultiplier)).getRGB());
+            Fonts.GUI_ICONS.draw("C", x + 8, y + 20, 6, new Color(128, 128, 128, (int) (150 * alphaMultiplier)).getRGB());
         }
         Render2D.rect(x + 8, y + 30, width - 16, 1.25f, new Color(64, 64, 64, (int) (64 * alphaMultiplier)).getRGB(), 10);
 
-        float clipY = y + 31, clipH = height - 32;
-        Scissor.enable(x, clipY, width, clipH, guiScale);
+        float sideInset = CORNER_INSET;
+        float bottomInset = CORNER_INSET + 3;
 
-        float startY = y + 38f + (float) settingDisplayScroll;
+        float clipY = y + 31;
+        float clipH = height - 31 - bottomInset;
+
+        float clipX = x + sideInset;
+        float clipW = width - sideInset * 2;
+
+        Scissor.enable(clipX, clipY, clipW, clipH, guiScale);
+
+        List<Float> finalYPositions = new ArrayList<>();
+        List<Float> animatedHeights = new ArrayList<>();
+        float posY = y + 38f + (float) settingDisplayScroll;
+
         for (AbstractSettingComponent c : settingComponents) {
+            float heightAnim = heightAnimations.getOrDefault(c, c.getSetting().isVisible() ? 1f : 0f);
+
+            if (heightAnim <= 0.001f) {
+                finalYPositions.add(null);
+                animatedHeights.add(0f);
+                continue;
+            }
+
+            finalYPositions.add(posY);
+
+            float baseHeight = getComponentBaseHeight(c);
+            float layoutHeight = baseHeight * heightAnim;
+            animatedHeights.add(layoutHeight);
+            posY += layoutHeight + SETTING_SPACING * heightAnim;
+        }
+
+        float visibleTop = clipY;
+        float visibleBottom = clipY + clipH;
+
+        for (int i = 0; i < settingComponents.size(); i++) {
+            AbstractSettingComponent c = settingComponents.get(i);
+            Float startY = finalYPositions.get(i);
+
+            if (startY == null) continue;
+
             float visAnim = visibilityAnimations.getOrDefault(c, c.getSetting().isVisible() ? 1f : 0f);
+            float heightAnim = heightAnimations.getOrDefault(c, c.getSetting().isVisible() ? 1f : 0f);
 
-            if (visAnim <= 0.001f) continue;
+            if (visAnim <= 0.001f && heightAnim <= 0.001f) continue;
 
-            float baseHeight = c instanceof SelectComponent ? ((SelectComponent) c).getTotalHeight() :
-                    c instanceof MultiSelectComponent ? ((MultiSelectComponent) c).getTotalHeight() :
-                            c instanceof ColorComponent ? ((ColorComponent) c).getTotalHeight() : SETTING_HEIGHT;
-
-            float animatedHeight = baseHeight * visAnim;
+            float animatedHeight = animatedHeights.get(i);
 
             float progress = settingAnimations.getOrDefault(c, 1f);
             float componentAlpha = progress * visAnim * alphaMultiplier;
 
-            float offsetX = (1f - progress) * 15f + (1f - visAnim) * 10f;
-
-            c.position(x + 8 + offsetX, startY);
+            c.position(x + 8, startY);
             c.size(width - 16f, SETTING_HEIGHT);
             c.setAlphaMultiplier(componentAlpha);
 
-            if (startY + animatedHeight >= clipY && startY <= clipY + clipH && componentAlpha > 0.01f) {
-                context.getMatrices().pushMatrix();
-                c.render(context, (int) mouseX, (int) mouseY, delta);
-                context.getMatrices().popMatrix();
-            }
+            if (startY + animatedHeight >= visibleTop && startY <= visibleBottom && componentAlpha > 0.01f) {
+                float itemClipTop = Math.max(startY, visibleTop);
+                float itemClipBottom = Math.min(startY + animatedHeight, visibleBottom);
+                float itemClipHeight = itemClipBottom - itemClipTop;
 
-            startY += (animatedHeight + SETTING_SPACING * visAnim);
+                if (itemClipHeight > 0.5f) {
+                    Scissor.enable(clipX, itemClipTop, clipW, itemClipHeight, guiScale);
+                    context.getMatrices().pushMatrix();
+                    c.render(context, (int) mouseX, (int) mouseY, delta);
+                    context.getMatrices().popMatrix();
+                    Scissor.disable();
+                }
+            }
         }
+
         Scissor.disable();
 
         boolean hasVisibleSettings = false;
@@ -431,18 +527,20 @@ public class ModuleComponent implements IMinecraft {
             Fonts.BOLD.draw(text, centerX, centerY, textSize, new Color(100, 100, 100, (int) (150 * alphaMultiplier)).getRGB());
         }
 
-        renderScrollFade(x, clipY, width, clipH, settingScrollTopFade * alphaMultiplier, settingScrollBottomFade * alphaMultiplier, 60, 12);
+        renderScrollFade(x + sideInset, clipY, width - sideInset * 2, clipH, settingScrollTopFade * alphaMultiplier, settingScrollBottomFade * alphaMultiplier, 60, 12);
     }
 
     private void renderScrollFade(float x, float y, float w, float h, float topFade, float bottomFade, int alpha, int size) {
         if (topFade > 0.01f) {
             for (int i = 0; i < size; i++) {
-                Render2D.rect(x + 1, y + i, w - 2, 1, new Color(20, 20, 20, (int) (alpha * topFade * (1f - i / (float) size))).getRGB(), 0);
+                float fadeAlpha = alpha * topFade * (1f - i / (float) size);
+                Render2D.rect(x, y + i, w, 1, new Color(20, 20, 20, (int) fadeAlpha).getRGB(), 0);
             }
         }
         if (bottomFade > 0.01f) {
             for (int i = 0; i < size; i++) {
-                Render2D.rect(x + 1, y + h - size + i, w - 2, 1, new Color(20, 20, 20, (int) (alpha * bottomFade * (1f - i / (float) size))).getRGB(), 0);
+                float fadeAlpha = alpha * bottomFade * (i / (float) size);
+                Render2D.rect(x, y + h - size + i, w, 1, new Color(20, 20, 20, (int) fadeAlpha).getRGB(), 0);
             }
         }
     }
@@ -451,7 +549,7 @@ public class ModuleComponent implements IMinecraft {
         if (isCategoryTransitioning) return null;
         if (mouseX < listX || mouseX > listX + listWidth || mouseY < listY || mouseY > listY + listHeight) return null;
 
-        float startY = listY + 5f + (float) moduleDisplayScroll;
+        float startY = listY + CORNER_INSET + 2f + (float) moduleDisplayScroll;
         for (int i = 0; i < modules.size(); i++) {
             float modY = startY + i * (MODULE_ITEM_HEIGHT + 2);
             if (mouseX >= listX + 3 && mouseX <= listX + listWidth - 3 && mouseY >= modY && mouseY <= modY + MODULE_ITEM_HEIGHT) {
@@ -463,12 +561,14 @@ public class ModuleComponent implements IMinecraft {
 
     public void handleModuleScroll(double vertical, float listHeight) {
         if (isCategoryTransitioning) return;
-        float maxScroll = Math.max(0, modules.size() * 24f - listHeight + 10);
+        float effectiveHeight = listHeight - CORNER_INSET * 2 - 2;
+        float maxScroll = Math.max(0, modules.size() * 24f - effectiveHeight + 10);
         moduleTargetScroll = Math.max(-maxScroll, Math.min(0, moduleTargetScroll + vertical * 25));
     }
 
     public void handleSettingScroll(double vertical, float panelHeight) {
-        float maxScroll = Math.max(0, calculateTotalSettingHeight() - panelHeight + 45);
+        float effectiveHeight = panelHeight - 31 - CORNER_INSET - 3;
+        float maxScroll = Math.max(0, calculateTotalSettingHeight() - effectiveHeight + 10);
         settingTargetScroll = Math.max(-maxScroll, Math.min(0, settingTargetScroll + vertical * 25));
     }
 

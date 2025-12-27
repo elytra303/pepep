@@ -19,7 +19,7 @@ import java.util.Optional;
 
 public class FontAtlas {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("Initialization/Font");
+    private static final Logger LOGGER = LoggerFactory.getLogger("minecraft/Font");
 
     private final Identifier jsonId;
     private final Identifier textureId;
@@ -77,6 +77,9 @@ public class FontAtlas {
                 String origin = atlas.get("yOrigin").getAsString();
                 yOriginBottom = origin.equalsIgnoreCase("bottom");
             }
+
+            LOGGER.info("Atlas: {}x{}, size={}, distanceRange={}, yOrigin={}",
+                    atlasWidth, atlasHeight, fontSize, distanceRange, yOriginBottom ? "bottom" : "top");
         }
 
         if (root.has("metrics")) {

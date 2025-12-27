@@ -106,6 +106,13 @@ public class BackgroundComponent implements IMinecraft {
         Render2D.rect(bgX + 92f, bgY + 7.5f, BG_WIDTH - 100f, 25, new Color(128, 128, 128, panelAlpha).getRGB(), 8);
         Render2D.outline(bgX + 92f, bgY + 7.5f, BG_WIDTH - 100f, 25, 0.5f, new Color(55, 55, 55, outlineAlpha).getRGB(), 8);
 
+        Render2D.outline(bgX + 315f, bgY + 12.5f, 70f, 15, 0.1f, new Color(55, 55, 55, outlineAlpha).getRGB(), 4);
+        Render2D.rect(bgX + 368f, bgY + 16f, 1, 9, new Color(128, 128, 128, panelAlpha).getRGB(), 8);
+
+        Fonts.BOLD.draw("Search Modules...", bgX + 320f, bgY + 17.5f, 5, new Color(128, 128, 128, outlineAlpha).getRGB());
+        Fonts.ICONS.draw("U", bgX + 370f, bgY + 14f, 12, new Color(128, 128, 128, outlineAlpha).getRGB());
+
+
         float baseX = bgX + 100f;
         float baseY = bgY + 16f;
 
