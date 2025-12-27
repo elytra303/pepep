@@ -1,4 +1,4 @@
-package rich.modules.module;
+package rich.modules.module.category;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -10,7 +10,9 @@ public enum ModuleCategory {
     MOVEMENT("Movement"),
     RENDER("Render"),
     PLAYER("Player"),
-    MISC("Misc");
+    MISC("Misc"),
+    AUTOBUY("AutoBuy"),
+    CONFIGS("Configs");
 
     final String readableName;
 }

@@ -2,7 +2,7 @@ package rich.modules.impl.render;
 
 import lombok.AccessLevel;
 import lombok.experimental.FieldDefaults;
-import rich.modules.module.ModuleCategory;
+import rich.modules.module.category.ModuleCategory;
 import rich.modules.module.ModuleStructure;
 import rich.modules.module.setting.implement.*;
 import rich.util.Instance;

@@ -10,6 +10,7 @@ import org.lwjgl.glfw.GLFW;
 import rich.IMinecraft;
 import rich.Initialization;
 import rich.events.api.EventManager;
+import rich.modules.module.category.ModuleCategory;
 import rich.modules.module.setting.SettingRepository;
 import rich.util.animations.Animation;
 import rich.util.animations.Decelerate;

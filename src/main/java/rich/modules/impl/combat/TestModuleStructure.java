@@ -1,7 +1,7 @@
 package rich.modules.impl.combat;
 
 
-import rich.modules.module.ModuleCategory;
+import rich.modules.module.category.ModuleCategory;
 import rich.modules.module.ModuleStructure;
 import rich.modules.module.setting.implement.*;
 

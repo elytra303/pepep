@@ -9,7 +9,7 @@ import net.minecraft.text.Text;
 import org.lwjgl.glfw.GLFW;
 import rich.IMinecraft;
 import rich.Initialization;
-import rich.modules.module.ModuleCategory;
+import rich.modules.module.category.ModuleCategory;
 import rich.modules.module.ModuleStructure;
 import rich.screens.clickgui.impl.DragHandler;
 import rich.screens.clickgui.impl.background.BackgroundComponent;
@@ -154,7 +154,7 @@ public class ClickGui extends Screen implements IMinecraft {
         int screenWidth = mc.getWindow().getScaledWidth();
         int screenHeight = mc.getWindow().getScaledHeight();
 
-        int dimAlpha = (int) (77 * animValue);
+        int dimAlpha = (int) (125 * animValue);
         if (dimAlpha > 0) {
             Render2D.rect(0, 0, screenWidth, screenHeight, new Color(0, 0, 0, dimAlpha).getRGB(), 0);
         }

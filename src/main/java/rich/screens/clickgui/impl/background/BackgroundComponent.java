@@ -4,7 +4,7 @@ import net.minecraft.client.gui.DrawContext;
 import org.lwjgl.glfw.GLFW;
 import rich.IMinecraft;
 import rich.Initialization;
-import rich.modules.module.ModuleCategory;
+import rich.modules.module.category.ModuleCategory;
 import rich.modules.module.ModuleStructure;
 import rich.util.render.Render2D;
 import rich.util.render.Scissor;
@@ -21,10 +21,15 @@ public class BackgroundComponent implements IMinecraft {
     public static final int BG_WIDTH = 400;
     public static final int BG_HEIGHT = 250;
 
-    private static final ModuleCategory[] CATEGORIES = {
+    private static final ModuleCategory[] MAIN_CATEGORIES = {
             ModuleCategory.COMBAT, ModuleCategory.MOVEMENT, ModuleCategory.RENDER, ModuleCategory.PLAYER, ModuleCategory.MISC
     };
-    private static final String[] CATEGORY_NAMES = {"Combat", "Movement", "Render", "Player", "Util"};
+    private static final String[] MAIN_CATEGORY_NAMES = {"Combat", "Movement", "Render", "Player", "Util"};
+
+    private static final ModuleCategory[] EXTRA_CATEGORIES = {
+            ModuleCategory.AUTOBUY, ModuleCategory.CONFIGS
+    };
+    private static final String[] EXTRA_CATEGORY_NAMES = {"AutoBuy", "Configs"};
 
     private final Map<ModuleCategory, Float> categoryAnimations = new HashMap<>();
 
@@ -66,7 +71,10 @@ public class BackgroundComponent implements IMinecraft {
     private static final float SEARCH_RESULT_ANIM_DURATION = 200f;
 
     public BackgroundComponent() {
-        for (ModuleCategory cat : CATEGORIES) {
+        for (ModuleCategory cat : MAIN_CATEGORIES) {
+            categoryAnimations.put(cat, 0f);
+        }
+        for (ModuleCategory cat : EXTRA_CATEGORIES) {
             categoryAnimations.put(cat, 0f);
         }
     }
@@ -202,7 +210,21 @@ public class BackgroundComponent implements IMinecraft {
             }
         }
 
-        for (ModuleCategory cat : CATEGORIES) {
+        for (ModuleCategory cat : MAIN_CATEGORIES) {
+            float target = cat == selectedCategory ? 1f : 0f;
+            float current = categoryAnimations.getOrDefault(cat, 0f);
+
+            float diff = target - current;
+            float change = diff * ANIMATION_SPEED * deltaTime;
+
+            if (Math.abs(diff) < 0.001f) {
+                categoryAnimations.put(cat, target);
+            } else {
+                categoryAnimations.put(cat, current + change);
+            }
+        }
+
+        for (ModuleCategory cat : EXTRA_CATEGORIES) {
             float target = cat == selectedCategory ? 1f : 0f;
             float current = categoryAnimations.getOrDefault(cat, 0f);
 
@@ -444,12 +466,26 @@ public class BackgroundComponent implements IMinecraft {
 
     private void renderAvatar(DrawContext context, float bgX, float bgY, float alphaMultiplier) {
         int alpha = (int) (255 * alphaMultiplier);
+        int alphaFon = (int) (105 * alphaMultiplier);
+        int alphaText = (int) (200 * alphaMultiplier);
         context.getMatrices().pushMatrix();
         GifRender.drawBackground(bgX + 12.5f, bgY + 12.5f, 70, 30, 7, applyAlpha(-1, alpha));
         Render2D.rect(bgX + 15f, bgY + 15f, 25, 25, new Color(42, 42, 42, alpha).getRGB(), 15);
         GifRender.drawAvatar(bgX + 16f, bgY + 16f, 23, 23, 15, applyAlpha(-1, alpha));
         Render2D.rect(bgX + 33, bgY + 33, 5, 5, new Color(0, 255, 0, alpha).getRGB(), 10);
         context.getMatrices().popMatrix();
+
+        Render2D.rect(bgX + 12.5f, bgY + 12.5f, 70, 30, new Color(0, 0, 0, alphaFon).getRGB(), 7);
+
+        float textX = bgX + 44;
+        float textY = bgY + 22;
+        float maxTextWidth = 35f;
+        float textHeight = 14f;
+
+        Scissor.enable(textX, textY - 2, maxTextWidth, textHeight);
+        Fonts.BOLD.draw("Baflllik", textX, textY, 6, new Color(255, 255, 255, alphaText).getRGB());
+        Fonts.BOLD.draw("Uid: 1", textX, textY + 7, 5, new Color(255, 255, 255, alphaText).getRGB());
+        Scissor.disable();
     }
 
     private int applyAlpha(int color, int alpha) {
@@ -457,8 +493,8 @@ public class BackgroundComponent implements IMinecraft {
     }
 
     public void renderCategoryNames(float bgX, float bgY, ModuleCategory selectedCategory, float alphaMultiplier) {
-        for (int i = 0; i < CATEGORY_NAMES.length; i++) {
-            ModuleCategory cat = CATEGORIES[i];
+        for (int i = 0; i < MAIN_CATEGORY_NAMES.length; i++) {
+            ModuleCategory cat = MAIN_CATEGORIES[i];
             float animation = categoryAnimations.getOrDefault(cat, 0f);
 
             float offsetX = animation * MAX_OFFSET;
@@ -472,7 +508,7 @@ public class BackgroundComponent implements IMinecraft {
             float textX = bgX + 17f + offsetX;
             float textY = bgY + 65f + i * 15f;
 
-            float textWidth = Fonts.BOLD.getWidth(CATEGORY_NAMES[i], TEXT_SIZE);
+            float textWidth = Fonts.BOLD.getWidth(MAIN_CATEGORY_NAMES[i], TEXT_SIZE);
 
             if (animation > 0.01f) {
                 float lineWidth = textWidth * animation;
@@ -495,8 +531,58 @@ public class BackgroundComponent implements IMinecraft {
                 );
             }
 
-            Fonts.BOLD.draw(CATEGORY_NAMES[i], textX, textY, TEXT_SIZE, textColor.getRGB());
+            Fonts.BOLD.draw(MAIN_CATEGORY_NAMES[i], textX, textY, TEXT_SIZE, textColor.getRGB());
         }
+
+        float separatorY = bgY + 65f + MAIN_CATEGORY_NAMES.length * 15f + 1f;
+        int separatorAlpha = (int) (80 * alphaMultiplier);
+        Render2D.rect(bgX + 15f, separatorY, 65f, 0.5f, new Color(100, 100, 100, separatorAlpha).getRGB(), 0);
+
+        float extraStartY = separatorY + 9f;
+
+        for (int i = 0; i < EXTRA_CATEGORY_NAMES.length; i++) {
+            ModuleCategory cat = EXTRA_CATEGORIES[i];
+            float animation = categoryAnimations.getOrDefault(cat, 0f);
+
+            float offsetX = animation * MAX_OFFSET;
+
+            int baseGray = 128;
+            int targetWhite = 255;
+            int colorValue = (int) (baseGray + (targetWhite - baseGray) * animation);
+            int alpha = (int) ((128 + 127 * animation) * alphaMultiplier);
+            Color textColor = new Color(colorValue, colorValue, colorValue, alpha);
+
+            float textX = bgX + 17f + offsetX;
+            float textY = extraStartY + i * 15f;
+
+            float textWidth = Fonts.BOLD.getWidth(EXTRA_CATEGORY_NAMES[i], TEXT_SIZE);
+
+            if (animation > 0.01f) {
+                float lineWidth = textWidth * animation;
+                float lineAlpha = animation * 60 * alphaMultiplier;
+                Render2D.rect(
+                        textX,
+                        textY + 9f,
+                        lineWidth, 0.5f,
+                        new Color(255, 255, 255, (int) lineAlpha).getRGB(),
+                        0
+                );
+
+                float ballAlpha = animation * 200 * alphaMultiplier;
+                float ballX = bgX + 12f;
+                float ballY = textY + 2.5f;
+
+                Render2D.rect(ballX, ballY, BALL_SIZE, BALL_SIZE,
+                        new Color(255, 255, 255, (int) ballAlpha).getRGB(),
+                        BALL_SIZE / 2f
+                );
+            }
+
+            Fonts.BOLD.draw(EXTRA_CATEGORY_NAMES[i], textX, textY, TEXT_SIZE, textColor.getRGB());
+        }
+
+        float bottomSeparatorY = extraStartY + EXTRA_CATEGORY_NAMES.length * 15f + 1f;
+        Render2D.rect(bgX + 15f, bottomSeparatorY, 65f, 0.5f, new Color(100, 100, 100, separatorAlpha).getRGB(), 0);
     }
 
     public void renderSearchResults(DrawContext context, float bgX, float bgY, float mouseX, float mouseY, int guiScale, float alphaMultiplier) {
@@ -873,13 +959,23 @@ public class BackgroundComponent implements IMinecraft {
     public ModuleCategory getCategoryAtPosition(double mouseX, double mouseY, float bgX, float bgY) {
         if (mouseX < bgX + 10f || mouseX > bgX + 85f) return null;
 
-        float[] yPositions = {60f, 75f, 90f, 105f, 120f};
-
-        for (int i = 0; i < yPositions.length; i++) {
-            if (mouseY >= bgY + yPositions[i] && mouseY <= bgY + yPositions[i] + 13f) {
-                return CATEGORIES[i];
+        for (int i = 0; i < MAIN_CATEGORY_NAMES.length; i++) {
+            float catY = 65f + i * 15f;
+            if (mouseY >= bgY + catY && mouseY <= bgY + catY + 13f) {
+                return MAIN_CATEGORIES[i];
             }
         }
+
+        float separatorY = 65f + MAIN_CATEGORY_NAMES.length * 15f + 1f;
+        float extraStartY = separatorY + 9f;
+
+        for (int i = 0; i < EXTRA_CATEGORIES.length; i++) {
+            float catY = extraStartY + i * 15f;
+            if (mouseY >= bgY + catY && mouseY <= bgY + catY + 13f) {
+                return EXTRA_CATEGORIES[i];
+            }
+        }
+
         return null;
     }
 }

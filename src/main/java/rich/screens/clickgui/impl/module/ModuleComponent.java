@@ -5,7 +5,7 @@ import lombok.Setter;
 import net.minecraft.client.gui.DrawContext;
 import org.lwjgl.glfw.GLFW;
 import rich.IMinecraft;
-import rich.modules.module.ModuleCategory;
+import rich.modules.module.category.ModuleCategory;
 import rich.modules.module.ModuleStructure;
 import rich.modules.module.setting.SettingComponentAdder;
 import rich.screens.clickgui.impl.settingsrender.*;
@@ -38,6 +38,11 @@ public class ModuleComponent implements IMinecraft {
     private static final float FAVORITE_ANIM_SPEED = 8f;
     private static final float POSITION_ANIM_SPEED = 6f;
 
+    private static final float BIND_BOX_HEIGHT = 9f;
+    private static final float BIND_BOX_MIN_WIDTH = 18f;
+    private static final float BIND_BOX_PADDING = 6f;
+    private static final float BIND_WIDTH_ANIM_SPEED = 12f;
+
     private List<ModuleStructure> modules = new ArrayList<>();
     private List<ModuleStructure> displayModules = new ArrayList<>();
     private List<ModuleStructure> oldModules = new ArrayList<>();
@@ -59,12 +64,16 @@ public class ModuleComponent implements IMinecraft {
     private Map<ModuleStructure, Float> favoriteAnimations = new HashMap<>();
     private Map<ModuleStructure, Float> positionAnimations = new HashMap<>();
     private Map<ModuleStructure, Float> moduleAlphaAnimations = new HashMap<>();
+    private Map<ModuleStructure, Float> bindBoxWidthAnimations = new HashMap<>();
+    private Map<ModuleStructure, Float> bindBoxAlphaAnimations = new HashMap<>();
+    private Map<ModuleStructure, String> lastBindTexts = new HashMap<>();
 
     private float selectedPulseAnimation = 0f;
     private long lastHoverUpdateTime = System.currentTimeMillis();
     private long lastStateUpdateTime = System.currentTimeMillis();
     private long lastIconUpdateTime = System.currentTimeMillis();
     private long lastFavoriteUpdateTime = System.currentTimeMillis();
+    private long lastBindUpdateTime = System.currentTimeMillis();
 
     private ModuleStructure highlightedModule = null;
     private long highlightStartTime = 0;
@@ -140,6 +149,9 @@ public class ModuleComponent implements IMinecraft {
         stateAnimations.clear();
         selectedIconAnimations.clear();
         modulesWithSettings.clear();
+        bindBoxWidthAnimations.clear();
+        bindBoxAlphaAnimations.clear();
+        lastBindTexts.clear();
 
         long currentTime = System.currentTimeMillis();
         long delayBase = (long) (CATEGORY_TRANSITION_DURATION * 0.3f);
@@ -318,6 +330,29 @@ public class ModuleComponent implements IMinecraft {
             if (currentAlphaAnim < 1f) {
                 float newAlphaAnim = currentAlphaAnim + POSITION_ANIM_SPEED * deltaTime;
                 moduleAlphaAnimations.put(module, Math.min(1f, newAlphaAnim));
+            }
+        }
+    }
+
+    private void updateBindAnimations() {
+        long currentTime = System.currentTimeMillis();
+        float deltaTime = Math.min((currentTime - lastBindUpdateTime) / 1000f, 0.1f);
+        lastBindUpdateTime = currentTime;
+
+        for (ModuleStructure module : displayModules) {
+            boolean isBinding = module == bindingModule;
+            int key = module.getKey();
+            boolean hasBind = key != GLFW.GLFW_KEY_UNKNOWN && key != -1;
+            boolean shouldShow = hasBind || isBinding;
+
+            float currentAlpha = bindBoxAlphaAnimations.getOrDefault(module, 0f);
+            float targetAlpha = shouldShow ? 1f : 0f;
+
+            float diff = targetAlpha - currentAlpha;
+            if (Math.abs(diff) < 0.001f) {
+                bindBoxAlphaAnimations.put(module, targetAlpha);
+            } else {
+                bindBoxAlphaAnimations.put(module, currentAlpha + diff * BIND_WIDTH_ANIM_SPEED * deltaTime);
             }
         }
     }
@@ -559,6 +594,7 @@ public class ModuleComponent implements IMinecraft {
         updateStateAnimations();
         updateSelectedIconAnimations();
         updateFavoriteAnimations();
+        updateBindAnimations();
         updateHighlightAnimation();
         updateHoverAnimations(mouseX, mouseY, x, y, width, height);
 
@@ -694,19 +730,13 @@ public class ModuleComponent implements IMinecraft {
             if (stateAnim > 0.01f) {
                 float ballAlpha = stateAnim * 200 * combinedAlpha;
                 float ballX = animX + 4;
-                float ballY = scaledModY + (scaledHeight - STATE_BALL_SIZE * scale) / 2f;
+                float ballY = scaledModY + (scaledHeight - STATE_BALL_SIZE * scale) / 2f + 1F;
                 Render2D.rect(ballX, ballY, STATE_BALL_SIZE * scale, STATE_BALL_SIZE * scale,
                         new Color(255, 255, 255, (int) ballAlpha).getRGB(),
                         STATE_BALL_SIZE * scale / 2f);
             }
 
             String name = module.getName();
-            if (interactive && module == bindingModule) {
-                name += " [...]";
-            } else if (module.getKey() != GLFW.GLFW_KEY_UNKNOWN) {
-                String key = GLFW.glfwGetKeyName(module.getKey(), 0);
-                name += " [" + (key != null ? key.toUpperCase() : "KEY" + module.getKey()) + "]";
-            }
 
             int baseGray = 128;
             int targetWhite = 255;
@@ -729,6 +759,8 @@ public class ModuleComponent implements IMinecraft {
             Fonts.BOLD.draw(name, textX, textY, 6 * scale, textColor.getRGB());
 
             if (interactive) {
+                renderBindBox(module, animX, scaledModY, scaledWidth, scaledHeight, scale, combinedAlpha, stateTextOffset);
+
                 float iconBaseX = animX + scaledWidth - 14;
                 float iconY = scaledModY + (scaledHeight - 8f * scale) / 2f;
 
@@ -739,7 +771,7 @@ public class ModuleComponent implements IMinecraft {
                     starX = iconBaseX;
                 }
 
-                int starGray = 100;
+                int starGray = 50;
                 int starR = (int) (starGray + (255 - starGray) * favoriteAnim);
                 int starG = (int) (starGray + (215 - starGray) * favoriteAnim);
                 int starB = (int) (starGray + (0 - starGray) * favoriteAnim);
@@ -760,6 +792,117 @@ public class ModuleComponent implements IMinecraft {
                 }
             }
         }
+    }
+
+    private void renderBindBox(ModuleStructure module, float moduleX, float moduleY, float moduleWidth, float moduleHeight, float scale, float combinedAlpha, float stateTextOffset) {
+        boolean isBinding = module == bindingModule;
+        int key = module.getKey();
+
+        float bindAlpha = bindBoxAlphaAnimations.getOrDefault(module, 0f);
+
+        if (bindAlpha <= 0.01f && !isBinding && (key == GLFW.GLFW_KEY_UNKNOWN || key == -1)) {
+            return;
+        }
+
+        String bindText;
+        if (isBinding) {
+            bindText = "...";
+        } else {
+            bindText = getBindDisplayName(key);
+        }
+
+        float textWidth = Fonts.BOLD.getWidth(bindText, 5 * scale);
+        float targetWidth = Math.max(BIND_BOX_MIN_WIDTH, textWidth + BIND_BOX_PADDING * 2);
+
+        float currentWidth = bindBoxWidthAnimations.getOrDefault(module, targetWidth);
+
+        float widthDiff = targetWidth - currentWidth;
+        if (Math.abs(widthDiff) > 0.1f) {
+            currentWidth += widthDiff * BIND_WIDTH_ANIM_SPEED * 0.016f;
+            bindBoxWidthAnimations.put(module, currentWidth);
+        } else {
+            currentWidth = targetWidth;
+            bindBoxWidthAnimations.put(module, currentWidth);
+        }
+
+        float boxHeight = BIND_BOX_HEIGHT * scale;
+        float boxWidth = currentWidth * scale * bindAlpha;
+
+        float nameWidth = Fonts.BOLD.getWidth(module.getName(), 6 * scale);
+        float boxX = moduleX + 5 + stateTextOffset + nameWidth;
+        float boxY = moduleY + (moduleHeight - boxHeight) / 2f + 0.5f;
+
+        float finalAlpha = combinedAlpha * bindAlpha;
+
+        int bgAlpha = (int) (30 * finalAlpha);
+        Color bgColor = new Color(50, 50, 55, bgAlpha);
+
+        Render2D.rect(boxX + 3, boxY + 0.5f, boxWidth - 6, boxHeight, bgColor.getRGB(), 3f * scale);
+
+        int outlineAlpha = (int) (60 * finalAlpha);
+        Color outlineColor = new Color(80, 80, 85, outlineAlpha);
+
+        Render2D.outline(boxX + 3, boxY + 0.5f, boxWidth - 6, boxHeight, 0.5f, outlineColor.getRGB(), 3f * scale);
+
+        if (bindAlpha > 0.5f) {
+            int textAlpha = (int) (160 * finalAlpha);
+            Color textColor = new Color(140, 140, 145, textAlpha);
+
+            float textX = boxX + (boxWidth - textWidth) / 2f;
+            float textY = boxY + (boxHeight - 5f * scale) / 2f;
+            Fonts.BOLD.draw(bindText, textX, textY, 5 * scale, textColor.getRGB());
+        }
+    }
+
+    private String getBindDisplayName(int key) {
+        if (key == GLFW.GLFW_KEY_UNKNOWN || key == -1) return "";
+
+        if (key == BindComponent.SCROLL_UP_BIND) return "Up";
+        if (key == BindComponent.SCROLL_DOWN_BIND) return "Dn";
+        if (key == BindComponent.MIDDLE_MOUSE_BIND) return "M3";
+
+        String keyName = GLFW.glfwGetKeyName(key, 0);
+        if (keyName != null) {
+            return keyName.toUpperCase();
+        }
+
+        return switch (key) {
+            case GLFW.GLFW_KEY_LEFT_SHIFT -> "LS";
+            case GLFW.GLFW_KEY_RIGHT_SHIFT -> "RS";
+            case GLFW.GLFW_KEY_LEFT_CONTROL -> "LC";
+            case GLFW.GLFW_KEY_RIGHT_CONTROL -> "RC";
+            case GLFW.GLFW_KEY_LEFT_ALT -> "LA";
+            case GLFW.GLFW_KEY_RIGHT_ALT -> "RA";
+            case GLFW.GLFW_KEY_SPACE -> "Sp";
+            case GLFW.GLFW_KEY_TAB -> "Tab";
+            case GLFW.GLFW_KEY_CAPS_LOCK -> "Cap";
+            case GLFW.GLFW_KEY_ENTER -> "Ent";
+            case GLFW.GLFW_KEY_BACKSPACE -> "Bk";
+            case GLFW.GLFW_KEY_INSERT -> "Ins";
+            case GLFW.GLFW_KEY_DELETE -> "Del";
+            case GLFW.GLFW_KEY_HOME -> "Hm";
+            case GLFW.GLFW_KEY_END -> "End";
+            case GLFW.GLFW_KEY_PAGE_UP -> "PU";
+            case GLFW.GLFW_KEY_PAGE_DOWN -> "PD";
+            case GLFW.GLFW_KEY_UP -> "Up";
+            case GLFW.GLFW_KEY_DOWN -> "Dn";
+            case GLFW.GLFW_KEY_LEFT -> "Lt";
+            case GLFW.GLFW_KEY_RIGHT -> "Rt";
+            case GLFW.GLFW_KEY_F1 -> "F1";
+            case GLFW.GLFW_KEY_F2 -> "F2";
+            case GLFW.GLFW_KEY_F3 -> "F3";
+            case GLFW.GLFW_KEY_F4 -> "F4";
+            case GLFW.GLFW_KEY_F5 -> "F5";
+            case GLFW.GLFW_KEY_F6 -> "F6";
+            case GLFW.GLFW_KEY_F7 -> "F7";
+            case GLFW.GLFW_KEY_F8 -> "F8";
+            case GLFW.GLFW_KEY_F9 -> "F9";
+            case GLFW.GLFW_KEY_F10 -> "F10";
+            case GLFW.GLFW_KEY_F11 -> "F11";
+            case GLFW.GLFW_KEY_F12 -> "F12";
+            case GLFW.GLFW_KEY_ESCAPE -> "Esc";
+            default -> "K" + key;
+        };
     }
 
     public void renderSettingsPanel(DrawContext context, float x, float y, float width, float height, float mouseX, float mouseY, float delta, int guiScale, float alphaMultiplier) {
