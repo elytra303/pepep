@@ -6,12 +6,13 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import rich.Initialization;
 import rich.events.api.EventManager;
 import rich.events.impl.SetScreenEvent;
 import rich.screens.clickgui.ClickGui;
+import rich.util.config.ConfigSystem;
 import rich.util.window.WindowStyle;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import static rich.IMinecraft.mc;
 
@@ -21,6 +22,14 @@ public abstract class MinecraftClientMixin {
     @Inject(method = "<init>", at = @At("TAIL"))
     private void onInit(CallbackInfo ci) {
         new Initialization().init();
+    }
+
+    @Inject(method = "stop", at = @At("HEAD"))
+    private void onStop(CallbackInfo ci) {
+        ConfigSystem configSystem = ConfigSystem.getInstance();
+        if (configSystem != null) {
+            configSystem.shutdown();
+        }
     }
 
     @Inject(method = "setScreen", at = @At(value = "HEAD"), cancellable = true)

@@ -3,6 +3,7 @@ package rich.modules.module;
 import lombok.AccessLevel;
 import lombok.experimental.FieldDefaults;
 import rich.modules.impl.combat.*;
+import rich.modules.impl.misc.AutoBuy;
 import rich.modules.impl.movement.*;
 import rich.modules.impl.render.*;
 
@@ -15,7 +16,8 @@ public class ModuleRepository {
 
     public void setup() {
         register(
-                new Hud()
+                new Hud(),
+                new AutoBuy()
         );
     }
 
