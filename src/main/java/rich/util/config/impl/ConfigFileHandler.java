@@ -1,11 +1,16 @@
 package rich.util.config.impl;
 
-import rich.util.config.impl.consolelogger.ConfigLogger;
+import rich.util.config.impl.consolelogger.Logger;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+
+/**
+ *  © 2026 Copyright Rich Client 2.0
+ *        All Rights Reserved ®
+ */
 
 public class ConfigFileHandler {
 
@@ -19,7 +24,7 @@ public class ConfigFileHandler {
         try {
             Files.createDirectories(ConfigPath.getConfigDirectory());
         } catch (IOException e) {
-            ConfigLogger.error("AutoConfiguration: Failed to create directories!");
+            Logger.error("AutoConfiguration: Failed to create directories!");
         }
     }
 
@@ -34,7 +39,7 @@ public class ConfigFileHandler {
 
             return true;
         } catch (IOException e) {
-            ConfigLogger.error("AutoConfiguration: Write failed! " + e.getMessage());
+            Logger.error("AutoConfiguration: Write failed! " + e.getMessage());
             return false;
         } finally {
             lock.writeLock().unlock();
@@ -52,7 +57,7 @@ public class ConfigFileHandler {
 
             return Files.readString(configFile, StandardCharsets.UTF_8);
         } catch (IOException e) {
-            ConfigLogger.error("AutoConfiguration: Read failed! " + e.getMessage());
+            Logger.error("AutoConfiguration: Read failed! " + e.getMessage());
             return null;
         } finally {
             lock.readLock().unlock();

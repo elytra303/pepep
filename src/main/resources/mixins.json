@@ -3,7 +3,10 @@
   "package": "rich.mixin",
   "compatibilityLevel": "JAVA_21",
   "client": [
+    "ChatInputSuggestorMixin",
+    "ChatScreenMixin",
     "ClientPlayerEntityMixin",
+    "ClientPlayNetworkHandlerMixin",
     "GameRendererMixin",
     "InGameHudMixin",
     "KeyboardMixin",

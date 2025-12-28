@@ -12,8 +12,9 @@ import rich.Initialization;
 import rich.modules.module.category.ModuleCategory;
 import rich.modules.module.ModuleStructure;
 import rich.screens.clickgui.impl.DragHandler;
-import rich.screens.clickgui.impl.autobuy.AutoBuyRenderer;
+import rich.screens.clickgui.impl.autobuy.autobuyui.AutoBuyRenderer;
 import rich.screens.clickgui.impl.background.BackgroundComponent;
+import rich.screens.clickgui.impl.configs.ConfigsRenderer;
 import rich.screens.clickgui.impl.module.ModuleComponent;
 import rich.screens.clickgui.impl.settingsrender.BindComponent;
 import rich.screens.clickgui.impl.settingsrender.TextComponent;
@@ -36,6 +37,7 @@ public class ClickGui extends Screen implements IMinecraft {
     private final BackgroundComponent background = new BackgroundComponent();
     private final ModuleComponent moduleComponent = new ModuleComponent();
     private final AutoBuyRenderer autoBuyRenderer = new AutoBuyRenderer();
+    private final ConfigsRenderer configsRenderer = new ConfigsRenderer();
     private final DragHandler dragHandler = new DragHandler();
     private ModuleCategory selectedCategory = ModuleCategory.COMBAT;
 
@@ -205,9 +207,10 @@ public class ClickGui extends Screen implements IMinecraft {
         float searchAlpha = background.getSearchPanelAlpha();
 
         if (normalAlpha > 0.01f) {
-            if (selectedCategory == ModuleCategory.AUTOBUY) {
-                autoBuyRenderer.render(context, bgX, bgY, mx, my, delta, FIXED_GUI_SCALE, alphaMultiplier * normalAlpha, selectedCategory);
-            } else {
+            configsRenderer.render(context, bgX, bgY, mx, my, delta, FIXED_GUI_SCALE, alphaMultiplier * normalAlpha, selectedCategory);
+            autoBuyRenderer.render(context, bgX, bgY, mx, my, delta, FIXED_GUI_SCALE, alphaMultiplier * normalAlpha, selectedCategory);
+
+            if (selectedCategory != ModuleCategory.AUTOBUY && selectedCategory != ModuleCategory.CONFIGS) {
                 moduleComponent.updateScroll(delta, scrollSpeed);
                 moduleComponent.updateScrollFades(delta, scrollSpeed, mlH, spH);
                 moduleComponent.renderModuleList(context, mlX, mlY, mlW, mlH, mx, my, FIXED_GUI_SCALE, alphaMultiplier * normalAlpha);
@@ -288,6 +291,12 @@ public class ClickGui extends Screen implements IMinecraft {
             }
         }
 
+        if (selectedCategory == ModuleCategory.CONFIGS) {
+            if (configsRenderer.mouseClicked(mx, my, click.button(), bgX, bgY, selectedCategory)) {
+                return true;
+            }
+        }
+
         float mlX = bgX + 92f, mlY = bgY + 38f, mlW = 120f, mlH = BackgroundComponent.BG_HEIGHT - 48f;
 
         if (click.button() == 2) {
@@ -322,7 +331,7 @@ public class ClickGui extends Screen implements IMinecraft {
             return true;
         }
 
-        if (selectedCategory != ModuleCategory.AUTOBUY) {
+        if (selectedCategory != ModuleCategory.AUTOBUY && selectedCategory != ModuleCategory.CONFIGS) {
             ModuleStructure starModule = moduleComponent.getModuleForStarClick(mx, my, mlX, mlY, mlW, mlH);
             if (starModule != null && click.button() == 0) {
                 moduleComponent.toggleFavorite(starModule);
@@ -353,6 +362,10 @@ public class ClickGui extends Screen implements IMinecraft {
 
         if (selectedCategory == ModuleCategory.AUTOBUY) {
             autoBuyRenderer.mouseReleased(click.x(), click.y(), click.button());
+        }
+
+        if (selectedCategory == ModuleCategory.CONFIGS) {
+            configsRenderer.mouseReleased(click.x(), click.y(), click.button());
         }
 
         for (AbstractSettingComponent c : moduleComponent.getSettingComponents()) {
@@ -406,6 +419,12 @@ public class ClickGui extends Screen implements IMinecraft {
             }
         }
 
+        if (selectedCategory == ModuleCategory.CONFIGS) {
+            if (configsRenderer.mouseScrolled(mx, my, vertical, bgX, bgY, selectedCategory)) {
+                return true;
+            }
+        }
+
         float mlX = bgX + 92f, mlY = bgY + 38f, mlW = 120f, mlH = BackgroundComponent.BG_HEIGHT - 48f;
         if (mx >= mlX && mx <= mlX + mlW && my >= mlY && my <= mlY + mlH) {
             moduleComponent.handleModuleScroll(vertical, mlH);
@@ -426,6 +445,9 @@ public class ClickGui extends Screen implements IMinecraft {
             if (autoBuyRenderer.isEditing()) {
                 return true;
             }
+            if (configsRenderer.isEditing()) {
+                return true;
+            }
             if (background.isSearchActive()) {
                 background.setSearchActive(false);
                 return true;
@@ -438,6 +460,12 @@ public class ClickGui extends Screen implements IMinecraft {
 
         if (selectedCategory == ModuleCategory.AUTOBUY) {
             if (autoBuyRenderer.keyPressed(input.key(), input.scancode(), input.modifiers())) {
+                return true;
+            }
+        }
+
+        if (selectedCategory == ModuleCategory.CONFIGS) {
+            if (configsRenderer.keyPressed(input.key(), input.scancode(), input.modifiers())) {
                 return true;
             }
         }
@@ -473,6 +501,12 @@ public class ClickGui extends Screen implements IMinecraft {
 
         if (selectedCategory == ModuleCategory.AUTOBUY) {
             if (autoBuyRenderer.charTyped((char) input.codepoint(), input.modifiers())) {
+                return true;
+            }
+        }
+
+        if (selectedCategory == ModuleCategory.CONFIGS) {
+            if (configsRenderer.charTyped((char) input.codepoint(), input.modifiers())) {
                 return true;
             }
         }

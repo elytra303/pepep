@@ -6,10 +6,15 @@ import rich.modules.module.ModuleRepository;
 import rich.modules.module.ModuleStructure;
 import rich.modules.module.setting.Setting;
 import rich.modules.module.setting.implement.*;
-import rich.util.config.impl.consolelogger.ConfigLogger;
+import rich.util.config.impl.consolelogger.Logger;
 
 import java.util.ArrayList;
 import java.util.List;
+
+/**
+ *  © 2026 Copyright Rich Client 2.0
+ *        All Rights Reserved ®
+ */
 
 public class ConfigSerializer {
 
@@ -128,7 +133,7 @@ public class ConfigSerializer {
                 }
             }
         } catch (JsonSyntaxException e) {
-            ConfigLogger.error("AutoConfiguration: JSON syntax error!");
+            Logger.error("AutoConfiguration: JSON syntax error!");
         }
     }
 

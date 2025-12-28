@@ -1,6 +1,7 @@
 package rich.manager;
 
 import lombok.Getter;
+import rich.command.CommandManager;
 import rich.events.api.EventManager;
 import rich.modules.module.*;
 import rich.screens.clickgui.ClickGui;
@@ -10,6 +11,11 @@ import rich.util.modules.ModuleSwitcher;
 import rich.util.render.RenderCore;
 import rich.util.render.Scissor;
 import rich.screens.hud.drags.DraggableRepository;
+
+/**
+ *  © 2026 Copyright Rich Client 2.0
+ *        All Rights Reserved ®
+ */
 
 @Getter
 public class Manager {
@@ -23,6 +29,7 @@ public class Manager {
     private ModuleSwitcher moduleSwitcher;
     private ClickGui clickgui;
     private ConfigSystem configSystem;
+    private CommandManager commandManager;
 
     public void init() {
         clickgui = new ClickGui();
@@ -37,5 +44,7 @@ public class Manager {
         moduleSwitcher = new ModuleSwitcher(moduleRepository.modules(), eventManager);
         configSystem = new ConfigSystem();
         configSystem.init();
+        commandManager = new CommandManager();
+        commandManager.init();
     }
 }

@@ -3,6 +3,11 @@ package rich.util.config.impl;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
+/**
+ *  © 2026 Copyright Rich Client 2.0
+ *        All Rights Reserved ®
+ */
+
 public class ConfigPath {
 
     private static final String ROOT_DIR = "Rich";

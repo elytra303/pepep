@@ -7,8 +7,8 @@ import rich.events.impl.TickEvent;
 import rich.modules.module.ModuleStructure;
 import rich.modules.module.category.ModuleCategory;
 import rich.modules.module.setting.implement.*;
-import rich.screens.clickgui.impl.autobuy.window.AutoBuyManager;
-import rich.screens.clickgui.impl.autobuy.window.AutoBuyableItem;
+import rich.screens.clickgui.impl.autobuy.manager.AutoBuyManager;
+import rich.screens.clickgui.impl.autobuy.AutoBuyableItem;
 import rich.util.modules.autobuy.*;
 
 import net.minecraft.client.gui.screen.ingame.GenericContainerScreen;
@@ -67,6 +67,7 @@ public class AutoBuy extends ModuleStructure {
     @Override
     public void activate() {
         super.activate();
+        autoBuyManager.setEnabled(true);
         resetTimers();
         resetState();
 
@@ -81,6 +82,7 @@ public class AutoBuy extends ModuleStructure {
     @Override
     public void deactivate() {
         super.deactivate();
+        autoBuyManager.setEnabled(false);
         networkManager.stop();
         serverManager.reset();
         afkHandler.resetMovementKeys(mc.options);
@@ -112,11 +114,7 @@ public class AutoBuy extends ModuleStructure {
 
     private void cacheEnabledItems() {
         cachedEnabledItems.clear();
-        for (AutoBuyableItem item : autoBuyManager.getAllItems()) {
-            if (item.isEnabled()) {
-                cachedEnabledItems.add(item);
-            }
-        }
+        cachedEnabledItems.addAll(autoBuyManager.getEnabledItems());
     }
 
     @EventHandler
@@ -128,10 +126,6 @@ public class AutoBuy extends ModuleStructure {
             if (message.contains("Вы уже подключены к этому серверу!")) {
                 serverManager.switchToNextServer(mc.player, networkManager, leaveType.isSelected("Покупающий"));
                 return;
-            }
-
-            if (leaveType.isSelected("Покупающий")) {
-//                PurchaseHandler.handlePurchaseMessage(message, autoBuyManager);
             }
         }
     }

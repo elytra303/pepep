@@ -52,7 +52,7 @@ public class TexturePipeline {
     );
 
     private static final Vector4f COLOR_MODULATOR = new Vector4f(1f, 1f, 1f, 1f);
-    private static final int BUFFER_SIZE = 320;
+    private static final int BUFFER_SIZE = 352;
 
     private GpuBuffer uniformBuffer;
     private GpuBuffer dummyVertexBuffer;
@@ -83,6 +83,12 @@ public class TexturePipeline {
     public void drawTexture(Identifier textureId, float x, float y, float width, float height,
                             float u0, float v0, float u1, float v1,
                             int[] colors, float[] radii, float smoothness) {
+        drawTexture(textureId, x, y, width, height, u0, v0, u1, v1, colors, radii, smoothness, false);
+    }
+
+    public void drawTexture(Identifier textureId, float x, float y, float width, float height,
+                            float u0, float v0, float u1, float v1,
+                            int[] colors, float[] radii, float smoothness, boolean pixelPerfect) {
 
         MinecraftClient client = MinecraftClient.getInstance();
         if (client.getFramebuffer() == null) return;
@@ -106,43 +112,44 @@ public class TexturePipeline {
                 client.getWindow().getScaledHeight(),
                 guiScale,
                 u0, v0, u1, v1,
-                colors, radii, smoothness);
+                colors, radii, smoothness, pixelPerfect);
 
-        uploadAndDraw(client, gpuTexture);
+        uploadAndDraw(client, gpuTexture, pixelPerfect);
     }
 
     private void prepareUniformData(float x, float y, float width, float height,
                                     float screenWidth, float screenHeight,
                                     float guiScale,
                                     float u0, float v0, float u1, float v1,
-                                    int[] colors, float[] radii, float smoothness) {
+                                    int[] colors, float[] radii, float smoothness,
+                                    boolean pixelPerfect) {
         dataBuffer.clear();
 
-        // vec4 rect
         dataBuffer.putFloat(x);
         dataBuffer.putFloat(y);
         dataBuffer.putFloat(width);
         dataBuffer.putFloat(height);
 
-        // vec4 screen (screenWidth, screenHeight, smoothness, guiScale)
         dataBuffer.putFloat(screenWidth);
         dataBuffer.putFloat(screenHeight);
         dataBuffer.putFloat(smoothness);
         dataBuffer.putFloat(guiScale);
 
-        // vec4 uvCoords
         dataBuffer.putFloat(u0);
         dataBuffer.putFloat(v0);
         dataBuffer.putFloat(u1);
         dataBuffer.putFloat(v1);
 
-        // vec4 radii
         dataBuffer.putFloat(radii[0]);
         dataBuffer.putFloat(radii[1]);
         dataBuffer.putFloat(radii[2]);
         dataBuffer.putFloat(radii[3]);
 
-        // 4 colors
+        dataBuffer.putFloat(pixelPerfect ? 1.0f : 0.0f);
+        dataBuffer.putFloat(0.0f);
+        dataBuffer.putFloat(0.0f);
+        dataBuffer.putFloat(0.0f);
+
         for (int i = 0; i < 4; i++) {
             int color = i < colors.length ? colors[i] : colors[colors.length - 1];
             float a = ((color >> 24) & 0xFF) / 255.0f;
@@ -158,8 +165,75 @@ public class TexturePipeline {
 
         dataBuffer.flip();
     }
+    public void drawFramebufferTexture(int textureId, float x, float y, float width, float height,
+                                       int[] colors, float[] radii, float alpha) {
 
-    private void uploadAndDraw(MinecraftClient client, GpuTexture gpuTexture) {
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client.getFramebuffer() == null) return;
+
+        ensureInitialized();
+
+        float guiScale = (float) client.getWindow().getScaleFactor();
+
+        prepareUniformData(x, y, width, height,
+                client.getWindow().getScaledWidth(),
+                client.getWindow().getScaledHeight(),
+                guiScale,
+                0, 1, 1, 0,
+                colors, radii, 0f, true);
+
+        uploadAndDrawDirect(client, textureId);
+    }
+
+    private void uploadAndDrawDirect(MinecraftClient client, int textureId) {
+        int size = dataBuffer.remaining();
+        if (uniformBuffer == null || uniformBuffer.size() < size) {
+            if (uniformBuffer != null) {
+                uniformBuffer.close();
+            }
+            uniformBuffer = RenderSystem.getDevice().createBuffer(
+                    () -> "minecraft:texture_uniform",
+                    GpuBuffer.USAGE_UNIFORM | GpuBuffer.USAGE_COPY_DST,
+                    size
+            );
+        }
+
+        CommandEncoder encoder = RenderSystem.getDevice().createCommandEncoder();
+        encoder.writeToBuffer(uniformBuffer.slice(), dataBuffer);
+
+        GpuBufferSlice dynamicTransforms = RenderSystem.getDynamicUniforms()
+                .write(RenderSystem.getModelViewMatrix(),
+                        COLOR_MODULATOR,
+                        MODEL_OFFSET,
+                        TEXTURE_MATRIX);
+
+        GL13.glActiveTexture(GL13.GL_TEXTURE0);
+        GL11.glBindTexture(GL11.GL_TEXTURE_2D, textureId);
+
+        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, GL11.GL_NEAREST);
+        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, GL11.GL_NEAREST);
+
+        try (RenderPass renderPass = encoder.createRenderPass(
+                () -> "minecraft:framebuffer_texture_pass",
+                client.getFramebuffer().getColorAttachmentView(),
+                OptionalInt.empty(),
+                client.getFramebuffer().getDepthAttachmentView(),
+                OptionalDouble.empty())) {
+
+            renderPass.setPipeline(PIPELINE);
+            renderPass.setVertexBuffer(0, dummyVertexBuffer);
+
+            RenderSystem.bindDefaultUniforms(renderPass);
+            renderPass.setUniform("DynamicTransforms", dynamicTransforms);
+            renderPass.setUniform("TextureData", uniformBuffer);
+
+            renderPass.draw(0, 6);
+        }
+
+        GL11.glBindTexture(GL11.GL_TEXTURE_2D, 0);
+    }
+
+    private void uploadAndDraw(MinecraftClient client, GpuTexture gpuTexture, boolean pixelPerfect) {
         int size = dataBuffer.remaining();
         if (uniformBuffer == null || uniformBuffer.size() < size) {
             if (uniformBuffer != null) {
@@ -185,6 +259,14 @@ public class TexturePipeline {
         GL13.glActiveTexture(GL13.GL_TEXTURE0);
         GL11.glBindTexture(GL11.GL_TEXTURE_2D, textureGlId);
 
+        int prevMinFilter = GL11.glGetTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER);
+        int prevMagFilter = GL11.glGetTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER);
+
+        if (pixelPerfect) {
+            GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, GL11.GL_NEAREST);
+            GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, GL11.GL_NEAREST);
+        }
+
         try (RenderPass renderPass = encoder.createRenderPass(
                 () -> "minecraft:texture_pass",
                 client.getFramebuffer().getColorAttachmentView(),
@@ -200,6 +282,11 @@ public class TexturePipeline {
             renderPass.setUniform("TextureData", uniformBuffer);
 
             renderPass.draw(0, 6);
+        }
+
+        if (pixelPerfect) {
+            GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, prevMinFilter);
+            GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, prevMagFilter);
         }
 
         GL11.glBindTexture(GL11.GL_TEXTURE_2D, 0);

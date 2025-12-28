@@ -16,7 +16,7 @@ public final class EventManager {
 
     public EventManager() {}
 
-    public void register(Object object) {
+    public static void register(Object object) {
         for (final Method method : object.getClass().getDeclaredMethods()) {
             if (isMethodBad(method)) {
                 continue;
@@ -26,7 +26,7 @@ public final class EventManager {
         }
     }
 
-    public void register(Object object, Class<? extends Event> eventClass) {
+    public static void register(Object object, Class<? extends Event> eventClass) {
         for (final Method method : object.getClass().getDeclaredMethods()) {
             if (isMethodBad(method, eventClass)) {
                 continue;
@@ -36,7 +36,7 @@ public final class EventManager {
         }
     }
 
-    public void unregister(Object object) {
+    public static void unregister(Object object) {
         for (final List<MethodData> dataList : REGISTRY_MAP.values()) {
             dataList.removeIf(data -> data.source().equals(object));
         }
@@ -44,14 +44,14 @@ public final class EventManager {
         cleanMap(true);
     }
 
-    public void unregister(Object object, Class<? extends Event> eventClass) {
+    public static void unregister(Object object, Class<? extends Event> eventClass) {
         if (REGISTRY_MAP.containsKey(eventClass)) {
             REGISTRY_MAP.get(eventClass).removeIf(data -> data.source().equals(object));
             cleanMap(true);
         }
     }
 
-    private void register(Method method, Object object) {
+    private static void register(Method method, Object object) {
         @SuppressWarnings("unchecked")
         Class<? extends Event> indexClass = (Class<? extends Event>) method.getParameterTypes()[0];
         final MethodData data = new MethodData(object, method, method.getAnnotation(EventHandler.class).value());
@@ -71,7 +71,7 @@ public final class EventManager {
         }
     }
 
-    public void removeEntry(Class<? extends Event> indexClass) {
+    public static void removeEntry(Class<? extends Event> indexClass) {
         REGISTRY_MAP.entrySet().removeIf(entry -> entry.getKey().equals(indexClass));
     }
 

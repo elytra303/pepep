@@ -6,6 +6,11 @@ import rich.manager.Manager;
 
 import javax.swing.*;
 
+/**
+ *  © 2026 Copyright Rich Client 2.0
+ *        All Rights Reserved ®
+ */
+
 public class Initialization implements ClientModInitializer {
 
     @Getter

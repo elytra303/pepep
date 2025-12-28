@@ -1,5 +1,6 @@
 package rich.util.render;
 
+import net.minecraft.client.texture.Sprite;
 import net.minecraft.util.Identifier;
 import rich.Initialization;
 import rich.util.ColorUtil;
@@ -160,5 +161,36 @@ public class Render2D {
         float[] radii = {0, 0, 0, 0};
         Initialization.getInstance().getManager().getRenderCore().getTexturePipeline()
                 .drawTexture(id, x, y, width, height, u0, v0, u1, v1, colors, radii, 1f);
+    }
+
+    public static void drawSprite(Sprite sprite, float x, float y, float width, float height, int color) {
+        drawSprite(sprite, x, y, width, height, color, true);
+    }
+
+    public static void drawSprite(Sprite sprite, float x, float y, float width, float height, int color, boolean pixelPerfect) {
+        if (sprite == null || width == 0 || height == 0) return;
+
+        int[] colors = {color, color, color, color};
+        float[] radii = {0, 0, 0, 0};
+
+        Initialization.getInstance().getManager().getRenderCore().getTexturePipeline()
+                .drawTexture(sprite.getAtlasId(), x, y, width, height,
+                        sprite.getMinU(), sprite.getMinV(),
+                        sprite.getMaxU(), sprite.getMaxV(),
+                        colors, radii, 0f, pixelPerfect);
+    }
+
+    public static void drawSpriteSmooth(Sprite sprite, float x, float y, float width, float height, int color) {
+        drawSprite(sprite, x, y, width, height, color, false);
+    }
+
+    public static void drawFramebufferTexture(int textureId, float x, float y, float width, float height,
+                                              float r, float g, float b, float a) {
+        int color = ((int)(a * 255) << 24) | ((int)(r * 255) << 16) | ((int)(g * 255) << 8) | (int)(b * 255);
+        int[] colors = {color, color, color, color};
+        float[] radii = {0, 0, 0, 0};
+
+        Initialization.getInstance().getManager().getRenderCore().getTexturePipeline()
+                .drawFramebufferTexture(textureId, x, y, width, height, colors, radii, a);
     }
 }

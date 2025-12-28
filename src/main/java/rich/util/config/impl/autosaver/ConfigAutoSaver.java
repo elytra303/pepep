@@ -1,10 +1,15 @@
 package rich.util.config.impl.autosaver;
 
-import rich.util.config.impl.consolelogger.ConfigLogger;
+import rich.util.config.impl.consolelogger.Logger;
 
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+
+/**
+ *  © 2026 Copyright Rich Client 2.0
+ *        All Rights Reserved ®
+ */
 
 public class ConfigAutoSaver {
 
@@ -37,7 +42,7 @@ public class ConfigAutoSaver {
                     SAVE_INTERVAL_MS,
                     TimeUnit.MILLISECONDS
             );
-            ConfigLogger.info("AutoConfiguration: AutoSaver started (interval: 90s)");
+            Logger.info("AutoConfiguration: AutoSaver started (interval: 90s)");
         }
     }
 
@@ -49,7 +54,7 @@ public class ConfigAutoSaver {
             saveTask.run();
             lastSaveTime.set(System.currentTimeMillis());
         } catch (Exception e) {
-            ConfigLogger.error("AutoConfiguration: AutoSave failed! " + e.getMessage());
+            Logger.error("AutoConfiguration: AutoSave failed! " + e.getMessage());
         }
     }
 

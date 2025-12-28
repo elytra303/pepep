@@ -1,12 +1,16 @@
 package rich.util.math;
 
 import lombok.experimental.UtilityClass;
+import net.minecraft.entity.Entity;
 import net.minecraft.util.math.ColorHelper;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
+import org.joml.Vector3d;
 import rich.IMinecraft;
 
 import java.util.concurrent.ThreadLocalRandom;
+
+import static net.minecraft.util.math.MathHelper.lerp;
 
 @UtilityClass
 public class MathUtils implements IMinecraft {
@@ -94,6 +98,29 @@ public class MathUtils implements IMinecraft {
         return Math.abs(1 + Math.sin(input)) / 2;
     }
 
+    public Vector3d interpolate(Vector3d prevPos, Vector3d pos) {
+        return new Vector3d(interpolate(prevPos.x, pos.x), interpolate(prevPos.y, pos.y), interpolate(prevPos.z, pos.z));
+    }
 
+    public static float interpolate(float prev, float to, float value) {
+        return prev + (to - prev) * value;
+    }
+
+    public Vec3d interpolate(Vec3d prevPos, Vec3d pos) {
+        return new Vec3d(interpolate(prevPos.x, pos.x), interpolate(prevPos.y, pos.y), interpolate(prevPos.z, pos.z));
+    }
+
+
+    public float interpolate(float prev, float orig) {
+        return lerp(tickCounter.getTickProgress(false), prev, orig);
+    }
+
+    public double interpolate(double prev, double orig) {
+        return lerp(tickCounter.getTickProgress(false), prev, orig);
+    }
+
+    public float interpolateSmooth(double smooth, float prev, float orig) {
+        return (float) lerp(tickCounter.getFixedDeltaTicks() / smooth, prev, orig);
+    }
 
 }

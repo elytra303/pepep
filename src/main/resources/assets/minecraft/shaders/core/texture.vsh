@@ -1,11 +1,12 @@
 #version 150
 
 layout(std140) uniform TextureData {
-    vec4 rect;      // x, y, width, height
-    vec4 screen;    // screenWidth, screenHeight, smoothness, guiScale
-    vec4 uvCoords;  // u0, v0, u1, v1
-    vec4 radii;     // topLeft, topRight, bottomRight, bottomLeft
-    vec4 colors[4]; // 4 угловых цвета для tint
+    vec4 rect;
+    vec4 screen;
+    vec4 uvCoords;
+    vec4 radii;
+    vec4 settings;
+    vec4 colors[4];
 };
 
 out vec2 fragCoord;
@@ -16,6 +17,7 @@ out vec4 cornerRadii;
 out vec4 fragColors[4];
 out float fragSmoothness;
 out float guiScale;
+out float isPixelPerfect;
 
 void main() {
     vec2 positions[6] = vec2[](
@@ -41,8 +43,8 @@ void main() {
     cornerRadii = radii;
     fragSmoothness = screen.z;
     guiScale = screen.w;
+    isPixelPerfect = settings.x;
 
-    // UV координаты с интерполяцией
     texCoord = vec2(
     mix(uvCoords.x, uvCoords.z, pos.x),
     mix(uvCoords.y, uvCoords.w, pos.y)

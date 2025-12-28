@@ -5,9 +5,9 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.screen.slot.Slot;
 import net.minecraft.screen.slot.SlotActionType;
-import rich.screens.clickgui.impl.autobuy.window.AuctionUtils;
-import rich.screens.clickgui.impl.autobuy.window.AutoBuyManager;
-import rich.screens.clickgui.impl.autobuy.window.AutoBuyableItem;
+import rich.screens.clickgui.impl.autobuy.AuctionUtils;
+import rich.screens.clickgui.impl.autobuy.manager.AutoBuyManager;
+import rich.screens.clickgui.impl.autobuy.AutoBuyableItem;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -72,6 +72,7 @@ public class AuctionHandler {
         List<Slot> matching = new ArrayList<>();
 
         for (int i = 0; i <= 44; i++) {
+            if (i >= slots.size()) break;
             Slot slot = slots.get(i);
             if (slot.getStack().isEmpty()) continue;
             ItemStack stack = slot.getStack();
@@ -84,6 +85,8 @@ public class AuctionHandler {
             if (price <= 0) continue;
 
             for (AutoBuyableItem item : cachedEnabledItems) {
+                if (!item.isEnabled()) continue;
+
                 int maxPrice = item.getSettings().getBuyBelow();
                 if (price > maxPrice) continue;
 
@@ -132,6 +135,7 @@ public class AuctionHandler {
 
     private Slot findSlotByItemAndPrice(List<Slot> slots, String itemName, int expectedPrice) {
         for (int i = 0; i <= 44; i++) {
+            if (i >= slots.size()) break;
             Slot slot = slots.get(i);
             if (slot.getStack().isEmpty()) continue;
             ItemStack stack = slot.getStack();
