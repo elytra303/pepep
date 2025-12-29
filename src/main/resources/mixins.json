@@ -8,6 +8,7 @@
     "ClientPlayerEntityMixin",
     "ClientPlayNetworkHandlerMixin",
     "GameRendererMixin",
+    "GenericContainerScreenMixin",
     "InGameHudMixin",
     "KeyboardMixin",
     "MinecraftClientMixin",

@@ -27,6 +27,11 @@ public class AutoBuyGuiComponent implements IMinecraft {
     private float targetScroll = 0f;
     private float smoothScroll = 0f;
 
+    private float slideOffsetX = 0f;
+    private float targetSlideOffsetX = 0f;
+    private boolean slidingOut = false;
+    private static final float SLIDE_SPEED = 20f;
+
     private final Map<AutoBuyableItem, Float> toggleAnimations = new HashMap<>();
     private final Map<AutoBuyableItem, Float> hoverAnimations = new HashMap<>();
     private final Map<AutoBuyableItem, Float> enabledAnimations = new HashMap<>();
@@ -49,32 +54,31 @@ public class AutoBuyGuiComponent implements IMinecraft {
     private static final float CATEGORY_HEIGHT = 18f;
     private static final float ANIM_SPEED = 11f;
 
+    private static final String PRICE_LABEL = "Цена покупки: ";
+    private static final String QUANTITY_LABEL = "Покупать от: ";
+
     private final List<PendingIcon> pendingIcons = new ArrayList<>();
     private final List<PendingBlockIcon> pendingBlockIcons = new ArrayList<>();
 
     private static class PendingIcon {
         ItemStack stack;
-        float x, y, scale, alpha;
+        float x, y;
 
-        PendingIcon(ItemStack stack, float x, float y, float scale, float alpha) {
+        PendingIcon(ItemStack stack, float x, float y) {
             this.stack = stack;
             this.x = x;
             this.y = y;
-            this.scale = scale;
-            this.alpha = alpha;
         }
     }
 
     private static class PendingBlockIcon {
         ItemStack stack;
-        float x, y, scale, alpha;
+        float x, y;
 
-        PendingBlockIcon(ItemStack stack, float x, float y, float scale, float alpha) {
+        PendingBlockIcon(ItemStack stack, float x, float y) {
             this.stack = stack;
             this.x = x;
             this.y = y;
-            this.scale = scale;
-            this.alpha = alpha;
         }
     }
 
@@ -99,6 +103,35 @@ public class AutoBuyGuiComponent implements IMinecraft {
         this.panelAlpha = alpha;
     }
 
+    public void startSlideOut() {
+        slidingOut = true;
+        targetSlideOffsetX = -(width + 100);
+    }
+
+    public void startSlideIn() {
+        slidingOut = false;
+        targetSlideOffsetX = 0f;
+    }
+
+    public boolean isSlideComplete() {
+        return Math.abs(slideOffsetX - targetSlideOffsetX) < 5f;
+    }
+
+    public boolean isSlidOut() {
+        return slidingOut && isSlideComplete();
+    }
+
+    public void resetSlide() {
+        slideOffsetX = 0f;
+        targetSlideOffsetX = 0f;
+        slidingOut = false;
+    }
+
+    public void setSlideInstant(float offset) {
+        slideOffsetX = offset;
+        targetSlideOffsetX = offset;
+    }
+
     public boolean isEditing() {
         return editingItem != null && editingField != EditField.NONE;
     }
@@ -115,6 +148,22 @@ public class AutoBuyGuiComponent implements IMinecraft {
         return Math.max(0, Math.min(255, value));
     }
 
+    private float easeOutCubic(float x) {
+        return 1f - (float) Math.pow(1 - x, 3);
+    }
+
+    private float easeInOutCubic(float x) {
+        return x < 0.5f ? 4f * x * x * x : 1f - (float) Math.pow(-2 * x + 2, 3) / 2f;
+    }
+
+    private float calculateSlideAlpha() {
+        if (slideOffsetX >= 0) return 1f;
+        float maxOffset = width + 100;
+        float progress = Math.abs(slideOffsetX) / maxOffset;
+        progress = Math.max(0f, Math.min(1f, progress));
+        return 1f - easeOutCubic(progress);
+    }
+
     public void render(DrawContext context, float mouseX, float mouseY, float delta, int guiScale, float alphaMultiplier) {
         this.panelAlpha = alphaMultiplier;
 
@@ -124,6 +173,17 @@ public class AutoBuyGuiComponent implements IMinecraft {
         long currentTime = System.currentTimeMillis();
         float deltaTime = Math.min((currentTime - lastUpdateTime) / 1000f, 0.1f);
         lastUpdateTime = currentTime;
+
+        float slideDiff = targetSlideOffsetX - slideOffsetX;
+        if (Math.abs(slideDiff) > 0.5f) {
+            float progress = 1f - (Math.abs(slideDiff) / (width + 100));
+            float easedSpeed = SLIDE_SPEED * (0.5f + 0.5f * easeOutCubic(progress));
+            slideOffsetX += slideDiff * easedSpeed * deltaTime;
+        } else {
+            slideOffsetX = targetSlideOffsetX;
+        }
+
+        float slideAlpha = calculateSlideAlpha();
 
         updateAnimations(deltaTime);
 
@@ -144,7 +204,7 @@ public class AutoBuyGuiComponent implements IMinecraft {
             smoothScroll = targetScroll;
         }
 
-        renderPanelBackground(alphaMultiplier);
+        renderPanelBackground(alphaMultiplier, slideAlpha);
 
         float clipX = x + 3;
         float clipY = y + 1;
@@ -159,6 +219,9 @@ public class AutoBuyGuiComponent implements IMinecraft {
         context.enableScissor(scaledClipX, scaledClipY, scaledClipX2, scaledClipY2);
         Scissor.enable(clipX, clipY, clipW, clipH, guiScale);
 
+        float contentOffsetX = slideOffsetX;
+        float contentAlpha = alphaMultiplier * slideAlpha;
+
         float currentY = y + 5 + smoothScroll;
         List<CategoryItems> categories = getCategorizedItems();
 
@@ -166,13 +229,13 @@ public class AutoBuyGuiComponent implements IMinecraft {
             if (category.items.isEmpty()) continue;
 
             if (isInView(currentY, CATEGORY_HEIGHT, clipY, clipH)) {
-                renderCategoryHeader(x + 5, currentY, width - 10, category.name, alphaMultiplier);
+                renderCategoryHeader(x + 5 + contentOffsetX, currentY, width - 10, category.name, contentAlpha);
             }
             currentY += CATEGORY_HEIGHT;
 
             for (AutoBuyableItem item : category.items) {
                 if (isInView(currentY, ITEM_HEIGHT, clipY, clipH)) {
-                    renderItem(context, item, x + 5, currentY, width - 10, mouseX, mouseY, alphaMultiplier);
+                    renderItem(context, item, x + 5 + contentOffsetX, currentY, width - 10, mouseX, mouseY, alphaMultiplier, slideAlpha);
                 }
                 currentY += ITEM_HEIGHT + ITEM_SPACING;
             }
@@ -181,12 +244,12 @@ public class AutoBuyGuiComponent implements IMinecraft {
         }
 
         for (PendingIcon icon : pendingIcons) {
-            ItemRender.drawItem(icon.stack, icon.x, icon.y, icon.scale, icon.alpha);
+            ItemRender.drawItem(icon.stack, icon.x, icon.y, 1.0f, 1.0f);
         }
         pendingIcons.clear();
 
         for (PendingBlockIcon icon : pendingBlockIcons) {
-            ItemRender.drawBlockItem(context, icon.stack, icon.x, icon.y, icon.scale, icon.alpha);
+            ItemRender.drawBlockItem(context, icon.stack, icon.x, icon.y, 0.85f, 1.0f);
         }
         pendingBlockIcons.clear();
 
@@ -243,32 +306,38 @@ public class AutoBuyGuiComponent implements IMinecraft {
         return total;
     }
 
-    private void renderPanelBackground(float alphaMultiplier) {
-        int bgAlpha = clampAlpha((int) (15 * alphaMultiplier));
-        int outlineAlpha = clampAlpha((int) (215 * alphaMultiplier));
+    private void renderPanelBackground(float alphaMultiplier, float slideAlpha) {
+        float bgSlideAlpha = slidingOut ? slideAlpha : 1f;
+        int bgAlpha = clampAlpha((int) (15 * alphaMultiplier * bgSlideAlpha));
+        int outlineAlpha = clampAlpha((int) (215 * alphaMultiplier * bgSlideAlpha));
 
-        Render2D.rect(x, y, width, height, new Color(64, 64, 64, bgAlpha).getRGB(), 7f);
-        Render2D.outline(x, y, width, height, 0.5f, new Color(55, 55, 55, outlineAlpha).getRGB(), 7f);
+        if (bgAlpha > 0) {
+            Render2D.rect(x, y, width, height, new Color(64, 64, 64, bgAlpha).getRGB(), 7f);
+            Render2D.outline(x, y, width, height, 0.5f, new Color(55, 55, 55, outlineAlpha).getRGB(), 7f);
+        }
     }
 
-    private void renderCategoryHeader(float catX, float catY, float catWidth, String name, float alphaMultiplier) {
-        int textAlpha = clampAlpha((int) (180 * alphaMultiplier));
+    private void renderCategoryHeader(float catX, float catY, float catWidth, String name, float contentAlpha) {
+        int textAlpha = clampAlpha((int) (180 * contentAlpha));
         float textWidth = Fonts.BOLD.getWidth(name, 5f);
         float lineWidth = (catWidth - textWidth - 16f) / 2f;
 
-        int lineAlpha = clampAlpha((int) (60 * alphaMultiplier));
+        int lineAlpha = clampAlpha((int) (60 * contentAlpha));
         Render2D.rect(catX, catY + 6f, lineWidth, 0.5f, new Color(100, 100, 100, lineAlpha).getRGB(), 0);
         Fonts.BOLD.draw(name, catX + lineWidth + 8f, catY + 3f, 5f, new Color(160, 160, 160, textAlpha).getRGB());
         Render2D.rect(catX + lineWidth + textWidth + 16f, catY + 6f, lineWidth, 0.5f, new Color(100, 100, 100, lineAlpha).getRGB(), 0);
     }
 
     private void renderItem(DrawContext context, AutoBuyableItem item, float itemX, float itemY, float itemW,
-                            float mouseX, float mouseY, float alphaMultiplier) {
+                            float mouseX, float mouseY, float alphaMultiplier, float slideAlpha) {
 
         if (alphaMultiplier <= 0.01f) return;
 
-        boolean hovered = isHovered(mouseX, mouseY, itemX, itemY, itemW, ITEM_HEIGHT);
-        if (hovered) {
+        float contentAlpha = alphaMultiplier * slideAlpha;
+
+        float realItemX = itemX - slideOffsetX;
+        boolean hovered = isHovered(mouseX, mouseY, realItemX, itemY, itemW, ITEM_HEIGHT);
+        if (hovered && !slidingOut) {
             hoveredItem = item;
         }
 
@@ -276,72 +345,98 @@ public class AutoBuyGuiComponent implements IMinecraft {
         float enabledAnim = enabledAnimations.getOrDefault(item, item.isEnabled() ? 1f : 0f);
         float hoverAnim = hoverAnimations.getOrDefault(item, 0f);
 
-        float dimFactor = 0.35f + 0.65f * enabledAnim;
+        float dimFactor = 0.5f + 0.5f * enabledAnim;
 
         int baseBg = 64 + (int)(hoverAnim * 36);
         int bgR = clampColor((int) (baseBg * dimFactor));
         int bgG = clampColor((int) (baseBg * dimFactor));
         int bgB = clampColor((int) (baseBg * dimFactor));
-        int bgAlpha = clampAlpha((int) ((25 + hoverAnim * 15) * alphaMultiplier));
+        int bgAlpha = clampAlpha((int) ((25 + hoverAnim * 15) * contentAlpha));
         Render2D.rect(itemX, itemY, itemW, ITEM_HEIGHT, new Color(bgR, bgG, bgB, bgAlpha).getRGB(), 5f);
+
+        int baseOutlineAlpha = 60;
+        int enabledOutlineAlpha = 80;
+        int outlineAlphaValue = (int) ((baseOutlineAlpha + (enabledOutlineAlpha - baseOutlineAlpha) * enabledAnim + hoverAnim * 30) * contentAlpha);
+        int outlineGray = (int) (50 + 30 * enabledAnim + 20 * hoverAnim);
+        Render2D.outline(itemX, itemY, itemW, ITEM_HEIGHT, 0.5f, new Color(outlineGray, outlineGray, outlineGray, clampAlpha(outlineAlphaValue)).getRGB(), 5f);
 
         float iconSize = 16f;
         float iconY = itemY + (ITEM_HEIGHT - iconSize) / 2f;
         float iconX = itemX + 2;
 
-        queueItemIcon(item, iconX, iconY, iconSize, enabledAnim, alphaMultiplier);
+        queueItemIcon(item, iconX, iconY, iconSize);
 
         String displayName = item.getDisplayName();
 
         int baseTextBrightness = clampColor((int) (120 + 135 * enabledAnim));
-        int textAlpha = clampAlpha((int) ((120 + 135 * enabledAnim) * alphaMultiplier));
+        int textAlpha = clampAlpha((int) ((120 + 135 * enabledAnim) * contentAlpha));
         Color textColor = new Color(baseTextBrightness, baseTextBrightness, baseTextBrightness, textAlpha);
 
         Fonts.BOLD.draw(displayName, itemX + 20, itemY + 5, 5f, textColor.getRGB());
 
         boolean isEditingPrice = editingItem == item && editingField == EditField.PRICE;
-        String priceText = isEditingPrice ? inputText : "$" + item.getSettings().getBuyBelow();
-
-        if (isEditingPrice) {
-            float cursorAlphaVal = (float) (Math.sin(cursorBlink * Math.PI * 2) * 0.5 + 0.5);
-            if (cursorAlphaVal > 0.5f) priceText += "|";
-        }
 
         float priceX = itemX + 20;
         float priceY = itemY + 13;
 
         int priceBrightness = clampColor((int) (80 + 60 * enabledAnim));
-        int priceAlpha = clampAlpha(isEditingPrice ? (int) (220 * alphaMultiplier) : (int) ((100 + 80 * enabledAnim) * alphaMultiplier));
-        Color priceColor = isEditingPrice
-                ? new Color(100, 200, 100, priceAlpha)
-                : new Color(priceBrightness, priceBrightness, priceBrightness, priceAlpha);
+        int priceAlpha = clampAlpha((int) ((100 + 80 * enabledAnim) * contentAlpha));
+        Color labelColor = new Color(priceBrightness, priceBrightness, priceBrightness, priceAlpha);
 
-        Fonts.BOLD.draw(priceText, priceX, priceY, 4f, priceColor.getRGB());
+        Fonts.BOLD.draw(PRICE_LABEL, priceX, priceY, 4f, labelColor.getRGB());
+
+        float labelWidth = Fonts.BOLD.getWidth(PRICE_LABEL, 4f);
+        float valueX = priceX + labelWidth;
+
+        String priceValue;
+        if (isEditingPrice) {
+            priceValue = inputText;
+            float cursorAlphaVal = (float) (Math.sin(cursorBlink * Math.PI * 2) * 0.5 + 0.5);
+            if (cursorAlphaVal > 0.5f) priceValue += "|";
+        } else {
+            priceValue = String.valueOf(item.getSettings().getBuyBelow());
+        }
+
+        int valueAlpha = clampAlpha(isEditingPrice ? (int) (220 * contentAlpha) : (int) ((100 + 80 * enabledAnim) * contentAlpha));
+        Color valueColor = isEditingPrice
+                ? new Color(100, 200, 100, valueAlpha)
+                : new Color(priceBrightness, priceBrightness, priceBrightness, valueAlpha);
+
+        Fonts.BOLD.draw(priceValue, valueX, priceY, 4f, valueColor.getRGB());
 
         if (item.getSettings().isCanHaveQuantity()) {
             boolean isEditingQty = editingItem == item && editingField == EditField.QUANTITY;
-            String qtyText = isEditingQty ? inputText : "x" + item.getSettings().getMinQuantity();
 
+            float priceFullWidth = labelWidth + Fonts.BOLD.getWidth(priceValue, 4f);
+            float qtyLabelX = priceX + priceFullWidth + 8;
+
+            Fonts.BOLD.draw(QUANTITY_LABEL, qtyLabelX, priceY, 4f, labelColor.getRGB());
+
+            float qtyLabelWidth = Fonts.BOLD.getWidth(QUANTITY_LABEL, 4f);
+            float qtyValueX = qtyLabelX + qtyLabelWidth;
+
+            String qtyValue;
             if (isEditingQty) {
+                qtyValue = inputText;
                 float cursorAlphaVal = (float) (Math.sin(cursorBlink * Math.PI * 2) * 0.5 + 0.5);
-                if (cursorAlphaVal > 0.5f) qtyText += "|";
+                if (cursorAlphaVal > 0.5f) qtyValue += "|";
+            } else {
+                qtyValue = String.valueOf(item.getSettings().getMinQuantity());
             }
 
-            float qtyX = priceX + Fonts.BOLD.getWidth(priceText, 4f) + 8;
-            int qtyBrightness = clampColor((int) (80 + 60 * enabledAnim));
-            int qtyAlpha = clampAlpha(isEditingQty ? (int) (220 * alphaMultiplier) : (int) ((100 + 80 * enabledAnim) * alphaMultiplier));
-            Color qtyColor = isEditingQty
-                    ? new Color(100, 200, 100, qtyAlpha)
-                    : new Color(qtyBrightness, qtyBrightness, qtyBrightness, qtyAlpha);
+            int qtyValueAlpha = clampAlpha(isEditingQty ? (int) (220 * contentAlpha) : (int) ((100 + 80 * enabledAnim) * contentAlpha));
+            Color qtyValueColor = isEditingQty
+                    ? new Color(100, 200, 100, qtyValueAlpha)
+                    : new Color(priceBrightness, priceBrightness, priceBrightness, qtyValueAlpha);
 
-            Fonts.BOLD.draw(qtyText, qtyX, priceY, 4f, qtyColor.getRGB());
+            Fonts.BOLD.draw(qtyValue, qtyValueX, priceY, 4f, qtyValueColor.getRGB());
         }
 
         float toggleW = 14f;
         float toggleH = 8f;
         float toggleX = itemX + itemW - toggleW - 4;
         float toggleY = itemY + ITEM_HEIGHT / 2f - toggleH / 2f;
-        renderToggle(toggleX, toggleY, toggleW, toggleH, toggleAnim, enabledAnim, alphaMultiplier);
+        renderToggle(toggleX, toggleY, toggleW, toggleH, toggleAnim, enabledAnim, contentAlpha);
 
         float indicatorX = toggleX - 8;
         float indicatorY = itemY + ITEM_HEIGHT / 2f - 2;
@@ -349,30 +444,23 @@ public class AutoBuyGuiComponent implements IMinecraft {
         int indicatorR = clampColor((int) (70 + 30 * enabledAnim));
         int indicatorG = clampColor((int) (70 + 130 * enabledAnim));
         int indicatorB = clampColor((int) (70 + 30 * enabledAnim));
-        int indicatorAlpha = clampAlpha((int) ((80 + 120 * enabledAnim) * alphaMultiplier));
+        int indicatorAlpha = clampAlpha((int) ((80 + 120 * enabledAnim) * contentAlpha));
 
         Render2D.rect(indicatorX, indicatorY, 4, 4, new Color(indicatorR, indicatorG, indicatorB, indicatorAlpha).getRGB(), 2);
     }
 
-    private void queueItemIcon(AutoBuyableItem item, float iconX, float iconY, float iconSize, float enabledAnim, float alphaMultiplier) {
-        float combinedAlpha = (0.3f + 0.7f * enabledAnim) * alphaMultiplier;
-
-        if (combinedAlpha <= 0.01f) return;
-
+    private void queueItemIcon(AutoBuyableItem item, float iconX, float iconY, float iconSize) {
         ItemStack stack = item.createItemStack();
-        float scale = (0.85f + 0.15f * enabledAnim);
-        float size = iconSize * scale;
-        float offsetX = (iconSize - size) / 2f;
-        float offsetY = (iconSize - size) / 2f;
 
         if (ItemRender.isBlockItem(stack)) {
-            pendingBlockIcons.add(new PendingBlockIcon(stack, iconX + offsetX, iconY + offsetY, scale, combinedAlpha));
+            float blockOffset = 1f;
+            pendingBlockIcons.add(new PendingBlockIcon(stack, iconX + blockOffset, iconY + blockOffset));
         } else {
-            pendingIcons.add(new PendingIcon(stack, iconX + offsetX, iconY + offsetY, scale, combinedAlpha));
+            pendingIcons.add(new PendingIcon(stack, iconX, iconY));
         }
     }
 
-    private void renderToggle(float tx, float ty, float tw, float th, float anim, float enabledAnim, float alphaMultiplier) {
+    private void renderToggle(float tx, float ty, float tw, float th, float anim, float enabledAnim, float contentAlpha) {
         int bgR = clampColor((int) (40 + anim * 40));
         int bgG = clampColor((int) (40 + anim * 110));
         int bgB = clampColor((int) (45 + anim * 30));
@@ -381,7 +469,7 @@ public class AutoBuyGuiComponent implements IMinecraft {
         bgG = clampColor((int) (bgG * (0.5f + 0.5f * enabledAnim)));
         bgB = clampColor((int) (bgB * (0.5f + 0.5f * enabledAnim)));
 
-        int bgAlpha = clampAlpha((int) (160 * alphaMultiplier));
+        int bgAlpha = clampAlpha((int) (160 * contentAlpha));
 
         Render2D.rect(tx, ty, tw, th, new Color(bgR, bgG, bgB, bgAlpha).getRGB(), th / 2f);
 
@@ -390,11 +478,13 @@ public class AutoBuyGuiComponent implements IMinecraft {
         float knobY = ty + 1f;
 
         int knobBrightness = clampColor((int) (120 + 80 * enabledAnim));
-        int knobAlpha = clampAlpha((int) (220 * alphaMultiplier));
+        int knobAlpha = clampAlpha((int) (220 * contentAlpha));
         Render2D.rect(knobX, knobY, knobSize, knobSize, new Color(knobBrightness, knobBrightness, knobBrightness, knobAlpha).getRGB(), knobSize / 2f);
     }
 
     public boolean mouseClicked(double mouseX, double mouseY, int button, float panelX, float panelY, float panelW, float panelH) {
+        if (slidingOut) return false;
+
         if (!isHovered(mouseX, mouseY, panelX, panelY, panelW, panelH)) {
             if (isEditing()) applyEdit();
             return false;
@@ -444,21 +534,32 @@ public class AutoBuyGuiComponent implements IMinecraft {
 
                     float priceX = itemX + 20;
                     float priceY = itemY + 11;
-                    String priceText = "$" + item.getSettings().getBuyBelow();
-                    float priceW = Fonts.BOLD.getWidth(priceText, 4f) + 15;
 
-                    if (isHovered(mouseX, mouseY, priceX - 5, priceY - 5, priceW, 18)) {
+                    float labelWidth = Fonts.BOLD.getWidth(PRICE_LABEL, 4f);
+                    String priceValue = String.valueOf(item.getSettings().getBuyBelow());
+                    float priceValueWidth = Fonts.BOLD.getWidth(priceValue, 4f);
+
+                    float priceHitX = priceX + labelWidth - 3;
+                    float priceHitW = priceValueWidth + 10;
+
+                    if (isHovered(mouseX, mouseY, priceHitX, priceY - 3, priceHitW, 12)) {
                         if (isEditing()) applyEdit();
                         startEditing(item, EditField.PRICE);
                         return true;
                     }
 
                     if (item.getSettings().isCanHaveQuantity()) {
-                        float qtyX = priceX + priceW;
-                        String qtyText = "x" + item.getSettings().getMinQuantity();
-                        float qtyW = Fonts.BOLD.getWidth(qtyText, 4f) + 15;
+                        float priceFullWidth = labelWidth + priceValueWidth;
+                        float qtyLabelX = priceX + priceFullWidth + 8;
+                        float qtyLabelWidth = Fonts.BOLD.getWidth(QUANTITY_LABEL, 4f);
 
-                        if (isHovered(mouseX, mouseY, qtyX - 5, priceY - 5, qtyW, 18)) {
+                        String qtyValue = String.valueOf(item.getSettings().getMinQuantity());
+                        float qtyValueWidth = Fonts.BOLD.getWidth(qtyValue, 4f);
+
+                        float qtyHitX = qtyLabelX + qtyLabelWidth - 3;
+                        float qtyHitW = qtyValueWidth + 10;
+
+                        if (isHovered(mouseX, mouseY, qtyHitX, priceY - 3, qtyHitW, 12)) {
                             if (isEditing()) applyEdit();
                             startEditing(item, EditField.QUANTITY);
                             return true;
@@ -550,6 +651,8 @@ public class AutoBuyGuiComponent implements IMinecraft {
     }
 
     public boolean mouseScrolled(double mouseX, double mouseY, double amount, float panelX, float panelY, float panelW, float panelH) {
+        if (slidingOut) return false;
+
         if (isHovered(mouseX, mouseY, panelX, panelY, panelW, panelH)) {
             targetScroll += (float) amount * 25f;
             return true;

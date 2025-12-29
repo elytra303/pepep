@@ -1,5 +1,8 @@
 package rich.util.modules.autobuy;
 
+import net.minecraft.client.MinecraftClient;
+import rich.util.string.chat.ChatMessage;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -30,6 +33,8 @@ public class NetworkManager {
     private volatile boolean running = false;
     private volatile boolean isClientMode = false;
     private long lastReconnectAttempt = 0;
+    private boolean wasConnected = false;
+    private int lastClientCount = 0;
 
     private ConcurrentLinkedQueue<BuyRequest> queue = new ConcurrentLinkedQueue<>();
     private ConcurrentLinkedQueue<BuyRequest> priorityQueue = new ConcurrentLinkedQueue<>();
@@ -37,11 +42,22 @@ public class NetworkManager {
     public void start(String mode) {
         running = true;
         isClientMode = mode.equals("Проверяющий");
+        wasConnected = false;
+        lastClientCount = 0;
         executorService.execute(() -> connectionLoop(mode));
+        sendChatMessage("§7Запуск в режиме: §b" + mode);
+        if (!isClientMode) {
+            sendChatMessage("§7Порт §b" + PORT + " §7открыт для подключений");
+        }
     }
 
     public void stop() {
         running = false;
+        if (isClientMode && wasConnected) {
+            sendChatMessage("§cОтключено от сервера покупок");
+        } else if (!isClientMode) {
+            sendChatMessage("§cПорт §b" + PORT + " §cзакрыт");
+        }
         executorService.shutdownNow();
         executorService = Executors.newFixedThreadPool(10);
         stopAll();
@@ -51,9 +67,14 @@ public class NetworkManager {
         while (running) {
             if (mode.equals("Покупающий")) {
                 startServer();
+                checkClientCountChange();
             } else if (mode.equals("Проверяющий")) {
                 long currentTime = System.currentTimeMillis();
                 if (clientSocket == null || clientSocket.isClosed()) {
+                    if (wasConnected) {
+                        sendChatMessage("§cСоединение с сервером потеряно");
+                        wasConnected = false;
+                    }
                     if (currentTime - lastReconnectAttempt >= RECONNECT_DELAY) {
                         startClient();
                         lastReconnectAttempt = currentTime;
@@ -66,12 +87,26 @@ public class NetworkManager {
         }
     }
 
+    private void checkClientCountChange() {
+        int currentCount = connections.size();
+        if (currentCount != lastClientCount) {
+            if (currentCount > lastClientCount) {
+                sendChatMessage("§aНовый клиент подключён! §7Всего: §b" + currentCount);
+            } else {
+                sendChatMessage("§eКлиент отключился. §7Осталось: §b" + currentCount);
+            }
+            lastClientCount = currentCount;
+        }
+    }
+
     private void startServer() {
         if (serverSocket == null || serverSocket.isClosed()) {
             try {
                 serverSocket = new ServerSocket(PORT);
+                sendChatMessage("§aСервер автобая запущен на порту §b" + PORT);
                 executorService.execute(this::listenerThread);
             } catch (IOException e) {
+                sendChatMessage("§cОшибка запуска сервера: порт §b" + PORT + " §cзанят");
             }
         }
     }
@@ -85,6 +120,8 @@ public class NetworkManager {
             clientOut = new PrintWriter(clientSocket.getOutputStream(), true);
             clientIn = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
             clientOut.println("connect");
+            wasConnected = true;
+            sendChatMessage("§aУспешно подключено к серверу покупок!");
             executorService.execute(this::clientReaderThread);
         } catch (IOException e) {
             clientSocket = null;
@@ -120,8 +157,10 @@ public class NetworkManager {
                     handleBuyMessage(line);
                 } else if (line.equals("enter_auction")) {
                     clientInAuction.put(conn, true);
+                    sendChatMessage("§aКлиент вошёл в аукцион. §7В аукционе: §b" + getClientInAuctionCount());
                 } else if (line.equals("leave_auction")) {
                     clientInAuction.put(conn, false);
+                    sendChatMessage("§eКлиент вышел из аукциона. §7В аукционе: §b" + getClientInAuctionCount());
                 } else if (line.equals("ping")) {
                     PrintWriter out = outs.get(conn);
                     if (out != null) {
@@ -143,6 +182,7 @@ public class NetworkManager {
                 int price = Integer.parseInt(parts[1]);
                 BuyRequest request = new BuyRequest(itemName, price);
                 priorityQueue.add(request);
+                sendChatMessage("§7Запрос покупки: §f" + itemName + " §7за §a" + price + "$");
             }
         } catch (NumberFormatException ignored) {}
     }
@@ -156,6 +196,7 @@ public class NetworkManager {
                 } else if (line.startsWith("switch_server:")) {
                     String cmd = line.substring(14);
                     CommandSender.handleServerSwitch(cmd);
+                    sendChatMessage("§7Переключение на сервер: §b" + cmd);
                 } else if (line.equals("open_auction")) {
                     CommandSender.openAuction();
                 } else if (line.equals("pong")) {
@@ -232,6 +273,7 @@ public class NetworkManager {
         if (clientOut != null) {
             try {
                 clientOut.println("buy:" + itemName + "|" + price);
+                sendChatMessage("§7Отправлен запрос: §f" + itemName + " §7за §a" + price + "$");
                 if (clientOut.checkError()) {
                     stopClient();
                 }
@@ -271,8 +313,16 @@ public class NetworkManager {
         return !connections.isEmpty();
     }
 
+    public int getConnectedClientCount() {
+        return connections.size();
+    }
+
     public boolean isConnectedToServer() {
         return clientSocket != null && !clientSocket.isClosed() && clientOut != null;
+    }
+
+    public boolean isServerRunning() {
+        return serverSocket != null && !serverSocket.isClosed();
     }
 
     public BuyRequest pollRequest() {
@@ -294,5 +344,12 @@ public class NetworkManager {
     public void clearQueues() {
         queue.clear();
         priorityQueue.clear();
+    }
+
+    private void sendChatMessage(String message) {
+        MinecraftClient mc = MinecraftClient.getInstance();
+        if (mc.player != null) {
+            mc.execute(() -> ChatMessage.autobuymessage(message));
+        }
     }
 }

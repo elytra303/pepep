@@ -13,6 +13,10 @@ public class AutoBuyRenderer implements IMinecraft {
     private float categoryAlpha = 0f;
     private long lastUpdateTime = System.currentTimeMillis();
 
+    private boolean wasActive = false;
+    private boolean pendingSlideOut = false;
+    private boolean slideOutComplete = false;
+
     private static final float FADE_SPEED = 14f;
 
     public void render(DrawContext context, float bgX, float bgY, float mouseX, float mouseY,
@@ -22,14 +26,37 @@ public class AutoBuyRenderer implements IMinecraft {
         float deltaTime = Math.min((currentTime - lastUpdateTime) / 1000f, 0.1f);
         lastUpdateTime = currentTime;
 
-        if (lastCategory != currentCategory) {
-            if (currentCategory == ModuleCategory.AUTOBUY && lastCategory != ModuleCategory.AUTOBUY) {
-                autoBuyComponent.resetPositions();
-            }
-            lastCategory = currentCategory;
+        boolean isActive = currentCategory == ModuleCategory.AUTOBUY;
+
+        if (wasActive && !isActive && !pendingSlideOut) {
+            pendingSlideOut = true;
+            slideOutComplete = false;
+            autoBuyComponent.startSlideOut();
         }
 
-        float targetAlpha = (currentCategory == ModuleCategory.AUTOBUY) ? 1f : 0f;
+        if (isActive && !wasActive) {
+            pendingSlideOut = false;
+            slideOutComplete = false;
+            autoBuyComponent.resetSlide();
+            autoBuyComponent.resetPositions();
+        }
+
+        if (pendingSlideOut && autoBuyComponent.isSlidOut()) {
+            slideOutComplete = true;
+            pendingSlideOut = false;
+        }
+
+        wasActive = isActive;
+
+        float targetAlpha;
+        if (isActive) {
+            targetAlpha = 1f;
+        } else if (pendingSlideOut) {
+            targetAlpha = 1f;
+        } else {
+            targetAlpha = 0f;
+        }
+
         float diff = targetAlpha - categoryAlpha;
 
         if (Math.abs(diff) < 0.01f) {
@@ -40,7 +67,7 @@ public class AutoBuyRenderer implements IMinecraft {
 
         categoryAlpha = Math.max(0f, Math.min(1f, categoryAlpha));
 
-        if (categoryAlpha <= 0.01f) return;
+        if (categoryAlpha <= 0.01f && !pendingSlideOut) return;
 
         float panelX = bgX + 92f;
         float panelY = bgY + 38f;
@@ -53,9 +80,34 @@ public class AutoBuyRenderer implements IMinecraft {
         autoBuyComponent.render(context, mouseX, mouseY, delta, guiScale, alphaMultiplier * categoryAlpha);
     }
 
+    public boolean isSliding() {
+        return pendingSlideOut && !slideOutComplete;
+    }
+
+    public void triggerSlideOut() {
+        if (!autoBuyComponent.isSlidingOut()) {
+            pendingSlideOut = true;
+            slideOutComplete = false;
+            autoBuyComponent.startSlideOut();
+        }
+    }
+
+    public boolean isSlideOutComplete() {
+        return slideOutComplete || autoBuyComponent.isSlidOut();
+    }
+
+    public void resetForClose() {
+        pendingSlideOut = false;
+        slideOutComplete = false;
+        autoBuyComponent.resetSlide();
+        categoryAlpha = 0f;
+        wasActive = false;
+    }
+
     public boolean mouseClicked(double mouseX, double mouseY, int button, float bgX, float bgY, ModuleCategory currentCategory) {
         if (currentCategory != ModuleCategory.AUTOBUY) return false;
         if (categoryAlpha < 0.5f) return false;
+        if (autoBuyComponent.isSlidingOut()) return false;
 
         float panelX = bgX + 92f;
         float panelY = bgY + 38f;
@@ -72,6 +124,7 @@ public class AutoBuyRenderer implements IMinecraft {
     public boolean mouseScrolled(double mouseX, double mouseY, double amount, float bgX, float bgY, ModuleCategory currentCategory) {
         if (currentCategory != ModuleCategory.AUTOBUY) return false;
         if (categoryAlpha < 0.5f) return false;
+        if (autoBuyComponent.isSlidingOut()) return false;
 
         float panelX = bgX + 92f;
         float panelY = bgY + 38f;
@@ -97,5 +150,9 @@ public class AutoBuyRenderer implements IMinecraft {
 
     public float getCategoryAlpha() {
         return categoryAlpha;
+    }
+
+    public boolean isOnAutoBuy() {
+        return wasActive;
     }
 }

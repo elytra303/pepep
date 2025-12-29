@@ -6,10 +6,12 @@ import rich.modules.module.ModuleRepository;
 import rich.modules.module.ModuleStructure;
 import rich.modules.module.setting.Setting;
 import rich.modules.module.setting.implement.*;
+import rich.util.config.impl.autobuyconfig.AutoBuyConfig;
 import rich.util.config.impl.consolelogger.Logger;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  *  © 2026 Copyright Rich Client 2.0
@@ -28,21 +30,42 @@ public class ConfigSerializer {
         JsonObject modulesJson = new JsonObject();
 
         ModuleRepository repository = getModuleRepository();
-        if (repository == null) {
-            return GSON.toJson(root);
-        }
-
-        for (ModuleStructure module : repository.modules()) {
-            JsonObject moduleJson = serializeModule(module);
-            modulesJson.add(module.getName(), moduleJson);
+        if (repository != null) {
+            for (ModuleStructure module : repository.modules()) {
+                JsonObject moduleJson = serializeModule(module);
+                modulesJson.add(module.getName(), moduleJson);
+            }
         }
 
         root.add("modules", modulesJson);
+        root.add("autobuy", serializeAutoBuy());
         root.addProperty("version", "2.0");
         root.addProperty("timestamp", System.currentTimeMillis());
         root.addProperty("client", "Rich Modern");
 
         return GSON.toJson(root);
+    }
+
+    private JsonObject serializeAutoBuy() {
+        JsonObject autoBuyJson = new JsonObject();
+        AutoBuyConfig autoBuyConfig = AutoBuyConfig.getInstance();
+
+        autoBuyJson.addProperty("globalEnabled", autoBuyConfig.isGlobalEnabled());
+
+        JsonObject itemsJson = new JsonObject();
+        Map<String, AutoBuyConfig.ItemConfig> allItems = autoBuyConfig.getAllItemConfigs();
+
+        for (Map.Entry<String, AutoBuyConfig.ItemConfig> entry : allItems.entrySet()) {
+            JsonObject itemJson = new JsonObject();
+            AutoBuyConfig.ItemConfig itemConfig = entry.getValue();
+            itemJson.addProperty("enabled", itemConfig.isEnabled());
+            itemJson.addProperty("buyBelow", itemConfig.getBuyBelow());
+            itemJson.addProperty("minQuantity", itemConfig.getMinQuantity());
+            itemsJson.add(entry.getKey(), itemJson);
+        }
+
+        autoBuyJson.add("items", itemsJson);
+        return autoBuyJson;
     }
 
     private JsonObject serializeModule(ModuleStructure module) {
@@ -117,23 +140,47 @@ public class ConfigSerializer {
     public void deserialize(String json) {
         try {
             JsonObject root = JsonParser.parseString(json).getAsJsonObject();
-            if (!root.has("modules")) {
-                return;
-            }
 
-            JsonObject modulesJson = root.getAsJsonObject("modules");
-            ModuleRepository repository = getModuleRepository();
-            if (repository == null) {
-                return;
-            }
-
-            for (ModuleStructure module : repository.modules()) {
-                if (modulesJson.has(module.getName())) {
-                    deserializeModule(module, modulesJson.getAsJsonObject(module.getName()));
+            if (root.has("modules")) {
+                JsonObject modulesJson = root.getAsJsonObject("modules");
+                ModuleRepository repository = getModuleRepository();
+                if (repository != null) {
+                    for (ModuleStructure module : repository.modules()) {
+                        if (modulesJson.has(module.getName())) {
+                            deserializeModule(module, modulesJson.getAsJsonObject(module.getName()));
+                        }
+                    }
                 }
+            }
+
+            if (root.has("autobuy")) {
+                deserializeAutoBuy(root.getAsJsonObject("autobuy"));
             }
         } catch (JsonSyntaxException e) {
             Logger.error("AutoConfiguration: JSON syntax error!");
+        }
+    }
+
+    private void deserializeAutoBuy(JsonObject autoBuyJson) {
+        AutoBuyConfig autoBuyConfig = AutoBuyConfig.getInstance();
+
+        if (autoBuyJson.has("globalEnabled")) {
+            autoBuyConfig.setGlobalEnabled(autoBuyJson.get("globalEnabled").getAsBoolean());
+        }
+
+        if (autoBuyJson.has("items")) {
+            JsonObject itemsJson = autoBuyJson.getAsJsonObject("items");
+            for (Map.Entry<String, JsonElement> entry : itemsJson.entrySet()) {
+                String itemName = entry.getKey();
+                JsonObject itemJson = entry.getValue().getAsJsonObject();
+
+                boolean enabled = itemJson.has("enabled") && itemJson.get("enabled").getAsBoolean();
+                int buyBelow = itemJson.has("buyBelow") ? itemJson.get("buyBelow").getAsInt() : 1000;
+                int minQuantity = itemJson.has("minQuantity") ? itemJson.get("minQuantity").getAsInt() : 1;
+
+                AutoBuyConfig.ItemConfig itemConfig = new AutoBuyConfig.ItemConfig(enabled, buyBelow, minQuantity);
+                autoBuyConfig.setItemConfig(itemName, itemConfig);
+            }
         }
     }
 

@@ -10,6 +10,7 @@ import rich.modules.module.setting.implement.*;
 import rich.screens.clickgui.impl.autobuy.manager.AutoBuyManager;
 import rich.screens.clickgui.impl.autobuy.AutoBuyableItem;
 import rich.util.modules.autobuy.*;
+import rich.util.string.chat.ChatMessage;
 
 import net.minecraft.client.gui.screen.ingame.GenericContainerScreen;
 import net.minecraft.network.packet.s2c.play.GameMessageS2CPacket;
@@ -22,10 +23,13 @@ import java.util.List;
 
 @Getter
 public class AutoBuy extends ModuleStructure {
+    private static AutoBuy instance;
     private final SelectSetting leaveType = new SelectSetting("Тип обхода", "Проверяющий").value("Проверяющий", "Покупающий");
     private final SliderSettings timer2 = new SliderSettings("Таймер обновления аукциона", "").range(350, 750).setValue(350);
     private final BooleanSetting bypassDelay = new BooleanSetting("Обход задержки 1.16.5 анках", "").setValue(false);
     private final BooleanSetting bypassDelay1214 = new BooleanSetting("Обход задержки 1.21.4 анках", "").setValue(false);
+    private final BooleanSetting chatNotifications = new BooleanSetting("Уведомления в чат", "").setValue(true);
+    private final BooleanSetting autoUpdate = new BooleanSetting("Авто-обновление аукциона", "").setValue(true);
 
     private final AutoBuyManager autoBuyManager = AutoBuyManager.getInstance();
     private final NetworkManager networkManager;
@@ -41,27 +45,40 @@ public class AutoBuy extends ModuleStructure {
     private final TimerUtil ahSpamTimer = TimerUtil.create();
     private final TimerUtil connectionCheckTimer = TimerUtil.create();
     private final TimerUtil auctionRequestTimer = TimerUtil.create();
+    private final TimerUtil statusTimer = TimerUtil.create();
+    private final TimerUtil forceUpdateTimer = TimerUtil.create();
 
     private boolean open = false;
     private boolean serverInAuction = false;
     private boolean justEntered = false;
     private boolean spammingAh = false;
     private boolean waitingForAuctionOpen = false;
+    private boolean firstUpdateDone = false;
     private List<AutoBuyableItem> cachedEnabledItems = new ArrayList<>();
 
     public AutoBuy() {
         super("Auto Buy", "Автоматическая покупка предметов на аукционе", ModuleCategory.MISC);
+        instance = this;
 
         timer2.setVisible(() -> leaveType.isSelected("Покупающий"));
         bypassDelay.setVisible(() -> leaveType.isSelected("Покупающий"));
         bypassDelay1214.setVisible(() -> leaveType.isSelected("Покупающий"));
+        autoUpdate.setVisible(() -> leaveType.isSelected("Покупающий"));
 
-        setup(leaveType, timer2, bypassDelay, bypassDelay1214);
+        setup(leaveType, timer2, bypassDelay, bypassDelay1214, chatNotifications, autoUpdate);
 
         networkManager = new NetworkManager();
         serverManager = new ServerManager(bypassDelay, bypassDelay1214);
         auctionHandler = new AuctionHandler(autoBuyManager);
         afkHandler = new AfkHandler();
+    }
+
+    public static AutoBuy getInstance() {
+        return instance;
+    }
+
+    public boolean isFullyEnabled() {
+        return isState() && autoBuyManager.isEnabled();
     }
 
     @Override
@@ -77,6 +94,12 @@ public class AutoBuy extends ModuleStructure {
 
         cacheEnabledItems();
         networkManager.start(leaveType.getSelected());
+
+        if (chatNotifications.isValue()) {
+            ChatMessage.autobuymessageSuccess("Модуль активирован!");
+            ChatMessage.autobuymessage("§7Режим: §b" + leaveType.getSelected());
+            ChatMessage.autobuymessage("§7Активных предметов: §b" + cachedEnabledItems.size());
+        }
     }
 
     @Override
@@ -86,6 +109,10 @@ public class AutoBuy extends ModuleStructure {
         networkManager.stop();
         serverManager.reset();
         afkHandler.resetMovementKeys(mc.options);
+
+        if (chatNotifications.isValue()) {
+            ChatMessage.autobuymessageError("Модуль деактивирован!");
+        }
     }
 
     private void resetTimers() {
@@ -97,6 +124,8 @@ public class AutoBuy extends ModuleStructure {
         ahSpamTimer.resetCounter();
         connectionCheckTimer.resetCounter();
         auctionRequestTimer.resetCounter();
+        statusTimer.resetCounter();
+        forceUpdateTimer.resetCounter();
         serverManager.resetTimers();
         afkHandler.resetTimers();
     }
@@ -107,6 +136,7 @@ public class AutoBuy extends ModuleStructure {
         justEntered = false;
         spammingAh = false;
         waitingForAuctionOpen = false;
+        firstUpdateDone = false;
         cachedEnabledItems.clear();
         networkManager.clearQueues();
         auctionHandler.clear();
@@ -119,6 +149,8 @@ public class AutoBuy extends ModuleStructure {
 
     @EventHandler
     public void onPacket(PacketEvent e) {
+        if (!isFullyEnabled()) return;
+
         if (e.getPacket() instanceof GameMessageS2CPacket gameMessage) {
             Text content = gameMessage.content();
             String message = content.getString();
@@ -133,15 +165,19 @@ public class AutoBuy extends ModuleStructure {
     @EventHandler
     public void onTick(TickEvent e) {
         if (mc.player == null || mc.world == null) return;
-        if (!autoBuyManager.isEnabled()) return;
+        if (!isState()) return;
 
         handleConnectionStatus();
-        afkHandler.handle(mc);
+        handleStatusNotifications();
+
+        if (autoBuyManager.isEnabled()) {
+            afkHandler.handle(mc);
+        }
 
         boolean wasInHub = serverManager.isInHub();
         serverManager.updateHubStatus(mc.world);
 
-        if (serverManager.shouldJoinAnarchy(bypassDelay.isValue(), bypassDelay1214.isValue())) {
+        if (autoBuyManager.isEnabled() && serverManager.shouldJoinAnarchy(bypassDelay.isValue(), bypassDelay1214.isValue())) {
             serverManager.joinAnarchyFromHub(mc.player);
         }
 
@@ -157,10 +193,30 @@ public class AutoBuy extends ModuleStructure {
             }
         }
 
-        handleAhSpam();
-        handleAuction();
-        handleServerAutoSwitch();
-        handleCheckerAuctionRequest();
+        if (autoBuyManager.isEnabled()) {
+            handleAhSpam();
+            handleAuction();
+            handleServerAutoSwitch();
+            handleCheckerAuctionRequest();
+        }
+    }
+
+    private void handleStatusNotifications() {
+        if (!chatNotifications.isValue()) return;
+
+        if (statusTimer.hasTimeElapsed(30000)) {
+            if (leaveType.isSelected("Покупающий")) {
+                int clients = networkManager.getConnectedClientCount();
+                long inAuction = networkManager.getClientInAuctionCount();
+                String status = autoBuyManager.isEnabled() ? "§aАктивен" : "§ePауза";
+                ChatMessage.autobuymessage("§7Статус: " + status + " §7| Клиентов: §b" + clients + " §7| В аукционе: §b" + inAuction);
+            } else {
+                String status = networkManager.isConnectedToServer() ? "§aПодключён" : "§cОтключён";
+                String buttonStatus = autoBuyManager.isEnabled() ? "§aОН" : "§ePауза";
+                ChatMessage.autobuymessage("§7Статус: " + status + " §7| Кнопка: " + buttonStatus);
+            }
+            statusTimer.resetCounter();
+        }
     }
 
     private void handleConnectionStatus() {
@@ -180,6 +236,7 @@ public class AutoBuy extends ModuleStructure {
         switchTimer.resetCounter();
         waitingForAuctionOpen = false;
         auctionRequestTimer.resetCounter();
+        firstUpdateDone = false;
     }
 
     private void handleAhSpam() {
@@ -253,12 +310,19 @@ public class AutoBuy extends ModuleStructure {
         openTimer.resetCounter();
         updateTimer.resetCounter();
         buyTimer.resetCounter();
+        forceUpdateTimer.resetCounter();
         serverInAuction = true;
         auctionHandler.clear();
         justEntered = false;
         spammingAh = false;
         waitingForAuctionOpen = false;
+        firstUpdateDone = false;
         cacheEnabledItems();
+
+        if (chatNotifications.isValue()) {
+            ChatMessage.autobuymessageSuccess("Вход в аукцион");
+        }
+
         if (leaveType.isSelected("Проверяющий")) {
             networkManager.notifyAuctionEnter();
         }
@@ -272,6 +336,12 @@ public class AutoBuy extends ModuleStructure {
             open = false;
             serverInAuction = false;
             auctionHandler.clear();
+            firstUpdateDone = false;
+
+            if (chatNotifications.isValue()) {
+                ChatMessage.autobuymessageWarning("Выход из аукциона");
+            }
+
             if (leaveType.isSelected("Проверяющий")) {
                 networkManager.notifyAuctionLeave();
             }
@@ -281,11 +351,27 @@ public class AutoBuy extends ModuleStructure {
     private void handleBuyerMode(GenericContainerScreen screen, int syncId, List<Slot> slots) {
         long clientCount = networkManager.getClientInAuctionCount();
 
+        if (!firstUpdateDone && openTimer.hasTimeElapsed(500)) {
+            auctionHandler.updateAuction(mc, syncId);
+            networkManager.sendUpdateToClients();
+            updateTimer.resetCounter();
+            forceUpdateTimer.resetCounter();
+            firstUpdateDone = true;
+            if (chatNotifications.isValue()) {
+                ChatMessage.autobuymessage("§aПервичное обновление аукциона выполнено");
+            }
+            return;
+        }
+
         if (networkManager.getQueueSize() > 30) {
             auctionHandler.updateAuction(mc, syncId);
             networkManager.sendUpdateToClients();
             updateTimer.resetCounter();
+            forceUpdateTimer.resetCounter();
             networkManager.clearQueues();
+            if (chatNotifications.isValue()) {
+                ChatMessage.autobuymessageWarning("Очередь переполнена, обновление аукциона");
+            }
             return;
         }
 
@@ -298,14 +384,26 @@ public class AutoBuy extends ModuleStructure {
             auctionHandler.updateAuction(mc, syncId);
             networkManager.sendUpdateToClients();
             updateTimer.resetCounter();
-            networkManager.clearQueues();
+            forceUpdateTimer.resetCounter();
+            if (chatNotifications.isValue()) {
+                ChatMessage.autobuymessage("§eОбновление после неудачных попыток");
+            }
         }
 
-        if (updateTimer.hasTimeElapsed((long) timer2.getValue()) && serverInAuction &&
-                clientCount > 0 && networkManager.isQueuesEmpty()) {
+        if (autoUpdate.isValue() && forceUpdateTimer.hasTimeElapsed((long) timer2.getValue()) && serverInAuction) {
             auctionHandler.updateAuction(mc, syncId);
             networkManager.sendUpdateToClients();
             updateTimer.resetCounter();
+            forceUpdateTimer.resetCounter();
+        }
+
+        if (updateTimer.hasTimeElapsed((long) timer2.getValue()) && serverInAuction && networkManager.isQueuesEmpty()) {
+            if (clientCount > 0 || autoUpdate.isValue()) {
+                auctionHandler.updateAuction(mc, syncId);
+                networkManager.sendUpdateToClients();
+                updateTimer.resetCounter();
+                forceUpdateTimer.resetCounter();
+            }
         }
     }
 
@@ -323,5 +421,9 @@ public class AutoBuy extends ModuleStructure {
                 serverManager.switchToNextServer(mc.player, networkManager, true);
             }
         }
+    }
+
+    public NetworkManager getNetworkManager() {
+        return networkManager;
     }
 }

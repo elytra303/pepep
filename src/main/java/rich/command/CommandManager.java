@@ -14,11 +14,6 @@ import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Stream;
 
-/**
- *  © 2026 Copyright Rich Client 2.0
- *        All Rights Reserved ®
- */
-
 public class CommandManager {
     private static CommandManager instance;
     private final List<Command> commands;
@@ -37,6 +32,7 @@ public class CommandManager {
     public void init() {
         registerCommand(new HelpCommand());
         registerCommand(new ConfigCommand());
+        registerCommand(new AutoBuyCommand());
 
         EventManager.register(this);
     }

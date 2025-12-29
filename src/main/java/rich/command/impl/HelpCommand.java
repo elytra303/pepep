@@ -16,11 +16,6 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-/**
- *  © 2026 Copyright Rich Client 2.0
- *        All Rights Reserved ®
- */
-
 public class HelpCommand extends Command {
 
     public HelpCommand() {
@@ -46,9 +41,9 @@ public class HelpCommand extends Command {
 
             paginator.display(
                     () -> {
-                        logDirect(Text.literal(getLine()));
+                        logDirectRaw(Text.literal(getLine()));
                         logDirect("§f§lДОСТУПНЫЕ КОМАНДЫ");
-                        logDirect(Text.literal(getLine()));
+                        logDirectRaw(Text.literal(getLine()));
                     },
                     command -> {
                         String name = command.getName();
@@ -83,9 +78,9 @@ public class HelpCommand extends Command {
                 return;
             }
 
-            logDirect(Text.literal(getLine()));
+            logDirectRaw(Text.literal(getLine()));
             logDirect("§f§l" + command.getName().toUpperCase());
-            logDirect(Text.literal(getLine()));
+            logDirectRaw(Text.literal(getLine()));
 
             List<String> desc = command.getLongDesc();
             boolean firstLine = true;
@@ -96,12 +91,12 @@ public class HelpCommand extends Command {
                 }
                 logDirect("§7" + line);
                 if (firstLine) {
-                    logDirect(Text.literal(getLine()));
+                    logDirectRaw(Text.literal(getLine()));
                     firstLine = false;
                 }
             }
 
-            logDirect(Text.literal(getLine()));
+            logDirectRaw(Text.literal(getLine()));
         }
     }
 

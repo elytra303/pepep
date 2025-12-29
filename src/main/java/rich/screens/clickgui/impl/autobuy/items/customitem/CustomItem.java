@@ -18,7 +18,7 @@ import net.minecraft.nbt.NbtList;
 import net.minecraft.text.Text;
 import rich.screens.clickgui.impl.autobuy.AutoBuyableItem;
 import rich.screens.clickgui.impl.autobuy.settings.AutoBuyItemSettings;
-import rich.screens.clickgui.impl.autobuy.settings.AutoBuySettingsManager;
+import rich.util.config.impl.autobuyconfig.AutoBuyConfig;
 
 import java.util.List;
 import java.util.Optional;
@@ -41,9 +41,14 @@ public class CustomItem implements AutoBuyableItem {
         this.price = price;
         this.potionContents = potionContents;
         this.loreTexts = loreTexts;
-        this.enabled = true;
         this.settings = new AutoBuyItemSettings(price, material, displayName);
-        AutoBuySettingsManager.getInstance().loadSettings(displayName, this.settings);
+        AutoBuyConfig config = AutoBuyConfig.getInstance();
+        if (config.hasItemConfig(displayName)) {
+            this.enabled = config.isItemEnabled(displayName);
+        } else {
+            this.enabled = true;
+            config.loadItemSettings(displayName, price);
+        }
     }
 
     public CustomItem(String displayName, NbtCompound nbt, Item material, int price) {

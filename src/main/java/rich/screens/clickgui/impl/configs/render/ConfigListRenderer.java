@@ -80,8 +80,8 @@ public class ConfigListRenderer {
         animationHandler.setHoverAnimation(config, hoverAnim);
 
         renderItemBackground(x, y, width, isSelected, hoverAnim, alpha);
-        renderItemName(config, x, y, alpha);
-        renderActionButtons(config, x, y, width, mouseX, mouseY, alpha);
+        renderItemName(config, x, y - 0.5f, alpha);
+        renderActionButtons(config, x, y - 0.5f, width, mouseX, mouseY, alpha);
     }
 
     private void renderItemBackground(float x, float y, float width, boolean isSelected,

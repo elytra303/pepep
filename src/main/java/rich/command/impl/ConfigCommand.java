@@ -1,5 +1,7 @@
 package rich.command.impl;
 
+import net.minecraft.text.ClickEvent;
+import net.minecraft.text.HoverEvent;
 import net.minecraft.text.MutableText;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
@@ -20,11 +22,6 @@ import java.util.Locale;
 import java.util.stream.Stream;
 
 import static rich.command.impl.HelpCommand.getLine;
-
-/**
- *  © 2026 Copyright Rich Client 2.0
- *        All Rights Reserved ®
- */
 
 public class ConfigCommand extends Command {
 
@@ -103,6 +100,14 @@ public class ConfigCommand extends Command {
                         },
                         config -> {
                             MutableText namesComponent = Text.literal("  §b● §f" + config);
+
+                            MutableText hoverText = Text.literal("§7Нажмите чтобы загрузить конфиг §f" + config);
+                            String loadCommand = manager.getPrefix() + "config load " + config;
+
+                            namesComponent.setStyle(namesComponent.getStyle()
+                                    .withHoverEvent(new HoverEvent.ShowText(hoverText))
+                                    .withClickEvent(new ClickEvent.RunCommand(loadCommand)));
+
                             return namesComponent;
                         },
                         manager.getPrefix() + label + " list"

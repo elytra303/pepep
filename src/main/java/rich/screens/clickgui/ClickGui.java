@@ -23,6 +23,7 @@ import rich.util.animations.GuiAnimation;
 import rich.util.interfaces.AbstractSettingComponent;
 import rich.util.math.FrameRateCounter;
 import rich.util.render.Render2D;
+import rich.util.render.Scissor;
 import rich.util.render.font.Fonts;
 import rich.util.render.gif.GifRender;
 
@@ -43,6 +44,8 @@ public class ClickGui extends Screen implements IMinecraft {
 
     private final GuiAnimation openAnimation = new GuiAnimation();
     private boolean closing = false;
+    private boolean waitingForSlide = false;
+    private boolean slideTriggered = false;
 
     private float hintAlphaAnimation = 0f;
     private long lastHintUpdateTime = System.currentTimeMillis();
@@ -61,6 +64,8 @@ public class ClickGui extends Screen implements IMinecraft {
     protected void init() {
         super.init();
         closing = false;
+        waitingForSlide = false;
+        slideTriggered = false;
         openAnimation.setMs(250).setValue(1.0).setDirection(Direction.FORWARDS).reset();
         hintAlphaAnimation = 0f;
         lastHintUpdateTime = System.currentTimeMillis();
@@ -71,6 +76,7 @@ public class ClickGui extends Screen implements IMinecraft {
         GLFW.glfwSetCursorPos(handle, centerX, centerY);
 
         background.setSearchActive(false);
+        autoBuyRenderer.resetForClose();
         updateModules();
     }
 
@@ -90,6 +96,8 @@ public class ClickGui extends Screen implements IMinecraft {
     public void openGui() {
         if (mc.currentScreen == null) {
             closing = false;
+            waitingForSlide = false;
+            slideTriggered = false;
             openAnimation.setMs(250).setValue(1.0).setDirection(Direction.FORWARDS).reset();
             mc.setScreen(this);
         }
@@ -139,18 +147,36 @@ public class ClickGui extends Screen implements IMinecraft {
         }
     }
 
+    private boolean isModuleCategory(ModuleCategory category) {
+        return category != ModuleCategory.AUTOBUY && category != ModuleCategory.CONFIGS;
+    }
+
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         FrameRateCounter.INSTANCE.recordFrame();
         float scrollSpeed = Math.min(1f, 60f / Math.max(FrameRateCounter.INSTANCE.getFps(), 1));
 
+        if (waitingForSlide && selectedCategory == ModuleCategory.AUTOBUY) {
+            if (!slideTriggered) {
+                autoBuyRenderer.triggerSlideOut();
+                slideTriggered = true;
+            }
+
+            if (autoBuyRenderer.isSlideOutComplete()) {
+                waitingForSlide = false;
+                slideTriggered = false;
+                startActualClose();
+            }
+        }
+
         float animValue = openAnimation.getOutput().floatValue();
 
-        if (closing && openAnimation.isFinished(Direction.BACKWARDS)) {
+        if (closing && !waitingForSlide && openAnimation.isFinished(Direction.BACKWARDS)) {
             closing = false;
             TextComponent.typing = false;
             moduleComponent.setBindingModule(null);
             dragHandler.stopDrag();
+            autoBuyRenderer.resetForClose();
             mc.currentScreen = null;
             return;
         }
@@ -168,7 +194,7 @@ public class ClickGui extends Screen implements IMinecraft {
 
         float mx = mouseX / scale, my = mouseY / scale;
 
-        if (!closing) {
+        if (!closing || waitingForSlide) {
             dragHandler.update(mx, my);
         }
 
@@ -184,7 +210,7 @@ public class ClickGui extends Screen implements IMinecraft {
         int vh = (int) bg[3];
 
         float yOffset;
-        if (closing) {
+        if (closing && !waitingForSlide) {
             yOffset = (1f - animValue) * 30f;
         } else {
             yOffset = (1f - animValue) * -15f;
@@ -208,19 +234,26 @@ public class ClickGui extends Screen implements IMinecraft {
 
         if (normalAlpha > 0.01f) {
             configsRenderer.render(context, bgX, bgY, mx, my, delta, FIXED_GUI_SCALE, alphaMultiplier * normalAlpha, selectedCategory);
-            autoBuyRenderer.render(context, bgX, bgY, mx, my, delta, FIXED_GUI_SCALE, alphaMultiplier * normalAlpha, selectedCategory);
 
-            if (selectedCategory != ModuleCategory.AUTOBUY && selectedCategory != ModuleCategory.CONFIGS) {
+            boolean isAutoBuySliding = autoBuyRenderer.isSliding();
+            boolean shouldRenderModules = isModuleCategory(selectedCategory);
+            boolean slidingToModuleCategory = isAutoBuySliding && isModuleCategory(selectedCategory);
+
+            if (shouldRenderModules || slidingToModuleCategory) {
                 moduleComponent.updateScroll(delta, scrollSpeed);
                 moduleComponent.updateScrollFades(delta, scrollSpeed, mlH, spH);
                 moduleComponent.renderModuleList(context, mlX, mlY, mlW, mlH, mx, my, FIXED_GUI_SCALE, alphaMultiplier * normalAlpha);
                 moduleComponent.renderSettingsPanel(context, spX, spY, spW, spH, mx, my, delta, FIXED_GUI_SCALE, alphaMultiplier * normalAlpha);
             }
+
+            autoBuyRenderer.render(context, bgX, bgY, mx, my, delta, FIXED_GUI_SCALE, alphaMultiplier * normalAlpha, selectedCategory);
         }
 
         if (searchAlpha > 0.01f) {
             background.renderSearchResults(context, bgX, bgY, mx, my, FIXED_GUI_SCALE, alphaMultiplier);
         }
+
+        Scissor.reset();
 
         context.getMatrices().popMatrix();
 
@@ -331,7 +364,7 @@ public class ClickGui extends Screen implements IMinecraft {
             return true;
         }
 
-        if (selectedCategory != ModuleCategory.AUTOBUY && selectedCategory != ModuleCategory.CONFIGS) {
+        if (isModuleCategory(selectedCategory)) {
             ModuleStructure starModule = moduleComponent.getModuleForStarClick(mx, my, mlX, mlY, mlW, mlH);
             if (starModule != null && click.button() == 0) {
                 moduleComponent.toggleFavorite(starModule);
@@ -528,24 +561,35 @@ public class ClickGui extends Screen implements IMinecraft {
         return false;
     }
 
+    private void startActualClose() {
+        openAnimation.setDirection(Direction.BACKWARDS);
+        openAnimation.reset();
+
+        long handle = mc.getWindow().getHandle();
+        double centerX = mc.getWindow().getWidth() / 2.0;
+        double centerY = mc.getWindow().getHeight() / 2.0;
+
+        GLFW.glfwSetInputMode(handle, GLFW.GLFW_CURSOR, GLFW.GLFW_CURSOR_DISABLED);
+        GLFW.glfwSetCursorPos(handle, centerX, centerY);
+
+        TextComponent.typing = false;
+        moduleComponent.setBindingModule(null);
+        background.setSearchActive(false);
+        dragHandler.stopDrag();
+    }
+
     @Override
     public void close() {
         if (!closing) {
             closing = true;
-            openAnimation.setDirection(Direction.BACKWARDS);
-            openAnimation.reset();
 
-            long handle = mc.getWindow().getHandle();
-            double centerX = mc.getWindow().getWidth() / 2.0;
-            double centerY = mc.getWindow().getHeight() / 2.0;
-
-            GLFW.glfwSetInputMode(handle, GLFW.GLFW_CURSOR, GLFW.GLFW_CURSOR_DISABLED);
-            GLFW.glfwSetCursorPos(handle, centerX, centerY);
-
-            TextComponent.typing = false;
-            moduleComponent.setBindingModule(null);
-            background.setSearchActive(false);
-            dragHandler.stopDrag();
+            if (selectedCategory == ModuleCategory.AUTOBUY) {
+                waitingForSlide = true;
+                slideTriggered = false;
+            } else {
+                waitingForSlide = false;
+                startActualClose();
+            }
         }
     }
 }

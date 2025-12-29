@@ -6,8 +6,8 @@ import rich.screens.clickgui.impl.autobuy.originalitems.DonatorProvider;
 import rich.screens.clickgui.impl.autobuy.originalitems.PotionProvider;
 import rich.screens.clickgui.impl.autobuy.originalitems.SphereProvider;
 import rich.screens.clickgui.impl.autobuy.originalitems.TalismanProvider;
-import rich.screens.clickgui.impl.autobuy.settings.AutoBuySettingsManager;
 import rich.screens.clickgui.impl.autobuy.util.KrushProvider;
+import rich.util.config.impl.autobuyconfig.AutoBuyConfig;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -44,11 +44,13 @@ public class ItemRegistry {
     }
 
     private static void loadAllSettings() {
-        AutoBuySettingsManager manager = AutoBuySettingsManager.getInstance();
+        AutoBuyConfig config = AutoBuyConfig.getInstance();
         for (AutoBuyableItem item : allItems) {
-            manager.loadSettings(item.getDisplayName(), item.getSettings());
-            if (manager.hasEnabledState(item.getDisplayName())) {
-                item.setEnabled(manager.getEnabledState(item.getDisplayName()));
+            if (config.hasItemConfig(item.getDisplayName())) {
+                AutoBuyConfig.ItemConfig itemConfig = config.getItemConfig(item.getDisplayName());
+                item.getSettings().setBuyBelow(itemConfig.getBuyBelow());
+                item.getSettings().setMinQuantity(itemConfig.getMinQuantity());
+                item.setEnabled(itemConfig.isEnabled());
             }
         }
     }
@@ -61,15 +63,17 @@ public class ItemRegistry {
 
     public static void saveItemState(AutoBuyableItem item) {
         item.setEnabled(!item.isEnabled());
-        AutoBuySettingsManager manager = AutoBuySettingsManager.getInstance();
-        manager.saveSettings(item.getDisplayName(), item.getSettings());
-        manager.saveEnabledState(item.getDisplayName(), item.isEnabled());
+        AutoBuyConfig config = AutoBuyConfig.getInstance();
+        config.setItemEnabled(item.getDisplayName(), item.isEnabled());
+        config.setItemBuyBelow(item.getDisplayName(), item.getSettings().getBuyBelow());
+        config.setItemMinQuantity(item.getDisplayName(), item.getSettings().getMinQuantity());
     }
 
     public static void saveItemSettings(AutoBuyableItem item) {
-        AutoBuySettingsManager manager = AutoBuySettingsManager.getInstance();
-        manager.saveSettings(item.getDisplayName(), item.getSettings());
-        manager.saveEnabledState(item.getDisplayName(), item.isEnabled());
+        AutoBuyConfig config = AutoBuyConfig.getInstance();
+        config.setItemEnabled(item.getDisplayName(), item.isEnabled());
+        config.setItemBuyBelow(item.getDisplayName(), item.getSettings().getBuyBelow());
+        config.setItemMinQuantity(item.getDisplayName(), item.getSettings().getMinQuantity());
     }
 
     public static List<AutoBuyableItem> getKrush() {

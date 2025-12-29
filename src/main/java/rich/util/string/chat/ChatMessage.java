@@ -32,6 +32,38 @@ public class ChatMessage {
         }
     }
 
+    public static void autobuymessage(String message) {
+        if (MinecraftClient.getInstance().player != null) {
+            Text prefix = TextHelper.applyPredefinedGradient("AutoBuy -> ", "black_light_purple", true);
+            Text formattedMessage = prefix.copy().append(Text.literal(message));
+            MinecraftClient.getInstance().player.sendMessage(formattedMessage, false);
+        }
+    }
+
+    public static void autobuymessageSuccess(String message) {
+        if (MinecraftClient.getInstance().player != null) {
+            Text prefix = TextHelper.applyPredefinedGradient("AutoBuy -> ", "black_light_purple", true);
+            Text formattedMessage = prefix.copy().append(Text.literal(message).setStyle(Style.EMPTY.withColor(Formatting.GREEN)));
+            MinecraftClient.getInstance().player.sendMessage(formattedMessage, false);
+        }
+    }
+
+    public static void autobuymessageError(String message) {
+        if (MinecraftClient.getInstance().player != null) {
+            Text prefix = TextHelper.applyPredefinedGradient("AutoBuy -> ", "black_light_purple", true);
+            Text formattedMessage = prefix.copy().append(Text.literal(message).setStyle(Style.EMPTY.withColor(Formatting.RED)));
+            MinecraftClient.getInstance().player.sendMessage(formattedMessage, false);
+        }
+    }
+
+    public static void autobuymessageWarning(String message) {
+        if (MinecraftClient.getInstance().player != null) {
+            Text prefix = TextHelper.applyPredefinedGradient("AutoBuy -> ", "black_light_purple", true);
+            Text formattedMessage = prefix.copy().append(Text.literal(message).setStyle(Style.EMPTY.withColor(Formatting.YELLOW)));
+            MinecraftClient.getInstance().player.sendMessage(formattedMessage, false);
+        }
+    }
+
     public static void ancientmessage(String message) {
         if (MinecraftClient.getInstance().player != null) {
             Text prefix = TextHelper.applyPredefinedGradient("Ancient Xray -> ", "black_light_purple", true);

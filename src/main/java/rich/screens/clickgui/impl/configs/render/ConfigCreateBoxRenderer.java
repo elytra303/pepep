@@ -100,7 +100,7 @@ public class ConfigCreateBoxRenderer {
                 new Color(100, 180, 100, (int) (80 * alpha)).getRGB(), 4);
 
         float textWidth = Fonts.BOLD.getWidth("Save", 5);
-        Fonts.BOLD.draw("Save", saveX + (saveW - textWidth) / 2, saveY + 6, 5,
+        Fonts.BOLD.draw("Save", saveX + (saveW - textWidth) / 2, saveY + 7, 5,
                 new Color(180, 220, 180, (int) (255 * alpha)).getRGB());
     }
 

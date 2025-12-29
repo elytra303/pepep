@@ -4,7 +4,7 @@ import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import rich.screens.clickgui.impl.autobuy.AutoBuyableItem;
 import rich.screens.clickgui.impl.autobuy.settings.AutoBuyItemSettings;
-import rich.screens.clickgui.impl.autobuy.settings.AutoBuySettingsManager;
+import rich.util.config.impl.autobuyconfig.AutoBuyConfig;
 
 public class KrushItem implements AutoBuyableItem {
     private final String displayName;
@@ -19,9 +19,14 @@ public class KrushItem implements AutoBuyableItem {
         this.material = material;
         this.displayStack = displayStack;
         this.defaultPrice = defaultPrice;
-        this.enabled = true;
         this.settings = new AutoBuyItemSettings(defaultPrice, material, displayName, true);
-        AutoBuySettingsManager.getInstance().loadSettings(displayName, this.settings);
+        AutoBuyConfig config = AutoBuyConfig.getInstance();
+        if (config.hasItemConfig(displayName)) {
+            this.enabled = config.isItemEnabled(displayName);
+        } else {
+            this.enabled = true;
+            config.loadItemSettings(displayName, defaultPrice);
+        }
     }
 
     public KrushItem(String displayName, Item material, ItemStack displayStack, int defaultPrice, boolean canHaveQuantity) {
@@ -29,9 +34,14 @@ public class KrushItem implements AutoBuyableItem {
         this.material = material;
         this.displayStack = displayStack;
         this.defaultPrice = defaultPrice;
-        this.enabled = true;
         this.settings = new AutoBuyItemSettings(defaultPrice, material, displayName, canHaveQuantity);
-        AutoBuySettingsManager.getInstance().loadSettings(displayName, this.settings);
+        AutoBuyConfig config = AutoBuyConfig.getInstance();
+        if (config.hasItemConfig(displayName)) {
+            this.enabled = config.isItemEnabled(displayName);
+        } else {
+            this.enabled = true;
+            config.loadItemSettings(displayName, defaultPrice);
+        }
     }
 
     @Override

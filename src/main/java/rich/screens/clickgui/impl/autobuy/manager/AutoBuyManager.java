@@ -2,13 +2,14 @@ package rich.screens.clickgui.impl.autobuy.manager;
 
 import rich.screens.clickgui.impl.autobuy.AutoBuyableItem;
 import rich.screens.clickgui.impl.autobuy.items.ItemRegistry;
+import rich.util.config.impl.autobuyconfig.AutoBuyConfig;
+import rich.util.string.chat.ChatMessage;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public class AutoBuyManager {
     private static AutoBuyManager instance;
-    private boolean enabled = false;
 
     private AutoBuyManager() {}
 
@@ -20,11 +21,20 @@ public class AutoBuyManager {
     }
 
     public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
+        boolean wasEnabled = AutoBuyConfig.getInstance().isGlobalEnabled();
+        AutoBuyConfig.getInstance().setGlobalEnabled(enabled);
+
+        if (wasEnabled != enabled) {
+            if (enabled) {
+                ChatMessage.autobuymessageSuccess("Глобальный автобай включён");
+            } else {
+                ChatMessage.autobuymessageWarning("Глобальный автобай выключен");
+            }
+        }
     }
 
     public boolean isEnabled() {
-        return enabled;
+        return AutoBuyConfig.getInstance().isGlobalEnabled();
     }
 
     public List<AutoBuyableItem> getAllItems() {
