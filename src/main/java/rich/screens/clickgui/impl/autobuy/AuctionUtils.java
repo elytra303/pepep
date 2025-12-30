@@ -9,31 +9,61 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.text.Text;
-import org.apache.commons.lang3.StringUtils;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 public class AuctionUtils {
     public static final Pattern funTimePricePattern = Pattern.compile("\\$(\\d+(?:[\\s,]\\d{3})*(?:\\.\\d{2})?)");
+    private static final Pattern digitPattern = Pattern.compile("(\\d[\\d\\s,.]*)");
 
     public static int getPrice(ItemStack stack) {
-        var tag = stack.getComponents();
-        if (tag == null) return -1;
-
         String priceStr = null;
-        String componentString = tag.toString();
-        priceStr = StringUtils.substringBetween(componentString, "literal{ $", "}[style={color=green}]");
+
+        var lore = stack.get(DataComponentTypes.LORE);
+        if (lore != null && !lore.lines().isEmpty()) {
+            for (Text line : lore.lines()) {
+                String lineStr = line.getString();
+
+                if (lineStr.contains("$") || lineStr.toLowerCase().contains("цена")) {
+                    Matcher matcher = funTimePricePattern.matcher(lineStr);
+                    if (matcher.find()) {
+                        priceStr = matcher.group(1);
+                        break;
+                    }
+
+                    matcher = digitPattern.matcher(lineStr);
+                    if (matcher.find()) {
+                        priceStr = matcher.group(1);
+                        break;
+                    }
+                }
+            }
+        }
 
         if (priceStr == null || priceStr.isEmpty()) {
-            String customName = stack.getName().getString();
-            if (customName != null) {
-                java.util.regex.Matcher matcher = funTimePricePattern.matcher(customName);
+            String itemName = stack.getName().getString();
+            if (itemName != null) {
+                Matcher matcher = funTimePricePattern.matcher(itemName);
                 if (matcher.find()) {
                     priceStr = matcher.group(1);
+                }
+            }
+        }
+
+        if (priceStr == null || priceStr.isEmpty()) {
+            var components = stack.getComponents();
+            if (components != null) {
+                String componentString = components.toString();
+                if (componentString.contains("$")) {
+                    Matcher matcher = funTimePricePattern.matcher(componentString);
+                    if (matcher.find()) {
+                        priceStr = matcher.group(1);
+                    }
                 }
             }
         }
@@ -41,7 +71,8 @@ public class AuctionUtils {
         if (priceStr == null || priceStr.isEmpty()) return -1;
 
         try {
-            priceStr = priceStr.replaceAll("[\\s,]", "");
+            priceStr = priceStr.replaceAll("[\\s,.$]", "").trim();
+            if (priceStr.isEmpty()) return -1;
             return Integer.parseInt(priceStr);
         } catch (NumberFormatException e) {
             return -1;
@@ -120,7 +151,6 @@ public class AuctionUtils {
 
         PotionContentsComponent potionContents = stack.get(DataComponentTypes.POTION_CONTENTS);
         if (potionContents == null) {
-
             return false;
         }
 
@@ -141,11 +171,7 @@ public class AuctionUtils {
             }
         }
 
-        if (hasStrengthIV) {
-            return true;
-        } else {
-            return false;
-        }
+        return hasStrengthIV;
     }
 
     public static boolean compareItem(ItemStack a, ItemStack b) {
@@ -178,8 +204,7 @@ public class AuctionUtils {
         }
 
         if (isKillerPotionTemplate && (a.getItem() == Items.SPLASH_POTION || a.getItem() == Items.POTION)) {
-            boolean result = isKillerOriginal(a);
-            return result;
+            return isKillerOriginal(a);
         }
 
         if (hasLore) {
