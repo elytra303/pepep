@@ -7,6 +7,7 @@ import net.minecraft.client.texture.Sprite;
 import net.minecraft.item.BlockItem;
 import net.minecraft.item.ItemDisplayContext;
 import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
 import net.minecraft.util.math.random.Random;
 import rich.util.render.Render2D;
 
@@ -22,6 +23,21 @@ public class ItemRender {
         return stack.getItem() instanceof BlockItem;
     }
 
+    public static boolean isPotionItem(ItemStack stack) {
+        return stack.getItem() == Items.POTION ||
+                stack.getItem() == Items.SPLASH_POTION ||
+                stack.getItem() == Items.LINGERING_POTION ||
+                stack.getItem() == Items.TIPPED_ARROW;
+    }
+
+    public static boolean hasGlint(ItemStack stack) {
+        return stack.hasGlint();
+    }
+
+    public static boolean needsContextRender(ItemStack stack) {
+        return isBlockItem(stack) || isPotionItem(stack) || hasGlint(stack);
+    }
+
     public static void drawItem(ItemStack stack, float x, float y, float scale, float alpha) {
         drawItem(stack, x, y, scale, alpha, 0xFFFFFFFF);
     }
@@ -29,7 +45,7 @@ public class ItemRender {
     public static void drawItem(ItemStack stack, float x, float y, float scale, float alpha, int tintColor) {
         if (stack.isEmpty() || alpha <= 0.01f) return;
 
-        if (isBlockItem(stack)) {
+        if (needsContextRender(stack)) {
             return;
         }
 
@@ -58,7 +74,26 @@ public class ItemRender {
         context.drawItem(stack, 0, 0);
 
         context.getMatrices().popMatrix();
-   }
+    }
+
+    public static void drawItemWithContext(DrawContext context, ItemStack stack, float x, float y, float scale, float alpha) {
+        if (stack.isEmpty() || alpha <= 0.01f) return;
+
+        float size = 16 * scale;
+
+        float centerX = x + size / 2f;
+        float centerY = y + size / 2f;
+
+        context.getMatrices().pushMatrix();
+
+        context.getMatrices().translate(centerX, centerY);
+        context.getMatrices().scale(scale, scale);
+        context.getMatrices().translate(-8, -8);
+
+        context.drawItem(stack, 0, 0);
+
+        context.getMatrices().popMatrix();
+    }
 
     public static void drawItemCentered(ItemStack stack, float centerX, float centerY, float scale, float alpha) {
         float size = 16 * scale;

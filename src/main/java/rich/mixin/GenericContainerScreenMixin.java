@@ -17,11 +17,19 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import rich.modules.impl.misc.AutoBuy;
+import rich.modules.impl.misc.ItemParser;
 import rich.screens.clickgui.impl.autobuy.manager.AutoBuyManager;
+import rich.util.modules.autoparser.AutoParserConfig;
+import rich.util.modules.autoparser.AutoParserUtil;
+import rich.util.modules.autoparser.DiscountSliderWidget;
 import rich.util.string.chat.ChatMessage;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Mixin(GenericContainerScreen.class)
 public abstract class GenericContainerScreenMixin extends HandledScreen<GenericContainerScreenHandler> {
+
     @Unique
     private ButtonWidget takeAllButton;
     @Unique
@@ -31,9 +39,19 @@ public abstract class GenericContainerScreenMixin extends HandledScreen<GenericC
     @Unique
     private ButtonWidget autoBuyButton;
     @Unique
+    private ButtonWidget parseButton;
+    @Unique
+    private ButtonWidget autoParserButton;
+    @Unique
+    private DiscountSliderWidget discountSlider;
+    @Unique
     private boolean buttonsAdded = false;
     @Unique
     private final AutoBuyManager autoBuyManager = AutoBuyManager.getInstance();
+    @Unique
+    private final AutoParserConfig autoParserConfig = AutoParserConfig.getInstance();
+    @Unique
+    private final AutoParserUtil autoParserUtil = AutoParserUtil.getInstance();
 
     public GenericContainerScreenMixin(GenericContainerScreenHandler handler, PlayerInventory inventory, Text title) {
         super(handler, inventory, title);
@@ -67,6 +85,28 @@ public abstract class GenericContainerScreenMixin extends HandledScreen<GenericC
             }
 
             autoBuyButton.setMessage(Text.literal("AutoBuy: " + status));
+        }
+
+        if (parseButton != null) {
+            ItemParser parser = ItemParser.getInstance();
+            boolean parserActive = parser != null && parser.isState();
+            parseButton.active = parserActive;
+            parseButton.setMessage(Text.literal(parserActive ? "§aПарсить всё" : "§7Парсить всё"));
+        }
+
+        if (autoParserButton != null) {
+            boolean isRunning = autoParserUtil.isRunning();
+            boolean isEnabled = autoParserConfig.isEnabled();
+
+            if (isEnabled || isRunning) {
+                autoParserButton.setMessage(Text.literal("AutoParser: §aON"));
+            } else {
+                autoParserButton.setMessage(Text.literal("AutoParser: §cOFF"));
+            }
+        }
+
+        if (discountSlider != null) {
+            discountSlider.active = !autoParserUtil.isRunning();
         }
 
         if (autoBuyButton != null && title.contains("Аукцион")) {
@@ -117,31 +157,85 @@ public abstract class GenericContainerScreenMixin extends HandledScreen<GenericC
         this.addDrawableChild(takeAllButton);
         this.addDrawableChild(storeAllButton);
 
-        if (titleText.contains("Аукцион") || titleText.contains("Аукционы") || titleText.contains("Auction")) {
-            int autoBuyX = (this.width - this.backgroundWidth) / 2 + this.backgroundWidth / 2 - 40;
-            int autoBuyY = (this.height - this.backgroundHeight) / 2 - 25;
+        int autoBuyX = (this.width - this.backgroundWidth) / 2 + this.backgroundWidth / 2 - 55;
+        int autoBuyY = (this.height - this.backgroundHeight) / 2 - 25;
 
-            AutoBuy autoBuyModule = AutoBuy.getInstance();
-            boolean moduleActive = autoBuyModule != null && autoBuyModule.isState();
-            boolean buttonEnabled = autoBuyManager.isEnabled();
+        ItemParser parser = ItemParser.getInstance();
+        boolean parserActive = parser != null && parser.isState();
 
-            String initialStatus;
-            if (!moduleActive) {
-                initialStatus = "§cOFF";
-            } else if (buttonEnabled) {
-                initialStatus = "§aON";
-            } else {
-                initialStatus = "§ePAUSE";
-            }
+//        this.parseButton = ButtonWidget.builder(
+//                Text.literal(parserActive ? "§aПарсить всё" : "§7Парсить всё"),
+//                button -> handleParseButtonClick()
+//        ).dimensions(autoBuyX, autoBuyY - 22, 80, 20).build();
+//        this.parseButton.active = parserActive;
+//        this.addDrawableChild(parseButton);
 
-            this.autoBuyButton = ButtonWidget.builder(
-                    Text.literal("AutoBuy: " + initialStatus),
-                    button -> handleAutoBuyButtonClick(button)
-            ).dimensions(autoBuyX, autoBuyY, 80, 20).build();
+        AutoBuy autoBuyModule = AutoBuy.getInstance();
+        boolean moduleActive = autoBuyModule != null && autoBuyModule.isState();
+        boolean buttonEnabled = autoBuyManager.isEnabled();
 
-            this.autoBuyButton.active = moduleActive;
-            this.addDrawableChild(autoBuyButton);
+        String initialStatus;
+        if (!moduleActive) {
+            initialStatus = "§cOFF";
+        } else if (buttonEnabled) {
+            initialStatus = "§aON";
+        } else {
+            initialStatus = "§ePAUSE";
         }
+
+        this.autoBuyButton = ButtonWidget.builder(
+                Text.literal("AutoBuy: " + initialStatus),
+                button -> handleAutoBuyButtonClick(button)
+        ).dimensions(autoBuyX, autoBuyY, 110, 20).build();
+
+        this.autoBuyButton.active = moduleActive;
+        this.addDrawableChild(autoBuyButton);
+
+        int leftX = (this.width - this.backgroundWidth) / 2 - 100;
+        int leftY = (this.height - this.backgroundHeight) / 2;
+
+        this.autoParserButton = ButtonWidget.builder(
+                Text.literal("AutoParser: " + (autoParserConfig.isEnabled() ? "§aON" : "§cOFF")),
+                button -> handleAutoParserButtonClick()
+        ).dimensions(leftX, leftY, 95, 20).build();
+        this.addDrawableChild(autoParserButton);
+
+        this.discountSlider = new DiscountSliderWidget(leftX, leftY + 24, 95, 20, autoParserConfig.getDiscountPercent());
+        this.addDrawableChild(discountSlider);
+    }
+
+    @Unique
+    private void handleAutoParserButtonClick() {
+        if (autoParserUtil.isRunning()) {
+            autoParserUtil.stop();
+            autoParserConfig.setEnabled(false);
+        } else if (autoParserConfig.isEnabled()) {
+            autoParserUtil.stop();
+            autoParserConfig.setEnabled(false);
+        } else {
+            autoParserConfig.setEnabled(true);
+            autoParserUtil.start();
+        }
+    }
+
+    @Unique
+    private void handleParseButtonClick() {
+        ItemParser parser = ItemParser.getInstance();
+        if (parser == null || !parser.isState()) {
+            ChatMessage.autobuymessageError("Сначала включите модуль Item Parser!");
+            return;
+        }
+
+        int containerSize = this.handler.getRows() * 9;
+
+        List<Slot> containerSlots = new ArrayList<>();
+        for (int i = 0; i < containerSize && i < this.handler.slots.size(); i++) {
+            containerSlots.add(this.handler.slots.get(i));
+        }
+
+        String containerTitle = this.getTitle().getString();
+
+        parser.parseAllSlots(containerSlots, containerSize, containerTitle);
     }
 
     @Unique

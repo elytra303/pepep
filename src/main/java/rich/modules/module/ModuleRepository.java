@@ -4,6 +4,7 @@ import lombok.AccessLevel;
 import lombok.experimental.FieldDefaults;
 import rich.modules.impl.combat.*;
 import rich.modules.impl.misc.AutoBuy;
+import rich.modules.impl.misc.ItemParser;
 import rich.modules.impl.render.*;
 
 import java.util.ArrayList;
@@ -16,6 +17,7 @@ public class ModuleRepository {
     public void setup() {
         register(
                 new Hud(),
+                new ItemParser(),
                 new AutoBuy()
         );
     }

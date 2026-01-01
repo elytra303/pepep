@@ -4,6 +4,7 @@ import net.minecraft.item.Items;
 import net.minecraft.text.Text;
 import rich.screens.clickgui.impl.autobuy.AutoBuyableItem;
 import rich.screens.clickgui.impl.autobuy.items.customitem.CustomItem;
+import rich.screens.clickgui.impl.autobuy.items.customitem.UnbreakableItem;
 import rich.screens.clickgui.impl.autobuy.items.price.Defaultpricec;
 
 import java.util.ArrayList;
@@ -27,7 +28,7 @@ public class DonatorProvider {
         donator.add(new CustomItem("[★] Дезориентация", null, Items.ENDER_EYE, Defaultpricec.getPrice("Дезориентация"), null, disorientationLore));
         List<Text> trapkaLore = List.of(
                 Text.literal("Каст: Нерушимая клетка"),
-                Text.literal("Длительность: 15 секунд"),
+                Text.literal("Длит��льность: 15 секунд"),
                 Text.literal("Используйте скины: /tskins")
         );
         donator.add(new CustomItem("[★] Трапка", null, Items.NETHERITE_SCRAP, Defaultpricec.getPrice("Трапка"), null, trapkaLore));
@@ -36,7 +37,7 @@ public class DonatorProvider {
                 Text.literal("Открыть хранилище"),
                 Text.literal("С Сферами")
         );
-        donator.add(new CustomItem("Отмычка к Сферам", null, Items.TRIPWIRE_HOOK, Defaultpricec.getPrice("Отмычка к Сферам"), null, lockpickLore));
+        donator.add(new CustomItem("Отмычка к Сферам", null, Items.TRIPWIRE_HOOK, Defaultpricec.getPrice("Сферам"), null, lockpickLore));
         List<Text> plast = List.of(
                 Text.literal("Каст: Нерушимая стена"),
                 Text.literal("Длительность:"),
@@ -163,23 +164,26 @@ public class DonatorProvider {
         donator.add(new CustomItem("[★] Серебро", null, Items.IRON_NUGGET, Defaultpricec.getPrice("Серебро"), null, silverLore));
         List<Text> godsTouchLore = List.of(
                 Text.literal("Божье касание"),
-                Text.literal(""),
                 Text.literal("Может добыть спавнер,"),
                 Text.literal("но только один раз")
         );
         donator.add(new CustomItem("[★] Божье касание", null, Items.GOLDEN_PICKAXE, Defaultpricec.getPrice("Божье касание"), null, godsTouchLore));
+        List<Text> powerfulHitLore = List.of(
+                Text.literal("Мощный удар"),
+                Text.literal("Может разрушить бедрок,"),
+                Text.literal("но только один раз")
+        );
+        donator.add(new CustomItem("[★] Мощный удар", null, Items.GOLDEN_PICKAXE, Defaultpricec.getPrice("Мощный удар"), null, powerfulHitLore));
         List<Text> megaBulldozerLore = List.of(
                 Text.literal("Вскапывает территорию"),
                 Text.literal("размером 9x9x5 блоков")
         );
         donator.add(new CustomItem("[★] Кирка мега-бульдозер", null, Items.NETHERITE_PICKAXE, Defaultpricec.getPrice("Кирка мега-бульдозер"), null, megaBulldozerLore));
-        List<Text> caramelAppleLore = List.of(
-                Text.literal("Это кошмарная конфета для прохождении"),
-                Text.literal("карты таинств - вводи /hellmap"),
-                Text.literal(""),
-                Text.literal("Кошмарность: +5")
+
+        List<Text> unbreakableElytraLore = List.of(
+                Text.literal("[⚒] Нерушимый предмет")
         );
-        donator.add(new CustomItem("Карамельное яблоко", null, Items.APPLE, Defaultpricec.getPrice("Карамельное яблоко"), null, caramelAppleLore));
+        donator.add(new UnbreakableItem("[⚒] Нерушимые элитры", Items.ELYTRA, Defaultpricec.getPrice("Нерушимые элитры"), unbreakableElytraLore));
         return donator;
     }
 }

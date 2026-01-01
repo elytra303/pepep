@@ -32,15 +32,21 @@ public class CustomItem implements AutoBuyableItem {
     private final PotionContentsComponent potionContents;
     private final List<Text> loreTexts;
     private final AutoBuyItemSettings settings;
+    private final boolean hasGlint;
     private boolean enabled;
 
     public CustomItem(String displayName, NbtCompound nbt, Item material, int price, PotionContentsComponent potionContents, List<Text> loreTexts) {
+        this(displayName, nbt, material, price, potionContents, loreTexts, shouldHaveGlint(material, displayName));
+    }
+
+    public CustomItem(String displayName, NbtCompound nbt, Item material, int price, PotionContentsComponent potionContents, List<Text> loreTexts, boolean hasGlint) {
         this.displayName = displayName;
         this.nbt = nbt;
         this.material = material;
         this.price = price;
         this.potionContents = potionContents;
         this.loreTexts = loreTexts;
+        this.hasGlint = hasGlint;
         this.settings = new AutoBuyItemSettings(price, material, displayName);
         AutoBuyConfig config = AutoBuyConfig.getInstance();
         if (config.hasItemConfig(displayName)) {
@@ -55,6 +61,62 @@ public class CustomItem implements AutoBuyableItem {
         this(displayName, nbt, material, price, null, null);
     }
 
+    private static boolean shouldHaveGlint(Item material, String displayName) {
+        if (material == Items.TOTEM_OF_UNDYING || material == Items.ELYTRA) {
+            return false;
+        }
+        if (material == Items.NETHERITE_HELMET ||
+                material == Items.NETHERITE_CHESTPLATE ||
+                material == Items.NETHERITE_LEGGINGS ||
+                material == Items.NETHERITE_BOOTS ||
+                material == Items.NETHERITE_SWORD ||
+                material == Items.NETHERITE_PICKAXE ||
+                material == Items.NETHERITE_AXE ||
+                material == Items.NETHERITE_SHOVEL ||
+                material == Items.NETHERITE_HOE ||
+                material == Items.DIAMOND_HELMET ||
+                material == Items.DIAMOND_CHESTPLATE ||
+                material == Items.DIAMOND_LEGGINGS ||
+                material == Items.DIAMOND_BOOTS ||
+                material == Items.DIAMOND_SWORD ||
+                material == Items.DIAMOND_PICKAXE ||
+                material == Items.DIAMOND_AXE ||
+                material == Items.DIAMOND_SHOVEL ||
+                material == Items.DIAMOND_HOE ||
+                material == Items.IRON_HELMET ||
+                material == Items.IRON_CHESTPLATE ||
+                material == Items.IRON_LEGGINGS ||
+                material == Items.IRON_BOOTS ||
+                material == Items.IRON_SWORD ||
+                material == Items.IRON_PICKAXE ||
+                material == Items.IRON_AXE ||
+                material == Items.IRON_SHOVEL ||
+                material == Items.IRON_HOE ||
+                material == Items.GOLDEN_HELMET ||
+                material == Items.GOLDEN_CHESTPLATE ||
+                material == Items.GOLDEN_LEGGINGS ||
+                material == Items.GOLDEN_BOOTS ||
+                material == Items.GOLDEN_SWORD ||
+                material == Items.GOLDEN_PICKAXE ||
+                material == Items.GOLDEN_AXE ||
+                material == Items.GOLDEN_SHOVEL ||
+                material == Items.GOLDEN_HOE ||
+                material == Items.BOW ||
+                material == Items.CROSSBOW ||
+                material == Items.TRIDENT ||
+                material == Items.MACE ||
+                material == Items.SHIELD ||
+                material == Items.FISHING_ROD) {
+            return true;
+        }
+        if (displayName != null && displayName.contains("[★]")) {
+            if (material == Items.POTION || material == Items.SPLASH_POTION || material == Items.LINGERING_POTION) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public String getDisplayName() {
         return displayName;
     }
@@ -62,26 +124,23 @@ public class CustomItem implements AutoBuyableItem {
     public ItemStack createItemStack() {
         ItemStack stack = new ItemStack(material);
         stack.set(DataComponentTypes.CUSTOM_NAME, Text.literal(displayName));
-        if (material == Items.POTION) {
-            int color = switch (displayName) {
-                case "Зелье отрыжки" -> 0xFF5D00;
-                case "Зелье серной кислоты" -> 0x00C200;
-                case "Зелье вспышки" -> 0xFFFFFF;
-                case "Зелье мочи Флеша" -> 0x5CF7FF;
-                case "Зелье победителя" -> 0x00FF00;
-                case "Зелье агента" -> 0xFFFB00;
-                case "Зелье медика" -> 0xFF00DE;
-                case "Зелье киллера" -> 0xFF0000;
-                default -> 0x385DC6;
-            };
-            stack.set(DataComponentTypes.POTION_CONTENTS, new PotionContentsComponent(Optional.empty(), Optional.of(color), List.<StatusEffectInstance>of(), Optional.empty()));
-        } else if (potionContents != null) {
-            stack.set(DataComponentTypes.POTION_CONTENTS, potionContents);
+        if (isPotion(material)) {
+            if (potionContents != null) {
+                stack.set(DataComponentTypes.POTION_CONTENTS, potionContents);
+            } else {
+                int color = getPotionColorByName(displayName);
+                stack.set(DataComponentTypes.POTION_CONTENTS, new PotionContentsComponent(
+                        Optional.empty(),
+                        Optional.of(color),
+                        List.<StatusEffectInstance>of(),
+                        Optional.empty()
+                ));
+            }
         }
-        if (loreTexts != null) {
+        if (loreTexts != null && !loreTexts.isEmpty()) {
             stack.set(DataComponentTypes.LORE, new LoreComponent(loreTexts));
         }
-        if (material == Items.TOTEM_OF_UNDYING) {
+        if (hasGlint) {
             stack.set(DataComponentTypes.ENCHANTMENT_GLINT_OVERRIDE, true);
         }
         if (nbt != null) {
@@ -125,6 +184,32 @@ public class CustomItem implements AutoBuyableItem {
             }
         }
         return stack;
+    }
+
+    private boolean isPotion(Item item) {
+        return item == Items.POTION || item == Items.SPLASH_POTION || item == Items.LINGERING_POTION;
+    }
+
+    private int getPotionColorByName(String name) {
+        return switch (name) {
+            case "Зелье отрыжки" -> 0xFF5D00;
+            case "Зелье серной кислоты" -> 0x00C200;
+            case "Зелье вспышки" -> 0xFFFFFF;
+            case "Зелье мочи Флеша" -> 0x5CF7FF;
+            case "Зелье победителя" -> 0x00FF00;
+            case "Зелье агента" -> 0xFFFB00;
+            case "Зелье медика" -> 0xFF00DE;
+            case "Зелье киллера" -> 0xFF0000;
+            case "[★] Хлопушка" -> 0xFF69B4;
+            case "[★] Святая вода" -> 0xFFFFFF;
+            case "[★] Зелье Гнева" -> 0x993333;
+            case "[★] Зелье Палладина" -> 0x00FFFF;
+            case "[★] Зелье Ассасина" -> 0x333333;
+            case "[★] Зелье Радиации" -> 0x32CD32;
+            case "[★] Снотворное" -> 0x484848;
+            case "[🍹] Мандариновый сок" -> 0xD6CE43;
+            default -> 0x385DC6;
+        };
     }
 
     private static UUID uuidFromIntArray(int[] arr) {

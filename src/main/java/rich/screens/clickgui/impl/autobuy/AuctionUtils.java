@@ -1,12 +1,14 @@
 package rich.screens.clickgui.impl.autobuy;
 
 import net.minecraft.component.DataComponentTypes;
+import net.minecraft.component.type.NbtComponent;
 import net.minecraft.component.type.PotionContentsComponent;
 import net.minecraft.enchantment.Enchantment;
+import net.minecraft.entity.effect.StatusEffect;
 import net.minecraft.entity.effect.StatusEffectInstance;
-import net.minecraft.entity.effect.StatusEffects;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
+import net.minecraft.nbt.NbtCompound;
 import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.text.Text;
 
@@ -23,19 +25,16 @@ public class AuctionUtils {
 
     public static int getPrice(ItemStack stack) {
         String priceStr = null;
-
         var lore = stack.get(DataComponentTypes.LORE);
         if (lore != null && !lore.lines().isEmpty()) {
             for (Text line : lore.lines()) {
                 String lineStr = line.getString();
-
                 if (lineStr.contains("$") || lineStr.toLowerCase().contains("цена")) {
                     Matcher matcher = funTimePricePattern.matcher(lineStr);
                     if (matcher.find()) {
                         priceStr = matcher.group(1);
                         break;
                     }
-
                     matcher = digitPattern.matcher(lineStr);
                     if (matcher.find()) {
                         priceStr = matcher.group(1);
@@ -44,7 +43,6 @@ public class AuctionUtils {
                 }
             }
         }
-
         if (priceStr == null || priceStr.isEmpty()) {
             String itemName = stack.getName().getString();
             if (itemName != null) {
@@ -54,7 +52,6 @@ public class AuctionUtils {
                 }
             }
         }
-
         if (priceStr == null || priceStr.isEmpty()) {
             var components = stack.getComponents();
             if (components != null) {
@@ -67,9 +64,7 @@ public class AuctionUtils {
                 }
             }
         }
-
         if (priceStr == null || priceStr.isEmpty()) return -1;
-
         try {
             priceStr = priceStr.replaceAll("[\\s,.$]", "").trim();
             if (priceStr.isEmpty()) return -1;
@@ -83,7 +78,7 @@ public class AuctionUtils {
         if (str == null) return "";
         return str.toLowerCase().trim()
                 .replaceAll("§.", "")
-                .replaceAll("[^a-zа-яё0-9\\s\\[\\]★+]", "")
+                .replaceAll("[^a-zа-яё0-9\\s\\[\\]★⚒+]", "")
                 .replaceAll("\\s+", " ");
     }
 
@@ -120,7 +115,6 @@ public class AuctionUtils {
         if (enchants == null || enchants.isEmpty()) {
             return false;
         }
-
         for (RegistryEntry<Enchantment> entry : enchants.getEnchantments()) {
             String enchantId = entry.getIdAsString();
             if (enchantId != null) {
@@ -130,7 +124,6 @@ public class AuctionUtils {
                 }
             }
         }
-
         var lore = stack.get(DataComponentTypes.LORE);
         if (lore != null) {
             for (Text line : lore.lines()) {
@@ -140,103 +133,148 @@ public class AuctionUtils {
                 }
             }
         }
-
         return false;
     }
 
-    private static boolean isKillerOriginal(ItemStack stack) {
-        if (stack.getItem() != Items.SPLASH_POTION && stack.getItem() != Items.POTION) {
+    public static boolean hasVanishingCurse(ItemStack stack) {
+        var enchants = stack.get(DataComponentTypes.ENCHANTMENTS);
+        if (enchants == null || enchants.isEmpty()) {
             return false;
         }
-
-        PotionContentsComponent potionContents = stack.get(DataComponentTypes.POTION_CONTENTS);
-        if (potionContents == null) {
-            return false;
-        }
-
-        List<StatusEffectInstance> effects = potionContents.customEffects();
-        if (effects.isEmpty()) {
-            return false;
-        }
-
-        boolean hasStrengthIV = false;
-
-        for (StatusEffectInstance effect : effects) {
-            int amplifier = effect.getAmplifier();
-
-            if (effect.getEffectType().matchesKey(StatusEffects.STRENGTH.getKey().get())) {
-                if (amplifier >= 3) {
-                    hasStrengthIV = true;
-                }
+        for (RegistryEntry<Enchantment> entry : enchants.getEnchantments()) {
+            String enchantId = entry.getIdAsString();
+            if (enchantId != null && enchantId.toLowerCase().contains("vanishing")) {
+                return true;
             }
         }
+        return false;
+    }
 
-        return hasStrengthIV;
+    public static boolean isUnbreakableItem(ItemStack stack) {
+        var customData = stack.get(DataComponentTypes.CUSTOM_DATA);
+        if (customData != null) {
+            NbtCompound nbt = customData.copyNbt();
+            if (nbt.getBoolean("Unbreakable", false)) {
+                return true;
+            }
+        }
+        String name = stack.getName().getString().toLowerCase();
+        return name.contains("нерушим") || name.contains("[⚒]");
+    }
+
+    public static boolean isSplashPotion(ItemStack stack) {
+        return stack.getItem() == Items.SPLASH_POTION || stack.getItem() == Items.LINGERING_POTION;
+    }
+
+    public static Map<RegistryEntry<StatusEffect>, EffectData> getPotionEffects(ItemStack stack) {
+        Map<RegistryEntry<StatusEffect>, EffectData> effects = new HashMap<>();
+        PotionContentsComponent potionContents = stack.get(DataComponentTypes.POTION_CONTENTS);
+        if (potionContents == null) {
+            return effects;
+        }
+        for (StatusEffectInstance effect : potionContents.customEffects()) {
+            effects.put(effect.getEffectType(), new EffectData(effect.getAmplifier(), effect.getDuration()));
+        }
+        return effects;
+    }
+
+    public static boolean hasEffect(ItemStack stack, RegistryEntry<StatusEffect> effectType, int minAmplifier) {
+        Map<RegistryEntry<StatusEffect>, EffectData> effects = getPotionEffects(stack);
+        EffectData data = effects.get(effectType);
+        return data != null && data.amplifier >= minAmplifier;
+    }
+
+    public static boolean matchesPotionEffects(ItemStack auctionItem, List<PotionEffectRequirement> requirements) {
+        if (!isSplashPotion(auctionItem)) {
+            return false;
+        }
+        Map<RegistryEntry<StatusEffect>, EffectData> auctionEffects = getPotionEffects(auctionItem);
+        if (auctionEffects.isEmpty()) {
+            return false;
+        }
+        for (PotionEffectRequirement req : requirements) {
+            EffectData data = auctionEffects.get(req.effect);
+            if (data == null) {
+                return false;
+            }
+            if (data.amplifier < req.minAmplifier) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    public static class EffectData {
+        public final int amplifier;
+        public final int duration;
+
+        public EffectData(int amplifier, int duration) {
+            this.amplifier = amplifier;
+            this.duration = duration;
+        }
+    }
+
+    public static class PotionEffectRequirement {
+        public final RegistryEntry<StatusEffect> effect;
+        public final int minAmplifier;
+
+        public PotionEffectRequirement(RegistryEntry<StatusEffect> effect, int minAmplifier) {
+            this.effect = effect;
+            this.minAmplifier = minAmplifier;
+        }
     }
 
     public static boolean compareItem(ItemStack a, ItemStack b) {
         if (a.getItem() != b.getItem()) return false;
-
         if (isArmorItem(a) && hasThornsEnchantment(a)) {
             return false;
         }
-
         String aName = a.getName().getString();
         aName = funTimePricePattern.matcher(aName).replaceAll("").trim();
         String bName = b.getName().getString();
-
         String aNameClean = cleanString(aName);
         String bNameClean = cleanString(bName);
-
+        if (bNameClean.contains("⚒") || bNameClean.contains("нерушим")) {
+            if (!isUnbreakableItem(a) && !hasVanishingCurse(a)) {
+                return false;
+            }
+            if (aNameClean.contains("нерушим") && bNameClean.contains("нерушим")) {
+                return aNameClean.contains("элитр") && bNameClean.contains("элитр");
+            }
+        }
         var aLore = a.get(DataComponentTypes.LORE);
         var bLoreComp = b.get(DataComponentTypes.LORE);
         boolean hasLore = bLoreComp != null && !bLoreComp.lines().isEmpty();
-
-        boolean isKillerPotionTemplate = false;
-        if (hasLore) {
-            for (Text expected : bLoreComp.lines()) {
-                String expectedStr = expected.getString().toLowerCase();
-                if (expectedStr.contains("киллер") || expectedStr.contains("killer")) {
-                    isKillerPotionTemplate = true;
-                    break;
-                }
-            }
+        if (isSplashPotion(a) && isSplashPotion(b)) {
+            return comparePotionsByEffects(a, b);
         }
-
-        if (isKillerPotionTemplate && (a.getItem() == Items.SPLASH_POTION || a.getItem() == Items.POTION)) {
-            return isKillerOriginal(a);
-        }
-
         if (hasLore) {
             List<Text> expectedLore = bLoreComp.lines();
-
             if (aLore == null || aLore.lines().isEmpty()) {
                 return false;
             }
-
             List<String> auctionLoreStrings = aLore.lines().stream()
                     .map(text -> cleanString(text.getString()))
                     .filter(s -> !s.isEmpty())
                     .collect(Collectors.toList());
             String auctionLoreJoined = String.join(" ", auctionLoreStrings);
-
             boolean hasOriginalMarker = false;
-
+            boolean hasUnbreakableMarker = false;
             for (String line : auctionLoreStrings) {
                 if (line.contains("оригинальный предмет") || line.contains("★")) {
                     hasOriginalMarker = true;
                 }
+                if (line.contains("нерушим") || line.contains("⚒")) {
+                    hasUnbreakableMarker = true;
+                }
             }
-
             int matchCount = 0;
             int requiredMatches = 0;
-
             for (Text expected : expectedLore) {
                 String expectedStr = cleanString(expected.getString());
                 if (expectedStr.isEmpty()) continue;
-
                 boolean isOriginalMarker = expectedStr.contains("оригинальный предмет") || expectedStr.contains("★");
-
+                boolean isUnbreakableMarker = expectedStr.contains("нерушим") || expectedStr.contains("⚒");
                 if (isOriginalMarker) {
                     if (!hasOriginalMarker) {
                         return false;
@@ -245,7 +283,14 @@ public class AuctionUtils {
                     requiredMatches++;
                     continue;
                 }
-
+                if (isUnbreakableMarker) {
+                    if (!hasUnbreakableMarker && !isUnbreakableItem(a) && !hasVanishingCurse(a)) {
+                        return false;
+                    }
+                    matchCount++;
+                    requiredMatches++;
+                    continue;
+                }
                 requiredMatches++;
                 boolean found = false;
                 for (String auctionLine : auctionLoreStrings) {
@@ -254,30 +299,24 @@ public class AuctionUtils {
                         break;
                     }
                 }
-
                 if (!found && auctionLoreJoined.contains(expectedStr)) {
                     found = true;
                 }
-
                 if (found) {
                     matchCount++;
                 }
             }
-
             double matchRatio = requiredMatches > 0 ? (double) matchCount / requiredMatches : 1.0;
             if (matchRatio < 0.5) {
                 return false;
             }
-
             if (hasOriginalMarker) {
                 var aEnchants = a.get(DataComponentTypes.ENCHANTMENTS);
                 var bEnchants = b.get(DataComponentTypes.ENCHANTMENTS);
-
                 if (bEnchants != null && !bEnchants.isEmpty()) {
                     if (aEnchants == null || aEnchants.isEmpty()) {
                         return false;
                     }
-
                     Map<String, Integer> aEnchantMap = new HashMap<>();
                     for (RegistryEntry<Enchantment> entry : aEnchants.getEnchantments()) {
                         String enchantId = entry.getIdAsString();
@@ -287,7 +326,6 @@ public class AuctionUtils {
                             aEnchantMap.put(enchantName, level);
                         }
                     }
-
                     Map<String, Integer> bEnchantMap = new HashMap<>();
                     for (RegistryEntry<Enchantment> entry : bEnchants.getEnchantments()) {
                         String enchantId = entry.getIdAsString();
@@ -297,11 +335,9 @@ public class AuctionUtils {
                             bEnchantMap.put(enchantName, level);
                         }
                     }
-
                     if (bEnchantMap.isEmpty()) {
                         return true;
                     }
-
                     int enchantMatchCount = 0;
                     for (Map.Entry<String, Integer> bEntry : bEnchantMap.entrySet()) {
                         String bEnchantName = bEntry.getKey();
@@ -310,7 +346,6 @@ public class AuctionUtils {
                             enchantMatchCount++;
                         }
                     }
-
                     double enchantMatchRatio = (double) enchantMatchCount / bEnchantMap.size();
                     if (enchantMatchRatio < 1) {
                         return false;
@@ -322,7 +357,29 @@ public class AuctionUtils {
                 return false;
             }
         }
+        return true;
+    }
 
+    private static boolean comparePotionsByEffects(ItemStack auctionPotion, ItemStack templatePotion) {
+        Map<RegistryEntry<StatusEffect>, EffectData> auctionEffects = getPotionEffects(auctionPotion);
+        Map<RegistryEntry<StatusEffect>, EffectData> templateEffects = getPotionEffects(templatePotion);
+        if (templateEffects.isEmpty()) {
+            return false;
+        }
+        if (auctionEffects.isEmpty()) {
+            return false;
+        }
+        for (Map.Entry<RegistryEntry<StatusEffect>, EffectData> entry : templateEffects.entrySet()) {
+            RegistryEntry<StatusEffect> requiredEffect = entry.getKey();
+            int requiredAmplifier = entry.getValue().amplifier;
+            EffectData auctionData = auctionEffects.get(requiredEffect);
+            if (auctionData == null) {
+                return false;
+            }
+            if (auctionData.amplifier < requiredAmplifier) {
+                return false;
+            }
+        }
         return true;
     }
 }

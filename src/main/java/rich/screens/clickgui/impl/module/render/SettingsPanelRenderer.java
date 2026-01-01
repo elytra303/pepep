@@ -16,7 +16,8 @@ import java.awt.*;
 import java.util.ArrayList;
 import java.util.List;
 
-public class SettingsPanelRenderer {
+public class
+SettingsPanelRenderer {
 
     private static final float SETTINGS_PANEL_CORNER_RADIUS = 7f;
     private static final float CORNER_INSET = 3f;

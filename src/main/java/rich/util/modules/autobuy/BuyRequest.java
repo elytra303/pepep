@@ -1,11 +1,13 @@
 package rich.util.modules.autobuy;
 
 public class BuyRequest {
-    public String itemName;
     public int price;
+    public String itemId;
+    public String displayName;
 
-    public BuyRequest(String itemName, int price) {
-        this.itemName = itemName;
+    public BuyRequest(int price, String itemId, String displayName) {
         this.price = price;
+        this.itemId = itemId;
+        this.displayName = displayName;
     }
 }

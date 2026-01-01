@@ -4,6 +4,7 @@ import rich.screens.clickgui.impl.autobuy.AutoBuyableItem;
 import rich.screens.clickgui.impl.autobuy.items.ItemRegistry;
 import rich.util.config.impl.autobuyconfig.AutoBuyConfig;
 import rich.util.string.chat.ChatMessage;
+import rich.modules.impl.misc.AutoBuy;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -30,7 +31,16 @@ public class AutoBuyManager {
             } else {
                 ChatMessage.autobuymessageWarning("Глобальный автобай выключен");
             }
+
+            AutoBuy autoBuy = AutoBuy.getInstance();
+            if (autoBuy != null && autoBuy.isState()) {
+                autoBuy.sendPauseSync(!enabled);
+            }
         }
+    }
+
+    public void setEnabledSilent(boolean enabled) {
+        AutoBuyConfig.getInstance().setGlobalEnabled(enabled);
     }
 
     public boolean isEnabled() {

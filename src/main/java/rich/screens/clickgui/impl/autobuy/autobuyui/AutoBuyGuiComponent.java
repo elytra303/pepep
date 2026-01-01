@@ -58,7 +58,7 @@ public class AutoBuyGuiComponent implements IMinecraft {
     private static final String QUANTITY_LABEL = "Покупать от: ";
 
     private final List<PendingIcon> pendingIcons = new ArrayList<>();
-    private final List<PendingBlockIcon> pendingBlockIcons = new ArrayList<>();
+    private final List<PendingContextIcon> pendingContextIcons = new ArrayList<>();
 
     private static class PendingIcon {
         ItemStack stack;
@@ -71,14 +71,16 @@ public class AutoBuyGuiComponent implements IMinecraft {
         }
     }
 
-    private static class PendingBlockIcon {
+    private static class PendingContextIcon {
         ItemStack stack;
         float x, y;
+        float scale;
 
-        PendingBlockIcon(ItemStack stack, float x, float y) {
+        PendingContextIcon(ItemStack stack, float x, float y, float scale) {
             this.stack = stack;
             this.x = x;
             this.y = y;
+            this.scale = scale;
         }
     }
 
@@ -192,7 +194,7 @@ public class AutoBuyGuiComponent implements IMinecraft {
 
         hoveredItem = null;
         pendingIcons.clear();
-        pendingBlockIcons.clear();
+        pendingContextIcons.clear();
 
         float contentHeight = calculateContentHeight();
         float maxScroll = Math.max(0, contentHeight - height + 10f);
@@ -243,15 +245,15 @@ public class AutoBuyGuiComponent implements IMinecraft {
             currentY += 8f;
         }
 
+        for (PendingContextIcon icon : pendingContextIcons) {
+            ItemRender.drawItemWithContext(context, icon.stack, icon.x, icon.y, icon.scale, 1.0f);
+        }
+        pendingContextIcons.clear();
+
         for (PendingIcon icon : pendingIcons) {
             ItemRender.drawItem(icon.stack, icon.x, icon.y, 1.0f, 1.0f);
         }
         pendingIcons.clear();
-
-        for (PendingBlockIcon icon : pendingBlockIcons) {
-            ItemRender.drawBlockItem(context, icon.stack, icon.x, icon.y, 0.85f, 1.0f);
-        }
-        pendingBlockIcons.clear();
 
         Scissor.disable();
         context.disableScissor();
@@ -452,9 +454,9 @@ public class AutoBuyGuiComponent implements IMinecraft {
     private void queueItemIcon(AutoBuyableItem item, float iconX, float iconY, float iconSize) {
         ItemStack stack = item.createItemStack();
 
-        if (ItemRender.isBlockItem(stack)) {
-            float blockOffset = 1f;
-            pendingBlockIcons.add(new PendingBlockIcon(stack, iconX + blockOffset, iconY + blockOffset));
+        if (ItemRender.needsContextRender(stack)) {
+            float scale = iconSize / 16f;
+            pendingContextIcons.add(new PendingContextIcon(stack, iconX, iconY, scale));
         } else {
             pendingIcons.add(new PendingIcon(stack, iconX, iconY));
         }

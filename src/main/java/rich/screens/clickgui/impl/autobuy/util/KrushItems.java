@@ -45,12 +45,12 @@ public class KrushItems {
     public static ItemStack getChestplate() {
         ItemStack stack = new ItemStack(Items.NETHERITE_CHESTPLATE);
         List<EnchantmentData> enchants = new ArrayList<>();
+        enchants.add(new EnchantmentData(Enchantments.PROTECTION, 5));
+        enchants.add(new EnchantmentData(Enchantments.BLAST_PROTECTION, 5));
         enchants.add(new EnchantmentData(Enchantments.FIRE_PROTECTION, 5));
         enchants.add(new EnchantmentData(Enchantments.PROJECTILE_PROTECTION, 5));
-        enchants.add(new EnchantmentData(Enchantments.PROTECTION, 5));
-        enchants.add(new EnchantmentData(Enchantments.MENDING, 1));
         enchants.add(new EnchantmentData(Enchantments.UNBREAKING, 5));
-        enchants.add(new EnchantmentData(Enchantments.BLAST_PROTECTION, 5));
+        enchants.add(new EnchantmentData(Enchantments.MENDING, 1));
         addEnchantments(stack, enchants);
         setupItem(stack, createStyledName("Нагрудник Крушителя"),
                 List.of(
@@ -157,6 +157,25 @@ public class KrushItems {
         return stack;
     }
 
+    public static ItemStack getBow() {
+        ItemStack stack = new ItemStack(Items.BOW);
+        List<EnchantmentData> enchants = new ArrayList<>();
+        enchants.add(new EnchantmentData(Enchantments.POWER, 7));
+        enchants.add(new EnchantmentData(Enchantments.PUNCH, 3));
+        enchants.add(new EnchantmentData(Enchantments.FLAME, 1));
+        enchants.add(new EnchantmentData(Enchantments.INFINITY, 1));
+        enchants.add(new EnchantmentData(Enchantments.UNBREAKING, 5));
+        enchants.add(new EnchantmentData(Enchantments.MENDING, 1));
+        addEnchantments(stack, enchants);
+        setupItem(stack, createStyledName("Лук Крушителя"),
+                List.of(
+                        Text.literal("Снайпер II").formatted(Formatting.GRAY),
+                        Text.literal("Подрывник").formatted(Formatting.GRAY),
+                        Text.literal("[★] Оригинальный предмет").formatted(Formatting.GRAY)
+                ));
+        return stack;
+    }
+
     public static ItemStack getTrident() {
         ItemStack stack = new ItemStack(Items.TRIDENT);
         List<EnchantmentData> enchants = new ArrayList<>();
@@ -206,6 +225,19 @@ public class KrushItems {
                         Text.literal("Окисление II").formatted(Formatting.GRAY),
                         Text.literal("Яд III").formatted(Formatting.GRAY),
                         Text.literal("Детекция III").formatted(Formatting.GRAY),
+                        Text.literal("[★] Оригинальный предмет").formatted(Formatting.GRAY)
+                ));
+        return stack;
+    }
+
+    public static ItemStack getElytra() {
+        ItemStack stack = new ItemStack(Items.ELYTRA);
+        List<EnchantmentData> enchants = new ArrayList<>();
+        enchants.add(new EnchantmentData(Enchantments.UNBREAKING, 5));
+        enchants.add(new EnchantmentData(Enchantments.MENDING, 1));
+        addEnchantments(stack, enchants);
+        setupItem(stack, createStyledName("Элитры Крушителя"),
+                List.of(
                         Text.literal("[★] Оригинальный предмет").formatted(Formatting.GRAY)
                 ));
         return stack;
