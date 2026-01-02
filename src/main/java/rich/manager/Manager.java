@@ -3,6 +3,7 @@ package rich.manager;
 import lombok.Getter;
 import rich.command.CommandManager;
 import rich.events.api.EventManager;
+import rich.modules.impl.combat.aura.attack.StrikerConstructor;
 import rich.modules.module.*;
 import rich.screens.clickgui.ClickGui;
 import rich.util.config.ConfigSystem;
@@ -19,6 +20,7 @@ import rich.screens.hud.drags.DraggableRepository;
 
 @Getter
 public class Manager {
+    public StrikerConstructor attackPerpetrator = new StrikerConstructor();
 
     private EventManager eventManager;
     private RenderCore renderCore;

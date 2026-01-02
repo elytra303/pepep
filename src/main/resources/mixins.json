@@ -11,7 +11,9 @@
     "GenericContainerScreenMixin",
     "IClientWorld",
     "InGameHudMixin",
+    "KeyboardInputMixin",
     "KeyboardMixin",
+    "LivingEntityRendererMixin",
     "MinecraftClientMixin",
     "MouseMixin",
     "ScreenMixin"
@@ -20,6 +22,9 @@
     "defaultRequire": 1
   },
   "mixins": [
-    "ClientConnectionAccessor"
+    "ClientConnectionAccessor",
+    "EntityMixin",
+    "LivingEntityMixin",
+    "PlayerEntityMixin"
   ]
 }

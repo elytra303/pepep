@@ -2,6 +2,7 @@ package rich.modules.module;
 
 import lombok.AccessLevel;
 import lombok.experimental.FieldDefaults;
+import rich.modules.impl.combat.Aura;
 import rich.modules.impl.misc.AutoBuy;
 import rich.modules.impl.misc.ElytraHelper;
 import rich.modules.impl.misc.autoparser.AutoParser;
@@ -20,6 +21,7 @@ public class ModuleRepository {
         register(
                 new Hud(),
                 new ItemParser(),
+                new Aura(),
                 new ElytraHelper(),
                 new AutoBuy()
         );

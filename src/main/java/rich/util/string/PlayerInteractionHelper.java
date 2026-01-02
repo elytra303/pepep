@@ -1,11 +1,14 @@
 package rich.util.string;
 
 import lombok.experimental.UtilityClass;
+import net.minecraft.block.Block;
 import net.minecraft.client.util.InputUtil;
+import net.minecraft.entity.EntityPose;
 import net.minecraft.util.math.*;
 import rich.IMinecraft;
 
 import java.util.*;
+import java.util.function.Predicate;
 
 /**
  *  © 2025 Copyright Rich Client 2.0
@@ -23,7 +26,23 @@ public class PlayerInteractionHelper implements IMinecraft {
         return getCube(center,radiusXZ,radiusY,true);
     }
 
+    public boolean isPlayerInBlock(Block block) {
+        return isBoxInBlock(mc.player.getBoundingBox().expand(-1e-3), block);
+    }
+
+    public boolean isBoxInBlock(Box box, Block block) {
+        return isBox(box,pos -> mc.world.getBlockState(pos).getBlock().equals(block));
+    }
+
+    public boolean isBox(Box box, Predicate<BlockPos> pos) {
+        return BlockPos.stream(box).anyMatch(pos);
+    }
+
     public boolean nullCheck() {return mc.player == null || mc.world == null;}
+
+    public boolean canChangeIntoPose(EntityPose pose, Vec3d pos) {
+        return mc.player.getEntityWorld().isSpaceEmpty(mc.player, mc.player.getDimensions(pose).getBoxAt(pos).contract(1.0E-7));
+    }
 
     public List<BlockPos> getCube(BlockPos center, float radiusXZ, float radiusY, boolean down) {
         List<BlockPos> positions = new ArrayList<>();
