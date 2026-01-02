@@ -12,11 +12,6 @@ import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- *  © 2026 Copyright Rich Client 2.0
- *        All Rights Reserved ®
- */
-
 public class AutoBuyConfig {
     private static AutoBuyConfig instance;
     private final Gson gson = new GsonBuilder().setPrettyPrinting().create();
@@ -27,7 +22,7 @@ public class AutoBuyConfig {
     @Getter
     @Setter
     public static class ItemConfig {
-        private boolean enabled = true;
+        private boolean enabled = false;
         private int buyBelow = 1000;
         private int minQuantity = 1;
 
@@ -112,6 +107,10 @@ public class AutoBuyConfig {
         return data.getItems().computeIfAbsent(itemName, k -> new ItemConfig());
     }
 
+    public ItemConfig getItemConfigOrNull(String itemName) {
+        return data.getItems().get(itemName);
+    }
+
     public void setItemConfig(String itemName, ItemConfig config) {
         data.getItems().put(itemName, config);
     }
@@ -155,7 +154,8 @@ public class AutoBuyConfig {
     }
 
     public boolean isItemEnabled(String itemName) {
-        return getItemConfig(itemName).isEnabled();
+        ItemConfig config = getItemConfigOrNull(itemName);
+        return config != null && config.isEnabled();
     }
 
     public int getItemBuyBelow(String itemName) {
@@ -172,7 +172,7 @@ public class AutoBuyConfig {
 
     public void loadItemSettings(String itemName, int defaultPrice) {
         if (!hasItemConfig(itemName)) {
-            ItemConfig config = new ItemConfig(true, defaultPrice, 1);
+            ItemConfig config = new ItemConfig(false, defaultPrice, 1);
             data.getItems().put(itemName, config);
         }
     }

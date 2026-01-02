@@ -38,26 +38,36 @@ public class ItemRegistry {
             allItems.addAll(getMisc());
             allItems.addAll(getDonator());
             allItems.addAll(getPotions());
-            loadAllSettings();
+            initializeAllItemsDisabled();
+            loadSavedSettings();
         }
         return allItems;
     }
 
-    private static void loadAllSettings() {
+    private static void initializeAllItemsDisabled() {
+        for (AutoBuyableItem item : allItems) {
+            item.setEnabled(false);
+        }
+    }
+
+    private static void loadSavedSettings() {
         AutoBuyConfig config = AutoBuyConfig.getInstance();
         for (AutoBuyableItem item : allItems) {
             if (config.hasItemConfig(item.getDisplayName())) {
-                AutoBuyConfig.ItemConfig itemConfig = config.getItemConfig(item.getDisplayName());
-                item.getSettings().setBuyBelow(itemConfig.getBuyBelow());
-                item.getSettings().setMinQuantity(itemConfig.getMinQuantity());
-                item.setEnabled(itemConfig.isEnabled());
+                AutoBuyConfig.ItemConfig itemConfig = config.getItemConfigOrNull(item.getDisplayName());
+                if (itemConfig != null) {
+                    item.getSettings().setBuyBelow(itemConfig.getBuyBelow());
+                    item.getSettings().setMinQuantity(itemConfig.getMinQuantity());
+                    item.setEnabled(itemConfig.isEnabled());
+                }
             }
         }
     }
 
     public static void reloadSettings() {
         if (allItems != null) {
-            loadAllSettings();
+            initializeAllItemsDisabled();
+            loadSavedSettings();
         }
     }
 
@@ -67,6 +77,7 @@ public class ItemRegistry {
         config.setItemEnabled(item.getDisplayName(), item.isEnabled());
         config.setItemBuyBelow(item.getDisplayName(), item.getSettings().getBuyBelow());
         config.setItemMinQuantity(item.getDisplayName(), item.getSettings().getMinQuantity());
+        config.save();
     }
 
     public static void saveItemSettings(AutoBuyableItem item) {
@@ -74,6 +85,7 @@ public class ItemRegistry {
         config.setItemEnabled(item.getDisplayName(), item.isEnabled());
         config.setItemBuyBelow(item.getDisplayName(), item.getSettings().getBuyBelow());
         config.setItemMinQuantity(item.getDisplayName(), item.getSettings().getMinQuantity());
+        config.save();
     }
 
     public static List<AutoBuyableItem> getKrush() {

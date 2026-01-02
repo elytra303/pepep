@@ -61,8 +61,32 @@ public class AutoBuyManager {
         return enabled;
     }
 
+    public int getEnabledCount() {
+        int count = 0;
+        for (AutoBuyableItem item : getAllItems()) {
+            if (item.isEnabled()) {
+                count++;
+            }
+        }
+        return count;
+    }
+
     public void toggleItem(AutoBuyableItem item) {
         item.setEnabled(!item.isEnabled());
         ItemRegistry.saveItemSettings(item);
+    }
+
+    public void enableAll() {
+        for (AutoBuyableItem item : getAllItems()) {
+            item.setEnabled(true);
+            ItemRegistry.saveItemSettings(item);
+        }
+    }
+
+    public void disableAll() {
+        for (AutoBuyableItem item : getAllItems()) {
+            item.setEnabled(false);
+            ItemRegistry.saveItemSettings(item);
+        }
     }
 }

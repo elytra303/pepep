@@ -2,6 +2,8 @@ package rich.util.timer;
 
 import lombok.Getter;
 
+import java.time.Instant;
+
 /**
  *  © 2025 Copyright Rich Client 2.0
  *        All Rights Reserved ®
@@ -10,6 +12,11 @@ import lombok.Getter;
 @Getter
 public class TimerUtil {
     private long lastMS = System.currentTimeMillis();
+    private long startTime;
+
+    public void reset() {
+        lastMS = Instant.now().toEpochMilli();
+    }
 
     public TimerUtil() {
         this.resetCounter();
@@ -45,6 +52,10 @@ public class TimerUtil {
 
     public boolean hasTimeElapsed(long time) {
         return System.currentTimeMillis() - lastMS > time;
+    }
+
+    public boolean finished(final double delay) {
+        return System.currentTimeMillis() - delay >= startTime;
     }
 
     public boolean hasTimeElapsed() {

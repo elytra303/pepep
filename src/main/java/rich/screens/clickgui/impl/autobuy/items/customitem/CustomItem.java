@@ -36,10 +36,14 @@ public class CustomItem implements AutoBuyableItem {
     private boolean enabled;
 
     public CustomItem(String displayName, NbtCompound nbt, Item material, int price, PotionContentsComponent potionContents, List<Text> loreTexts) {
-        this(displayName, nbt, material, price, potionContents, loreTexts, shouldHaveGlint(material, displayName));
+        this(displayName, nbt, material, price, potionContents, loreTexts, shouldHaveGlint(material, displayName), false);
     }
 
     public CustomItem(String displayName, NbtCompound nbt, Item material, int price, PotionContentsComponent potionContents, List<Text> loreTexts, boolean hasGlint) {
+        this(displayName, nbt, material, price, potionContents, loreTexts, hasGlint, false);
+    }
+
+    public CustomItem(String displayName, NbtCompound nbt, Item material, int price, PotionContentsComponent potionContents, List<Text> loreTexts, boolean hasGlint, boolean canHaveQuantity) {
         this.displayName = displayName;
         this.nbt = nbt;
         this.material = material;
@@ -47,7 +51,7 @@ public class CustomItem implements AutoBuyableItem {
         this.potionContents = potionContents;
         this.loreTexts = loreTexts;
         this.hasGlint = hasGlint;
-        this.settings = new AutoBuyItemSettings(price, material, displayName);
+        this.settings = new AutoBuyItemSettings(price, material, displayName, canHaveQuantity);
         AutoBuyConfig config = AutoBuyConfig.getInstance();
         if (config.hasItemConfig(displayName)) {
             this.enabled = config.isItemEnabled(displayName);
@@ -59,6 +63,14 @@ public class CustomItem implements AutoBuyableItem {
 
     public CustomItem(String displayName, NbtCompound nbt, Item material, int price) {
         this(displayName, nbt, material, price, null, null);
+    }
+
+    public CustomItem(String displayName, NbtCompound nbt, Item material, int price, boolean canHaveQuantity) {
+        this(displayName, nbt, material, price, null, null, shouldHaveGlint(material, displayName), canHaveQuantity);
+    }
+
+    public CustomItem(String displayName, NbtCompound nbt, Item material, int price, PotionContentsComponent potionContents, List<Text> loreTexts, int minQuantity) {
+        this(displayName, nbt, material, price, potionContents, loreTexts, shouldHaveGlint(material, displayName), true);
     }
 
     private static boolean shouldHaveGlint(Item material, String displayName) {

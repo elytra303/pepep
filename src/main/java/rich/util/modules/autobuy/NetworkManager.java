@@ -7,48 +7,80 @@ import java.io.*;
 import java.net.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class NetworkManager {
     private static final int PORT = 25566;
 
     private volatile ServerSocket serverSocket;
     private volatile Socket clientSocket;
-    private volatile Socket acceptedClient;
+    private final CopyOnWriteArrayList<ClientHandler> clients = new CopyOnWriteArrayList<>();
     private volatile PrintWriter out;
     private volatile BufferedReader in;
     private final AtomicBoolean running = new AtomicBoolean(false);
     private final AtomicBoolean connected = new AtomicBoolean(false);
-    private final AtomicBoolean clientInAuction = new AtomicBoolean(false);
     private final AtomicBoolean stopping = new AtomicBoolean(false);
-    private final AtomicBoolean syncReady = new AtomicBoolean(false);
-    private final AtomicBoolean remoteReady = new AtomicBoolean(false);
-    private final AtomicBoolean syncStarted = new AtomicBoolean(false);
-    private final AtomicLong syncStartTime = new AtomicLong(0);
     private volatile ExecutorService executor;
     private final ConcurrentLinkedQueue<BuyRequest> buyQueue = new ConcurrentLinkedQueue<>();
     private final ConcurrentLinkedQueue<String> serverSwitchQueue = new ConcurrentLinkedQueue<>();
     private final ConcurrentLinkedQueue<Boolean> pauseQueue = new ConcurrentLinkedQueue<>();
+    private final ConcurrentLinkedQueue<Boolean> updateQueue = new ConcurrentLinkedQueue<>();
+    private final AtomicInteger clientsInAuction = new AtomicInteger(0);
+
+    private static class ClientHandler {
+        final Socket socket;
+        final PrintWriter out;
+        final BufferedReader in;
+        volatile boolean inAuction = false;
+        volatile boolean closed = false;
+
+        ClientHandler(Socket socket) throws IOException {
+            this.socket = socket;
+            this.out = new PrintWriter(socket.getOutputStream(), true);
+            this.in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+        }
+
+        void close() {
+            if (closed) return;
+            closed = true;
+            try { in.close(); } catch (Exception ignored) {}
+            try { out.close(); } catch (Exception ignored) {}
+            try { socket.close(); } catch (Exception ignored) {}
+        }
+
+        void send(String message) {
+            if (!closed && out != null) {
+                try {
+                    out.println(message);
+                    out.flush();
+                } catch (Exception ignored) {
+                    closed = true;
+                }
+            }
+        }
+    }
 
     public void startAsServer() {
-        stopAndWait();
+        stop();
+        sleep(300);
 
         running.set(true);
         stopping.set(false);
-        resetSync();
+        clients.clear();
+        clientsInAuction.set(0);
         executor = Executors.newCachedThreadPool();
 
         executor.execute(() -> {
             int attempts = 0;
             while (running.get() && serverSocket == null && attempts < 5) {
                 try {
-                    serverSocket = new ServerSocket();
-                    serverSocket.setReuseAddress(true);
-                    serverSocket.bind(new InetSocketAddress(PORT));
-                    serverSocket.setSoTimeout(1000);
+                    ServerSocket ss = new ServerSocket();
+                    ss.setReuseAddress(true);
+                    ss.bind(new InetSocketAddress(PORT));
+                    ss.setSoTimeout(1000);
+                    serverSocket = ss;
                     msg("§a[ПОКУПАТЕЛЬ] Сервер запущен на порту " + PORT);
                 } catch (IOException e) {
-                    serverSocket = null;
                     attempts++;
                     if (attempts < 5) {
                         msg("§e[ПОКУПАТЕЛЬ] Порт занят, попытка " + attempts + "/5...");
@@ -60,39 +92,68 @@ public class NetworkManager {
                 }
             }
 
-            while (running.get() && serverSocket != null && !serverSocket.isClosed()) {
+            while (running.get() && !stopping.get()) {
+                ServerSocket ss = serverSocket;
+                if (ss == null || ss.isClosed()) break;
+
                 try {
-                    Socket client = serverSocket.accept();
+                    Socket client = ss.accept();
                     client.setTcpNoDelay(true);
                     client.setKeepAlive(true);
+                    client.setSoTimeout(5000);
 
-                    closeClientSockets();
-                    resetSync();
-
-                    acceptedClient = client;
-                    out = new PrintWriter(client.getOutputStream(), true);
-                    in = new BufferedReader(new InputStreamReader(client.getInputStream()));
+                    ClientHandler handler = new ClientHandler(client);
+                    clients.add(handler);
                     connected.set(true);
-                    clientInAuction.set(false);
-                    msg("§a[ПОКУПАТЕЛЬ] Проверяющий подключился!");
+                    msg("§a[ПОКУПАТЕЛЬ] Проверяющий #" + clients.size() + " подключился!");
 
-                    executor.execute(this::serverReadLoop);
+                    executor.execute(() -> handleClient(handler));
                 } catch (SocketTimeoutException ignored) {
                 } catch (IOException e) {
                     if (running.get() && !stopping.get()) {
-                        connected.set(false);
+                        sleep(100);
                     }
                 }
             }
         });
     }
 
+    private void handleClient(ClientHandler handler) {
+        try {
+            while (running.get() && !stopping.get() && !handler.closed) {
+                String line;
+                try {
+                    line = handler.in.readLine();
+                } catch (SocketTimeoutException e) {
+                    continue;
+                }
+                if (line == null) break;
+                processServerMessage(line, handler);
+            }
+        } catch (IOException ignored) {
+        } finally {
+            if (handler.inAuction) {
+                clientsInAuction.decrementAndGet();
+            }
+            handler.close();
+            clients.remove(handler);
+            updateConnectedState();
+            if (running.get() && !stopping.get()) {
+                msg("§c[ПОКУПАТЕЛЬ] Проверяющий отключился. Осталось: " + clients.size());
+            }
+        }
+    }
+
+    private void updateConnectedState() {
+        connected.set(!clients.isEmpty());
+    }
+
     public void startAsClient() {
-        stopAndWait();
+        stop();
+        sleep(300);
 
         running.set(true);
         stopping.set(false);
-        resetSync();
         executor = Executors.newCachedThreadPool();
 
         executor.execute(() -> {
@@ -103,12 +164,12 @@ public class NetworkManager {
                         socket.connect(new InetSocketAddress("localhost", PORT), 2000);
                         socket.setTcpNoDelay(true);
                         socket.setKeepAlive(true);
+                        socket.setSoTimeout(5000);
 
                         clientSocket = socket;
                         out = new PrintWriter(socket.getOutputStream(), true);
                         in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
                         connected.set(true);
-                        resetSync();
                         msg("§a[ПРОВЕРЯЮЩИЙ] Подключился к покупателю!");
 
                         clientReadLoop();
@@ -121,75 +182,61 @@ public class NetworkManager {
         });
     }
 
-    private void serverReadLoop() {
-        try {
-            String line;
-            while (running.get() && connected.get() && in != null && !stopping.get()) {
-                line = in.readLine();
-                if (line == null) break;
-                processServerMessage(line);
-            }
-        } catch (IOException ignored) {
-        } finally {
-            connected.set(false);
-            clientInAuction.set(false);
-            resetSync();
-            if (running.get() && !stopping.get()) {
-                msg("§c[ПОКУПАТЕЛЬ] Проверяющий отключился");
-            }
-        }
-    }
-
     private void clientReadLoop() {
         try {
-            String line;
-            while (running.get() && connected.get() && in != null && !stopping.get()) {
-                line = in.readLine();
+            while (running.get() && connected.get() && !stopping.get()) {
+                BufferedReader reader = in;
+                if (reader == null) break;
+
+                String line;
+                try {
+                    line = reader.readLine();
+                } catch (SocketTimeoutException e) {
+                    continue;
+                }
                 if (line == null) break;
                 processClientMessage(line);
             }
         } catch (IOException ignored) {
         } finally {
             connected.set(false);
-            resetSync();
             if (running.get() && !stopping.get()) {
                 msg("§c[ПРОВЕРЯЮЩИЙ] Соединение потеряно");
             }
-            closeClientSockets();
+            closeClientSocket();
         }
     }
 
-    private void processServerMessage(String line) {
+    private void processServerMessage(String line, ClientHandler handler) {
         if (line.startsWith("BUY:")) {
             try {
                 String data = line.substring(4);
                 String[] parts = data.split("\\|\\|\\|");
-                if (parts.length == 3) {
+                if (parts.length == 7) {
                     int price = Integer.parseInt(parts[0]);
                     String itemId = parts[1];
                     String displayName = parts[2];
-                    buyQueue.add(new BuyRequest(price, itemId, displayName));
-                    msg("§a[ПОКУПАТЕЛЬ] Получил: §f" + displayName + " §aза " + price + "$");
+                    int count = Integer.parseInt(parts[3]);
+                    String loreHash = parts[4];
+                    int maxPrice = Integer.parseInt(parts[5]);
+                    int minQuantity = Integer.parseInt(parts[6]);
+                    buyQueue.add(new BuyRequest(price, itemId, displayName, count, loreHash, maxPrice, minQuantity));
                 }
             } catch (Exception ignored) {}
         } else if (line.equals("ENTER_AUCTION")) {
-            clientInAuction.set(true);
-            msg("§a[ПОКУПАТЕЛЬ] Проверяющий в аукционе");
+            if (!handler.inAuction) {
+                handler.inAuction = true;
+                clientsInAuction.incrementAndGet();
+            }
         } else if (line.equals("LEAVE_AUCTION")) {
-            clientInAuction.set(false);
-            resetSync();
-            msg("§e[ПОКУПАТЕЛЬ] Проверяющий вышел из аукциона");
+            if (handler.inAuction) {
+                handler.inAuction = false;
+                clientsInAuction.decrementAndGet();
+            }
         } else if (line.equals("PAUSE:true")) {
             pauseQueue.add(true);
         } else if (line.equals("PAUSE:false")) {
             pauseQueue.add(false);
-        } else if (line.equals("SYNC_READY")) {
-            remoteReady.set(true);
-            checkAndStartSync();
-        } else if (line.equals("SYNC_START")) {
-            syncStarted.set(true);
-            syncStartTime.set(System.currentTimeMillis());
-            msg("§a[СИНХРО] Начинаем синхронное обновление!");
         }
     }
 
@@ -197,96 +244,74 @@ public class NetworkManager {
         if (line.startsWith("SWITCH:")) {
             String server = line.substring(7);
             serverSwitchQueue.add(server);
-            msg("§e[ПРОВЕРЯЮЩИЙ] Смена сервера: " + server);
         } else if (line.equals("PAUSE:true")) {
             pauseQueue.add(true);
         } else if (line.equals("PAUSE:false")) {
             pauseQueue.add(false);
-        } else if (line.equals("SYNC_READY")) {
-            remoteReady.set(true);
-            msg("§e[СИНХРО] Покупатель готов");
-        } else if (line.equals("SYNC_START")) {
-            syncStarted.set(true);
-            syncStartTime.set(System.currentTimeMillis());
-            msg("§a[СИНХРО] Начинаем синхронное обновление!");
+        } else if (line.equals("UPDATE")) {
+            updateQueue.add(true);
         }
     }
 
-    public void sendReady() {
-        if (connected.get() && out != null && !syncReady.get()) {
-            syncReady.set(true);
-            out.println("SYNC_READY");
-            out.flush();
-            msg("§e[СИНХРО] Отправил готовность");
-            checkAndStartSync();
+    public void sendUpdateCommand() {
+        for (ClientHandler handler : clients) {
+            if (handler.inAuction && !handler.closed) {
+                handler.send("UPDATE");
+            }
         }
     }
 
-    private void checkAndStartSync() {
-        if (syncReady.get() && remoteReady.get() && !syncStarted.get()) {
-            msg("§e[СИНХРО] Оба готовы, ждём 2 секунды...");
-
-            new Thread(() -> {
-                sleep(2000);
-                if (connected.get() && out != null && !syncStarted.get()) {
-                    syncStarted.set(true);
-                    syncStartTime.set(System.currentTimeMillis());
-                    out.println("SYNC_START");
-                    out.flush();
-                    msg("§a[СИНХРО] СТАРТ!");
-                }
-            }).start();
-        }
+    public boolean pollUpdateCommand() {
+        return updateQueue.poll() != null;
     }
 
-    public void resetSync() {
-        syncReady.set(false);
-        remoteReady.set(false);
-        syncStarted.set(false);
-        syncStartTime.set(0);
+    public int getClientsInAuctionCount() {
+        return clientsInAuction.get();
     }
 
-    public boolean isSyncStarted() {
-        return syncStarted.get();
-    }
-
-    public long getSyncStartTime() {
-        return syncStartTime.get();
-    }
-
-    public void sendBuyCommand(int price, String itemId, String displayName) {
+    public void sendBuyCommand(int price, String itemId, String displayName, int count, String loreHash, int maxPrice, int minQuantity) {
         if (connected.get() && out != null) {
-            out.println("BUY:" + price + "|||" + itemId + "|||" + displayName);
-            out.flush();
+            try {
+                out.println("BUY:" + price + "|||" + itemId + "|||" + displayName + "|||" + count + "|||" + loreHash + "|||" + maxPrice + "|||" + minQuantity);
+                out.flush();
+            } catch (Exception ignored) {}
         }
     }
 
     public void sendServerSwitch(String server) {
-        if (connected.get() && out != null) {
-            out.println("SWITCH:" + server);
-            out.flush();
+        for (ClientHandler handler : clients) {
+            handler.send("SWITCH:" + server);
         }
     }
 
     public void sendPauseState(boolean paused) {
-        if (connected.get() && out != null) {
-            out.println("PAUSE:" + paused);
-            out.flush();
+        String msg = "PAUSE:" + paused;
+        if (out != null) {
+            try {
+                out.println(msg);
+                out.flush();
+            } catch (Exception ignored) {}
+        }
+        for (ClientHandler handler : clients) {
+            handler.send(msg);
         }
     }
 
     public void sendEnterAuction() {
         if (connected.get() && out != null) {
-            out.println("ENTER_AUCTION");
-            out.flush();
+            try {
+                out.println("ENTER_AUCTION");
+                out.flush();
+            } catch (Exception ignored) {}
         }
     }
 
     public void sendLeaveAuction() {
         if (connected.get() && out != null) {
-            out.println("LEAVE_AUCTION");
-            out.flush();
-            resetSync();
+            try {
+                out.println("LEAVE_AUCTION");
+                out.flush();
+            } catch (Exception ignored) {}
         }
     }
 
@@ -307,11 +332,7 @@ public class NetworkManager {
     }
 
     public int getConnectedClientCount() {
-        return connected.get() ? 1 : 0;
-    }
-
-    public long getClientInAuctionCount() {
-        return clientInAuction.get() ? 1 : 0;
+        return clients.size();
     }
 
     public boolean isConnectedToServer() {
@@ -322,53 +343,55 @@ public class NetworkManager {
         return serverSocket != null && !serverSocket.isClosed();
     }
 
-    private void closeClientSockets() {
+    private void closeClientSocket() {
         PrintWriter tempOut = out;
         BufferedReader tempIn = in;
-        Socket tempAccepted = acceptedClient;
         Socket tempClient = clientSocket;
 
         out = null;
         in = null;
-        acceptedClient = null;
         clientSocket = null;
 
         try { if (tempIn != null) tempIn.close(); } catch (Exception ignored) {}
         try { if (tempOut != null) tempOut.close(); } catch (Exception ignored) {}
-        try { if (tempAccepted != null) tempAccepted.close(); } catch (Exception ignored) {}
         try { if (tempClient != null) tempClient.close(); } catch (Exception ignored) {}
     }
 
     private void closeServerSocket() {
         ServerSocket temp = serverSocket;
         serverSocket = null;
-        try { if (temp != null) temp.close(); } catch (Exception ignored) {}
+        if (temp != null) {
+            try { temp.close(); } catch (Exception ignored) {}
+        }
     }
 
     public void stop() {
         stopping.set(true);
         running.set(false);
         connected.set(false);
-        clientInAuction.set(false);
-        resetSync();
+        clientsInAuction.set(0);
 
         buyQueue.clear();
         serverSwitchQueue.clear();
         pauseQueue.clear();
+        updateQueue.clear();
 
-        closeClientSockets();
+        for (ClientHandler handler : clients) {
+            handler.close();
+        }
+        clients.clear();
+
+        closeClientSocket();
         closeServerSocket();
 
         ExecutorService temp = executor;
         executor = null;
         if (temp != null) {
             temp.shutdownNow();
+            try {
+                temp.awaitTermination(500, TimeUnit.MILLISECONDS);
+            } catch (InterruptedException ignored) {}
         }
-    }
-
-    public void stopAndWait() {
-        stop();
-        sleep(500);
     }
 
     private void msg(String text) {

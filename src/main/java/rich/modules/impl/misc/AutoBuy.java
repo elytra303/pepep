@@ -2,11 +2,12 @@ package rich.modules.impl.misc;
 
 import lombok.Getter;
 import net.minecraft.client.gui.screen.ingame.GenericContainerScreen;
+import net.minecraft.component.DataComponentTypes;
 import net.minecraft.item.ItemStack;
 import net.minecraft.registry.Registries;
 import net.minecraft.screen.slot.Slot;
 import net.minecraft.screen.slot.SlotActionType;
-import net.minecraft.util.Identifier;
+import net.minecraft.text.Text;
 import rich.events.api.EventHandler;
 import rich.events.impl.TickEvent;
 import rich.modules.module.ModuleStructure;
@@ -29,8 +30,8 @@ public class AutoBuy extends ModuleStructure {
 
     private final SelectSetting mode = new SelectSetting("Режим", "Проверяющий").value("Проверяющий", "Покупающий");
     private final SelectSetting serverType = new SelectSetting("Сервера", "Выкл").value("Выкл", "1.16.5", "1.21.4");
-    private final SliderSettings updateDelay = new SliderSettings("Задержка обновления", "").range(300, 1000).setValue(400);
-    private final SliderSettings serverSwitchTime = new SliderSettings("Время смены сервера", "").range(30, 120).setValue(60);
+    private final SliderSettings updateDelay = new SliderSettings("Задержка обновления", "").range(450, 1000).setValue(500);
+    private final SliderSettings serverSwitchTime = new SliderSettings("Время смены сервера", "").range(30, 120).setValue(30);
     private final BooleanSetting notifications = new BooleanSetting("Уведомления", "").setValue(true);
 
     private final AutoBuyManager autoBuyManager = AutoBuyManager.getInstance();
@@ -45,6 +46,7 @@ public class AutoBuy extends ModuleStructure {
     private boolean notifiedEnter = false;
     private Set<String> sentItems = new HashSet<>();
     private Set<String> boughtItems = new HashSet<>();
+    private volatile boolean pendingUpdate = false;
 
     public AutoBuy() {
         super("Auto Buy", "Автоматическая покупка на аукционе", ModuleCategory.MISC);
@@ -52,6 +54,7 @@ public class AutoBuy extends ModuleStructure {
 
         serverType.setVisible(() -> mode.isSelected("Покупающий"));
         serverSwitchTime.setVisible(() -> mode.isSelected("Покупающий") && !serverType.isSelected("Выкл"));
+        updateDelay.setVisible(() -> mode.isSelected("Покупающий"));
 
         setup(mode, serverType, updateDelay, serverSwitchTime, notifications);
     }
@@ -96,6 +99,7 @@ public class AutoBuy extends ModuleStructure {
         notifiedEnter = false;
         sentItems.clear();
         boughtItems.clear();
+        pendingUpdate = false;
         updateTimer.resetCounter();
         ahOpenTimer.resetCounter();
         serverSwitchTimer.resetCounter();
@@ -117,6 +121,7 @@ public class AutoBuy extends ModuleStructure {
 
         if (mode.isSelected("Проверяющий")) {
             handleServerSwitchCommand();
+            handleUpdateCommand();
         }
 
         if (mode.isSelected("Покупающий") && !serverType.isSelected("Выкл")) {
@@ -168,6 +173,12 @@ public class AutoBuy extends ModuleStructure {
         }
     }
 
+    private void handleUpdateCommand() {
+        if (network.pollUpdateCommand()) {
+            pendingUpdate = true;
+        }
+    }
+
     private void handleServerLogic() {
         serverManager.updateHubStatus(mc.world);
 
@@ -206,7 +217,7 @@ public class AutoBuy extends ModuleStructure {
             }
         }
 
-        if (ahOpenTimer.hasTimeElapsed(3000)) {
+        if (ahOpenTimer.hasTimeElapsed(11000)) {
             mc.player.networkHandler.sendChatCommand("ah");
             ahOpenTimer.resetCounter();
         }
@@ -237,15 +248,23 @@ public class AutoBuy extends ModuleStructure {
             }
         }
 
-        if (updateTimer.hasTimeElapsed((long) updateDelay.getValue())) {
-            updateAuction(screen);
-            updateTimer.resetCounter();
-        }
-
         if (mode.isSelected("Покупающий")) {
-            processBuyRequests(screen);
+            processBuyRequestsInstant(screen);
+
+            if (updateTimer.hasTimeElapsed((long) updateDelay.getValue())) {
+                int clientsInAuction = network.getClientsInAuctionCount();
+                if (clientsInAuction > 0) {
+                    network.sendUpdateCommand();
+                }
+                updateAuction(screen);
+                updateTimer.resetCounter();
+            }
         } else {
-            scanAndSend(screen);
+            if (pendingUpdate) {
+                updateAuction(screen);
+                pendingUpdate = false;
+            }
+            scanAndSendInstant(screen);
         }
     }
 
@@ -266,7 +285,7 @@ public class AutoBuy extends ModuleStructure {
 
     private void confirmSuspiciousPrice(GenericContainerScreen screen) {
         int syncId = screen.getScreenHandler().syncId;
-        mc.interactionManager.clickSlot(syncId, 0, 0, SlotActionType.PICKUP, mc.player);
+        mc.interactionManager.clickSlot(syncId, 1, 0, SlotActionType.PICKUP, mc.player);
         msg("§a✓ Подтвердил покупку");
     }
 
@@ -275,7 +294,25 @@ public class AutoBuy extends ModuleStructure {
         mc.interactionManager.clickSlot(syncId, 49, 0, SlotActionType.QUICK_MOVE, mc.player);
     }
 
-    private void scanAndSend(GenericContainerScreen screen) {
+    private String generateLoreHash(ItemStack stack) {
+        var lore = stack.get(DataComponentTypes.LORE);
+        if (lore == null || lore.lines().isEmpty()) {
+            return "nolore";
+        }
+        StringBuilder sb = new StringBuilder();
+        int count = 0;
+        for (Text line : lore.lines()) {
+            if (count >= 3) break;
+            String text = line.getString();
+            if (!text.contains("$") && !text.contains("Прoдaвeц") && !text.contains("Истeкaeт") && !text.contains("Нажмите")) {
+                sb.append(text.hashCode());
+                count++;
+            }
+        }
+        return sb.toString();
+    }
+
+    private void scanAndSendInstant(GenericContainerScreen screen) {
         if (!network.isConnected()) return;
 
         List<AutoBuyableItem> items = autoBuyManager.getEnabledItems();
@@ -292,93 +329,101 @@ public class AutoBuy extends ModuleStructure {
             if (price <= 0) continue;
 
             String itemId = Registries.ITEM.getId(stack.getItem()).toString();
-            String key = itemId + "|" + price + "|" + i;
+            String loreHash = generateLoreHash(stack);
+            String key = itemId + "|" + price + "|" + stack.getCount() + "|" + loreHash;
 
             if (sentItems.contains(key)) continue;
 
             for (AutoBuyableItem item : items) {
-                if (price > item.getSettings().getBuyBelow()) continue;
+                int maxPrice = item.getSettings().getBuyBelow();
+                int minQuantity = item.getSettings().isCanHaveQuantity() ? item.getSettings().getMinQuantity() : 1;
+
+                if (price > maxPrice) continue;
 
                 if (item.getSettings().isCanHaveQuantity()) {
-                    if (stack.getCount() < item.getSettings().getMinQuantity()) continue;
+                    if (stack.getCount() < minQuantity) continue;
                 }
 
                 if (AuctionUtils.compareItem(stack, item.createItemStack())) {
                     sentItems.add(key);
                     String displayName = item.getDisplayName();
-                    network.sendBuyCommand(price, itemId, displayName);
-                    msg("§bНашёл: §f" + displayName + " §bза " + price + "$");
+                    network.sendBuyCommand(price, itemId, displayName, stack.getCount(), loreHash, maxPrice, minQuantity);
                     break;
                 }
             }
         }
     }
 
-    private void processBuyRequests(GenericContainerScreen screen) {
-        BuyRequest request;
-        while ((request = network.pollBuyRequest()) != null) {
-            buyItem(screen, request);
-        }
-    }
-
-    private void buyItem(GenericContainerScreen screen, BuyRequest request) {
+    private void processBuyRequestsInstant(GenericContainerScreen screen) {
         int syncId = screen.getScreenHandler().syncId;
 
-        String buyKey = request.itemId + "|" + request.price;
-        if (boughtItems.contains(buyKey)) {
-            return;
-        }
-
-        List<AutoBuyableItem> enabledItems = autoBuyManager.getEnabledItems();
-        AutoBuyableItem matchingTemplate = null;
-        for (AutoBuyableItem item : enabledItems) {
-            if (item.getDisplayName().equals(request.displayName)) {
-                matchingTemplate = item;
-                break;
-            }
-        }
-
-        for (int i = 0; i < 45 && i < screen.getScreenHandler().slots.size(); i++) {
-            Slot slot = screen.getScreenHandler().slots.get(i);
-            ItemStack stack = slot.getStack();
-            if (stack.isEmpty()) continue;
-
-            String stackItemId = Registries.ITEM.getId(stack.getItem()).toString();
-            if (!stackItemId.equals(request.itemId)) continue;
-
-            int stackPrice = AuctionUtils.getPrice(stack);
-            if (stackPrice <= 0 || stackPrice > request.price) continue;
-
-            if (AuctionUtils.isArmorItem(stack) && AuctionUtils.hasThornsEnchantment(stack)) continue;
-
-            boolean matches = false;
-            if (matchingTemplate != null) {
-                matches = AuctionUtils.compareItem(stack, matchingTemplate.createItemStack());
-            } else {
-                for (AutoBuyableItem item : enabledItems) {
-                    if (request.price <= item.getSettings().getBuyBelow()) {
-                        if (AuctionUtils.compareItem(stack, item.createItemStack())) {
-                            matches = true;
-                            break;
-                        }
-                    }
-                }
+        BuyRequest request;
+        while ((request = network.pollBuyRequest()) != null) {
+            String buyKey = request.itemId + "|" + request.price + "|" + request.count + "|" + request.loreHash;
+            if (boughtItems.contains(buyKey)) {
+                continue;
             }
 
-            if (matches) {
+            boolean found = false;
+
+            for (int i = 0; i < 45 && i < screen.getScreenHandler().slots.size(); i++) {
+                Slot slot = screen.getScreenHandler().slots.get(i);
+                ItemStack stack = slot.getStack();
+                if (stack.isEmpty()) continue;
+
+                String stackItemId = Registries.ITEM.getId(stack.getItem()).toString();
+                if (!stackItemId.equals(request.itemId)) continue;
+
+                int stackPrice = AuctionUtils.getPrice(stack);
+                if (stackPrice != request.price) continue;
+
+                if (stack.getCount() != request.count) continue;
+
+                String stackLoreHash = generateLoreHash(stack);
+                if (!stackLoreHash.equals(request.loreHash)) continue;
+
+                if (AuctionUtils.isArmorItem(stack) && AuctionUtils.hasThornsEnchantment(stack)) continue;
+
                 mc.interactionManager.clickSlot(syncId, slot.id, 0, SlotActionType.QUICK_MOVE, mc.player);
                 boughtItems.add(buyKey);
-                msg("§a✓ КУПИЛ: §f" + request.displayName + " §aза " + stackPrice + "$");
-                return;
+                msg("§a⚡ КУПИЛ: §f" + request.displayName + " §aза " + stackPrice + "$");
+                found = true;
+                break;
+            }
+
+            if (!found) {
+                for (int i = 0; i < 45 && i < screen.getScreenHandler().slots.size(); i++) {
+                    Slot slot = screen.getScreenHandler().slots.get(i);
+                    ItemStack stack = slot.getStack();
+                    if (stack.isEmpty()) continue;
+
+                    String stackItemId = Registries.ITEM.getId(stack.getItem()).toString();
+                    if (!stackItemId.equals(request.itemId)) continue;
+
+                    int stackPrice = AuctionUtils.getPrice(stack);
+                    if (stackPrice <= 0 || stackPrice > request.maxPrice) continue;
+
+                    if (stack.getCount() < request.minQuantity) continue;
+
+                    if (AuctionUtils.isArmorItem(stack) && AuctionUtils.hasThornsEnchantment(stack)) continue;
+
+                    String fallbackKey = stackItemId + "|" + stackPrice + "|" + stack.getCount() + "|" + generateLoreHash(stack);
+                    if (boughtItems.contains(fallbackKey)) continue;
+
+                    mc.interactionManager.clickSlot(syncId, slot.id, 0, SlotActionType.QUICK_MOVE, mc.player);
+                    boughtItems.add(fallbackKey);
+                    boughtItems.add(buyKey);
+                    msg("§a⚡ КУПИЛ: §f" + request.displayName + " §aза " + stackPrice + "$");
+                    found = true;
+                    break;
+                }
             }
         }
-
-        msg("§c✗ Не нашёл: §f" + request.displayName + " §cза " + request.price + "$");
     }
 
     private void msg(String text) {
         if (notifications.isValue() && mc.player != null) {
-            ChatMessage.autobuymessage(text);
+//            ChatMessage.autobuymessage(text);
         }
     }
 

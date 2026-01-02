@@ -1,4 +1,4 @@
-package rich.modules.impl.misc;
+package rich.modules.impl.misc.autoparser.dev;
 
 import lombok.Getter;
 import net.minecraft.client.MinecraftClient;

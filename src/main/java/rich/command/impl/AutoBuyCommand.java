@@ -80,7 +80,7 @@ public class AutoBuyCommand extends Command {
 
                 if (autoBuyModule != null && moduleActive) {
                     int clients = autoBuyModule.getNetworkManager().getConnectedClientCount();
-                    long inAuction = autoBuyModule.getNetworkManager().getClientInAuctionCount();
+                    int inAuction = autoBuyModule.getNetworkManager().getClientsInAuctionCount();
                     boolean connected = autoBuyModule.getNetworkManager().isConnectedToServer();
                     boolean isServer = autoBuyModule.getNetworkManager().isServerRunning();
 

@@ -1,35 +1,51 @@
-package rich.util.modules.autoparser;
+package rich.modules.impl.misc.autoparser;
 
-import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.screen.ingame.GenericContainerScreen;
 import net.minecraft.item.ItemStack;
+import net.minecraft.network.message.LastSeenMessageList;
+import net.minecraft.network.packet.c2s.play.ChatMessageC2SPacket;
+import net.minecraft.network.packet.c2s.play.CommandExecutionC2SPacket;
 import net.minecraft.screen.slot.Slot;
 import net.minecraft.screen.slot.SlotActionType;
 import net.minecraft.util.Hand;
+import rich.events.api.EventHandler;
+import rich.events.impl.TickEvent;
+import rich.modules.module.ModuleStructure;
+import rich.modules.module.category.ModuleCategory;
+import rich.modules.module.setting.implement.BooleanSetting;
+import rich.modules.module.setting.implement.SliderSettings;
 import rich.screens.clickgui.impl.autobuy.AutoBuyableItem;
 import rich.screens.clickgui.impl.autobuy.AuctionUtils;
 import rich.screens.clickgui.impl.autobuy.manager.AutoBuyManager;
+import rich.util.modules.autoparser.AutoParserItems;
 import rich.util.string.chat.ChatMessage;
 import rich.util.timer.StopWatch;
 import rich.util.timer.TimerUtil;
 
+import java.time.Instant;
+import java.util.BitSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class AutoParserUtil {
-    private static AutoParserUtil instance;
-    private final MinecraftClient mc = MinecraftClient.getInstance();
-    private final AutoParserConfig config = AutoParserConfig.getInstance();
+public class AutoParser extends ModuleStructure {
+    private static AutoParser instance;
+
     private final AutoBuyManager autoBuyManager = AutoBuyManager.getInstance();
 
     private final TimerUtil actionTimer = TimerUtil.create();
     private final TimerUtil commandTimer = TimerUtil.create();
+    private final TimerUtil retryTimer = TimerUtil.create();
     private final StopWatch antiAfkWatch = new StopWatch();
 
     private ParserState state = ParserState.IDLE;
+
+    private int discountPercent = 60;
+    private boolean debugMode = true;
+    private int maxRetriesCount = 3;
+    private long commandDelayMs = 150;
 
     private int currentItemIndex = 0;
     private int currentPage = 1;
@@ -38,7 +54,6 @@ public class AutoParserUtil {
     private String[] currentAutoBuyNames = new String[0];
     private final Map<String, Integer> lowestPricesFound = new HashMap<>();
 
-    private final Map<String, Integer> parsedPrices = new HashMap<>();
     private int updatedCount = 0;
     private int skippedCount = 0;
 
@@ -47,11 +62,7 @@ public class AutoParserUtil {
     private static final int MAX_PAGES_TO_SCAN = 2;
     private static final long ANTI_AFK_INTERVAL = 20000;
     private static final long PAGE_CLICK_DELAY = 200;
-    private static final long CHECK_INTERVAL = 500;
-    private static final long COMMAND_DELAY = 300;
-    private static final long COMMAND_RETRY_DELAY = 1500;
-    private static final int MAX_WAIT_ATTEMPTS = 60;
-    private static final int MAX_RETRIES = 3;
+    private static final long CHECK_INTERVAL = 75;
 
     private int waitAttempts = 0;
     private int antiAfkAction = 0;
@@ -59,32 +70,67 @@ public class AutoParserUtil {
     private String lastFoundTitle = "";
     private int pageChangeAttempts = 0;
     private String titleBeforePageClick = "";
-    private boolean commandSent = false;
+    private boolean commandSentThisCycle = false;
+    private long lastCommandTime = 0;
 
     private enum ParserState {
         IDLE,
-        PREPARING_COMMAND,
+        CLOSING_SCREEN,
         SENDING_COMMAND,
         WAITING_FOR_AUCTION,
         SCANNING_PAGE,
         CLICKING_NEXT_PAGE,
         WAITING_PAGE_CHANGE,
         FINISHING_ITEM,
+        NEXT_ITEM,
         FINISHED
     }
 
-    private AutoParserUtil() {}
+    public AutoParser() {
+        super("Auto Parser", null);
+        instance = this;
+    }
 
-    public static AutoParserUtil getInstance() {
-        if (instance == null) {
-            instance = new AutoParserUtil();
-        }
+    public static AutoParser getInstance() {
         return instance;
     }
 
-    public void onTick() {
-        if (!config.isRunning()) return;
+    public void startParsing() {
+        List<AutoParserItems.ParserItemEntry> items = AutoParserItems.getItems();
+        if (items.isEmpty()) {
+            ChatMessage.autobuymessageError("Список предметов для парсинга пуст!");
+            return;
+        }
+
+        if (state != ParserState.IDLE) {
+            ChatMessage.autobuymessageWarning("AutoParser уже запущен!");
+            return;
+        }
+
+        fullReset();
+
+        ChatMessage.autobuymessageSuccess("§a══════ AutoParser ══════");
+        ChatMessage.autobuymessage("§7Предметов: §b" + items.size() + " §7| Скидка: §b" + discountPercent + "%");
+        ChatMessage.autobuymessageSuccess("§a════════════════════");
+
+        prepareNextItem();
+    }
+
+    public void stopParsing() {
+        if (state == ParserState.IDLE) return;
+
+        ChatMessage.autobuymessageWarning("AutoParser остановлен");
+        if (updatedCount > 0 || skippedCount > 0) {
+            ChatMessage.autobuymessage("§7Обновлено: §a" + updatedCount);
+        }
+
+        fullReset();
+    }
+
+    @EventHandler
+    public void onTick(TickEvent e) {
         if (mc.player == null || mc.world == null) return;
+        if (state == ParserState.IDLE) return;
 
         if (antiAfkWatch.finished(ANTI_AFK_INTERVAL)) {
             performAntiAfk();
@@ -92,13 +138,14 @@ public class AutoParserUtil {
         }
 
         switch (state) {
-            case PREPARING_COMMAND -> handlePreparingCommand();
+            case CLOSING_SCREEN -> handleClosingScreen();
             case SENDING_COMMAND -> handleSendingCommand();
             case WAITING_FOR_AUCTION -> handleWaitingForAuction();
             case SCANNING_PAGE -> handleScanningPage();
             case CLICKING_NEXT_PAGE -> handleClickingNextPage();
             case WAITING_PAGE_CHANGE -> handleWaitingPageChange();
             case FINISHING_ITEM -> handleFinishingItem();
+            case NEXT_ITEM -> handleNextItem();
             case FINISHED -> handleFinished();
         }
     }
@@ -127,63 +174,59 @@ public class AutoParserUtil {
         }
     }
 
-    private void handlePreparingCommand() {
-        if (!actionTimer.hasTimeElapsed(COMMAND_DELAY)) return;
-
+    private void handleClosingScreen() {
         if (mc.currentScreen != null) {
             mc.player.closeHandledScreen();
             actionTimer.resetCounter();
             return;
         }
 
-        commandSent = false;
-        state = ParserState.SENDING_COMMAND;
-        commandTimer.resetCounter();
-        actionTimer.resetCounter();
+        if (actionTimer.hasTimeElapsed(200)) {
+            state = ParserState.SENDING_COMMAND;
+            commandSentThisCycle = false;
+            commandTimer.resetCounter();
+        }
     }
 
     private void handleSendingCommand() {
         if (mc.player == null || mc.player.networkHandler == null) {
-            debug("§c[Error] Player or networkHandler is null!");
-            actionTimer.resetCounter();
+            retryTimer.resetCounter();
             return;
         }
 
-        if (!commandSent) {
-            try {
-                String command = "ah search " + currentSearchItem;
-                mc.player.networkHandler.sendChatCommand(command);
-                debug("§7[Command] /" + command);
-                commandSent = true;
-                commandTimer.resetCounter();
-            } catch (Exception e) {
-                debug("§c[Error] Failed to send command: " + e.getMessage());
-                try {
-                    mc.player.networkHandler.sendChatMessage("/ah search " + currentSearchItem);
-                    commandSent = true;
-                    commandTimer.resetCounter();
-                } catch (Exception ex) {
-                    debug("§c[Error] Fallback also failed");
-                }
-            }
-        }
-
-        if (commandTimer.hasTimeElapsed(COMMAND_RETRY_DELAY)) {
-            if (!commandSent) {
-                retryCount++;
-                if (retryCount >= MAX_RETRIES) {
-                    debug("§c[Skip] Cannot send command for: " + currentSearchItem);
-                    skippedCount++;
-                    goToNextItem();
-                    return;
-                }
-                commandSent = false;
-                commandTimer.resetCounter();
+        if (!commandSentThisCycle) {
+            if (System.currentTimeMillis() - lastCommandTime < commandDelayMs) {
                 return;
             }
 
-            state = ParserState.WAITING_FOR_AUCTION;
+            String command = "/ah search " + currentSearchItem;
+
+            LastSeenMessageList.Acknowledgment ack = new LastSeenMessageList.Acknowledgment(
+                    0,
+                    new BitSet(20),
+                    (byte) 0
+            );
+
+            ChatMessageC2SPacket packet = new ChatMessageC2SPacket(
+                    command,
+                    Instant.now(),
+                    0L,
+                    null,
+                    ack
+            );
+
+            mc.player.networkHandler.sendPacket(packet);
+
+            commandSentThisCycle = true;
+            lastCommandTime = System.currentTimeMillis();
+            commandTimer.resetCounter();
             waitAttempts = 0;
+
+            return;
+        }
+
+        if (commandTimer.hasTimeElapsed(500)) {
+            state = ParserState.WAITING_FOR_AUCTION;
             actionTimer.resetCounter();
         }
     }
@@ -194,21 +237,20 @@ public class AutoParserUtil {
 
         waitAttempts++;
 
-        if (waitAttempts > MAX_WAIT_ATTEMPTS) {
+        if (waitAttempts > 5) {
             retryCount++;
-            if (retryCount < MAX_RETRIES) {
-                debug("§e[Retry " + retryCount + "/" + MAX_RETRIES + "] " + currentSearchItem);
-                state = ParserState.PREPARING_COMMAND;
+
+            if (retryCount < maxRetriesCount) {
+                state = ParserState.CLOSING_SCREEN;
+                commandSentThisCycle = false;
                 waitAttempts = 0;
                 lastFoundTitle = "";
-                commandSent = false;
                 actionTimer.resetCounter();
                 return;
             }
 
-            debug("§c[Skip] " + currentSearchItem);
             skippedCount++;
-            goToNextItem();
+            state = ParserState.NEXT_ITEM;
             return;
         }
 
@@ -226,9 +268,8 @@ public class AutoParserUtil {
         if (titleLower.contains("не найден") || titleLower.contains("ничего") ||
                 titleLower.contains("пусто") || titleLower.contains("нет результатов") ||
                 titleLower.contains("товары не найдены") || titleLower.contains("not found")) {
-            debug("§c[Not Found] " + currentSearchItem);
             skippedCount++;
-            goToNextItem();
+            state = ParserState.NEXT_ITEM;
             return;
         }
 
@@ -376,7 +417,6 @@ public class AutoParserUtil {
 
             if (lowestPrice < Integer.MAX_VALUE) {
                 int discountedPrice = calculateDiscountedPrice(lowestPrice);
-                parsedPrices.put(autoBuyName, discountedPrice);
 
                 boolean updated = updateAutoBuyPrice(autoBuyName, discountedPrice);
 
@@ -387,28 +427,15 @@ public class AutoParserUtil {
             }
         }
 
-        goToNextItem();
+        state = ParserState.NEXT_ITEM;
     }
 
-    private void handleFinished() {
-        try {
-            if (mc.player != null && mc.currentScreen != null) {
-                mc.player.closeHandledScreen();
-            }
-        } catch (Exception ignored) {}
-
-        ChatMessage.autobuymessageSuccess("§a══════════════════════════════");
-        ChatMessage.autobuymessageSuccess("§a✓ AutoParser завершён!");
-        ChatMessage.autobuymessage("§7Обновлено: §a" + updatedCount);
-        ChatMessage.autobuymessageSuccess("§a══════════════════════════════");
-
-        fullReset();
-    }
-
-    private void goToNextItem() {
+    private void handleNextItem() {
         currentItemIndex++;
         lastFoundTitle = "";
-        commandSent = false;
+        commandSentThisCycle = false;
+        retryCount = 0;
+        waitAttempts = 0;
 
         List<AutoParserItems.ParserItemEntry> items = AutoParserItems.getItems();
 
@@ -418,6 +445,18 @@ public class AutoParserUtil {
         }
 
         prepareNextItem();
+    }
+
+    private void handleFinished() {
+        try {
+            if (mc.player != null && mc.currentScreen != null) {
+                mc.player.closeHandledScreen();
+            }
+        } catch (Exception ignored) {}
+
+        ChatMessage.autobuymessageSuccess("§a✓ AutoParser завершён!");
+
+        fullReset();
     }
 
     private void prepareNextItem() {
@@ -431,7 +470,8 @@ public class AutoParserUtil {
         lowestPricesFound.clear();
         waitAttempts = 0;
         retryCount = 0;
-        commandSent = false;
+        commandSentThisCycle = false;
+        lastFoundTitle = "";
 
         for (String name : currentAutoBuyNames) {
             lowestPricesFound.put(name, Integer.MAX_VALUE);
@@ -439,7 +479,7 @@ public class AutoParserUtil {
 
         debug("§7[" + (currentItemIndex + 1) + "/" + items.size() + "] §b" + currentSearchItem);
 
-        state = ParserState.PREPARING_COMMAND;
+        state = ParserState.CLOSING_SCREEN;
         actionTimer.resetCounter();
     }
 
@@ -450,7 +490,6 @@ public class AutoParserUtil {
         currentSearchItem = "";
         currentAutoBuyNames = new String[0];
         lowestPricesFound.clear();
-        parsedPrices.clear();
         updatedCount = 0;
         skippedCount = 0;
         waitAttempts = 0;
@@ -459,53 +498,14 @@ public class AutoParserUtil {
         lastFoundTitle = "";
         pageChangeAttempts = 0;
         titleBeforePageClick = "";
-        commandSent = false;
+        commandSentThisCycle = false;
+        lastCommandTime = 0;
         state = ParserState.IDLE;
 
-        config.reset();
-    }
-
-    public void start() {
-        if (config.isRunning()) {
-            ChatMessage.autobuymessageWarning("AutoParser уже запущен!");
-            return;
-        }
-
-        if (mc.player == null || mc.world == null) {
-            ChatMessage.autobuymessageError("Игрок не в мире!");
-            return;
-        }
-
-        fullReset();
-
-        List<AutoParserItems.ParserItemEntry> items = AutoParserItems.getItems();
-        if (items.isEmpty()) {
-            ChatMessage.autobuymessageError("Список предметов для парсинга пуст!");
-            return;
-        }
-
-        config.setRunning(true);
-        config.setEnabled(true);
-
-        ChatMessage.autobuymessageSuccess("§a══════ AutoParser ══════");
-        ChatMessage.autobuymessage("§7Предметов: §b" + items.size() + " §7| Скидка: §b" + config.getDiscountPercent() + "%");
-        ChatMessage.autobuymessageSuccess("§a═════════════════════════");
-
-        antiAfkWatch.reset();
         actionTimer.resetCounter();
         commandTimer.resetCounter();
-
-        prepareNextItem();
-    }
-
-    public void stop() {
-        if (!config.isRunning()) return;
-
-        ChatMessage.autobuymessageWarning("AutoParser остановлен");
-        if (updatedCount > 0 || skippedCount > 0) {
-            ChatMessage.autobuymessage("§7Обновлено: §a" + updatedCount);
-        }
-        fullReset();
+        retryTimer.resetCounter();
+        antiAfkWatch.reset();
     }
 
     private boolean containsAnyWord(String title, String search) {
@@ -547,7 +547,7 @@ public class AutoParserUtil {
     }
 
     private int calculateDiscountedPrice(int originalPrice) {
-        double discount = config.getDiscountPercent() / 100.0;
+        double discount = discountPercent / 100.0;
         return (int) (originalPrice * (1 - discount));
     }
 
@@ -586,7 +586,7 @@ public class AutoParserUtil {
     }
 
     private void debug(String message) {
-        if (config.isDebugMode()) {
+        if (debugMode) {
             ChatMessage.autobuymessage(message);
         }
     }
@@ -601,7 +601,15 @@ public class AutoParserUtil {
     }
 
     public boolean isRunning() {
-        return config.isRunning();
+        return state != ParserState.IDLE;
+    }
+
+    public int getDiscountPercent() {
+        return discountPercent;
+    }
+
+    public void setDiscountPercent(int percent) {
+        this.discountPercent = percent;
     }
 
     public int getCurrentProgress() {

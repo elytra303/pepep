@@ -17,10 +17,9 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import rich.modules.impl.misc.AutoBuy;
-import rich.modules.impl.misc.ItemParser;
+import rich.modules.impl.misc.autoparser.AutoParser;
+import rich.modules.impl.misc.autoparser.dev.ItemParser;
 import rich.screens.clickgui.impl.autobuy.manager.AutoBuyManager;
-import rich.util.modules.autoparser.AutoParserConfig;
-import rich.util.modules.autoparser.AutoParserUtil;
 import rich.util.modules.autoparser.DiscountSliderWidget;
 import rich.util.string.chat.ChatMessage;
 
@@ -31,6 +30,13 @@ import java.util.List;
 public abstract class GenericContainerScreenMixin extends HandledScreen<GenericContainerScreenHandler> {
 
     @Unique
+    private static long lastScreenOpenTime = 0;
+    @Unique
+    private static String lastScreenTitle = "";
+    @Unique
+    private static final long SCREEN_REOPEN_THRESHOLD = 500;
+
+    @Unique
     private ButtonWidget takeAllButton;
     @Unique
     private ButtonWidget dropAllButton;
@@ -39,22 +45,35 @@ public abstract class GenericContainerScreenMixin extends HandledScreen<GenericC
     @Unique
     private ButtonWidget autoBuyButton;
     @Unique
-    private ButtonWidget parseButton;
-    @Unique
     private ButtonWidget autoParserButton;
     @Unique
     private DiscountSliderWidget discountSlider;
     @Unique
+    private ButtonWidget parseButton;
+    @Unique
     private boolean buttonsAdded = false;
     @Unique
+    private boolean isQuickReopen = false;
+    @Unique
     private final AutoBuyManager autoBuyManager = AutoBuyManager.getInstance();
-    @Unique
-    private final AutoParserConfig autoParserConfig = AutoParserConfig.getInstance();
-    @Unique
-    private final AutoParserUtil autoParserUtil = AutoParserUtil.getInstance();
 
     public GenericContainerScreenMixin(GenericContainerScreenHandler handler, PlayerInventory inventory, Text title) {
         super(handler, inventory, title);
+    }
+
+    @Inject(method = "<init>", at = @At("RETURN"))
+    private void onInit(GenericContainerScreenHandler handler, PlayerInventory inventory, Text title, CallbackInfo ci) {
+        long now = System.currentTimeMillis();
+        String currentTitle = title.getString();
+
+        if (currentTitle.equals(lastScreenTitle) && (now - lastScreenOpenTime) < SCREEN_REOPEN_THRESHOLD) {
+            isQuickReopen = true;
+        } else {
+            isQuickReopen = false;
+        }
+
+        lastScreenOpenTime = now;
+        lastScreenTitle = currentTitle;
     }
 
     @Inject(method = "render", at = @At("TAIL"))
@@ -67,70 +86,71 @@ public abstract class GenericContainerScreenMixin extends HandledScreen<GenericC
             buttonsAdded = true;
         }
 
-        if (autoBuyButton != null) {
-            AutoBuy autoBuyModule = AutoBuy.getInstance();
-            boolean moduleActive = autoBuyModule != null && autoBuyModule.isState();
-            boolean buttonEnabled = autoBuyManager.isEnabled();
+        updateAutoBuyButton();
+        updateAutoParserButton();
+        renderNetworkInfo(context, mc, title);
+    }
 
-            String status;
-            if (!moduleActive) {
-                status = "§cOFF";
-                autoBuyButton.active = false;
-            } else if (buttonEnabled) {
-                status = "§aON";
-                autoBuyButton.active = true;
-            } else {
-                status = "§ePAUSE";
-                autoBuyButton.active = true;
-            }
+    @Unique
+    private void updateAutoBuyButton() {
+        if (autoBuyButton == null) return;
 
-            autoBuyButton.setMessage(Text.literal("AutoBuy: " + status));
+        AutoBuy autoBuyModule = AutoBuy.getInstance();
+        boolean moduleActive = autoBuyModule != null && autoBuyModule.isState();
+        boolean buttonEnabled = autoBuyManager.isEnabled();
+
+        String status;
+        if (!moduleActive) {
+            status = "§cOFF";
+            autoBuyButton.active = false;
+        } else if (buttonEnabled) {
+            status = "§aON";
+            autoBuyButton.active = true;
+        } else {
+            status = "§ePAUSE";
+            autoBuyButton.active = true;
         }
 
-        if (parseButton != null) {
-            ItemParser parser = ItemParser.getInstance();
-            boolean parserActive = parser != null && parser.isState();
-            parseButton.active = parserActive;
-            parseButton.setMessage(Text.literal(parserActive ? "§aПарсить всё" : "§7Парсить всё"));
-        }
+        autoBuyButton.setMessage(Text.literal("AutoBuy: " + status));
+    }
 
-        if (autoParserButton != null) {
-            boolean isRunning = autoParserUtil.isRunning();
-            boolean isEnabled = autoParserConfig.isEnabled();
+    @Unique
+    private void updateAutoParserButton() {
+        AutoParser parser = AutoParser.getInstance();
+        if (autoParserButton == null || parser == null) return;
 
-            if (isEnabled || isRunning) {
-                autoParserButton.setMessage(Text.literal("AutoParser: §aON"));
-            } else {
-                autoParserButton.setMessage(Text.literal("AutoParser: §cOFF"));
-            }
-        }
+        boolean isRunning = parser.isRunning();
+        autoParserButton.setMessage(Text.literal("AutoParser: " + (isRunning ? "§aON" : "§cOFF")));
 
         if (discountSlider != null) {
-            discountSlider.active = !autoParserUtil.isRunning();
+            discountSlider.active = !isRunning;
+        }
+    }
+
+    @Unique
+    private void renderNetworkInfo(DrawContext context, MinecraftClient mc, String title) {
+        if (autoBuyButton == null || !title.contains("Аукцион")) return;
+
+        AutoBuy autoBuyModule = AutoBuy.getInstance();
+        if (autoBuyModule == null || !autoBuyModule.isState()) return;
+
+        int clients = autoBuyModule.getNetworkManager().getConnectedClientCount();
+        int inAuction = autoBuyModule.getNetworkManager().getClientsInAuctionCount();
+        boolean connected = autoBuyModule.getNetworkManager().isConnectedToServer();
+        boolean isServer = autoBuyModule.getNetworkManager().isServerRunning();
+
+        String info;
+        if (isServer) {
+            info = "§7Клиентов: §b" + clients + " §7В аукционе: §b" + inAuction;
+        } else if (connected) {
+            info = "§aПодключён к серверу";
+        } else {
+            info = "§cНет подключения";
         }
 
-        if (autoBuyButton != null && title.contains("Аукцион")) {
-            AutoBuy autoBuyModule = AutoBuy.getInstance();
-            if (autoBuyModule != null && autoBuyModule.isState()) {
-                int clients = autoBuyModule.getNetworkManager().getConnectedClientCount();
-                long inAuction = autoBuyModule.getNetworkManager().getClientInAuctionCount();
-                boolean connected = autoBuyModule.getNetworkManager().isConnectedToServer();
-                boolean isServer = autoBuyModule.getNetworkManager().isServerRunning();
-
-                String info;
-                if (isServer) {
-                    info = "§7Клиентов: §b" + clients + " §7В аукционе: §b" + inAuction;
-                } else if (connected) {
-                    info = "§aПодключён к серверу";
-                } else {
-                    info = "§cНет подключения";
-                }
-
-                int infoX = (this.width - this.backgroundWidth) / 2 + this.backgroundWidth / 2;
-                int infoY = (this.height - this.backgroundHeight) / 2 - 10;
-                context.drawCenteredTextWithShadow(mc.textRenderer, Text.literal(info), infoX, infoY, 0xFFFFFF);
-            }
-        }
+        int infoX = (this.width - this.backgroundWidth) / 2 + this.backgroundWidth / 2;
+        int infoY = (this.height - this.backgroundHeight) / 2 - 10;
+        context.drawCenteredTextWithShadow(mc.textRenderer, Text.literal(info), infoX, infoY, 0xFFFFFF);
     }
 
     @Unique
@@ -160,8 +180,12 @@ public abstract class GenericContainerScreenMixin extends HandledScreen<GenericC
         int autoBuyX = (this.width - this.backgroundWidth) / 2 + this.backgroundWidth / 2 - 55;
         int autoBuyY = (this.height - this.backgroundHeight) / 2 - 25;
 
-        ItemParser parser = ItemParser.getInstance();
-        boolean parserActive = parser != null && parser.isState();
+        AutoBuy autoBuyModule = AutoBuy.getInstance();
+        boolean moduleActive = autoBuyModule != null && autoBuyModule.isState();
+        boolean buttonEnabled = autoBuyManager.isEnabled();
+
+        ItemParser parser2 = ItemParser.getInstance();
+        boolean parserActive = parser2 != null && parser2.isState();
 
 //        this.parseButton = ButtonWidget.builder(
 //                Text.literal(parserActive ? "§aПарсить всё" : "§7Парсить всё"),
@@ -169,10 +193,6 @@ public abstract class GenericContainerScreenMixin extends HandledScreen<GenericC
 //        ).dimensions(autoBuyX, autoBuyY - 22, 80, 20).build();
 //        this.parseButton.active = parserActive;
 //        this.addDrawableChild(parseButton);
-
-        AutoBuy autoBuyModule = AutoBuy.getInstance();
-        boolean moduleActive = autoBuyModule != null && autoBuyModule.isState();
-        boolean buttonEnabled = autoBuyManager.isEnabled();
 
         String initialStatus;
         if (!moduleActive) {
@@ -194,27 +214,31 @@ public abstract class GenericContainerScreenMixin extends HandledScreen<GenericC
         int leftX = (this.width - this.backgroundWidth) / 2 - 100;
         int leftY = (this.height - this.backgroundHeight) / 2;
 
+        AutoParser parser = AutoParser.getInstance();
+        int initialDiscount = parser != null ? parser.getDiscountPercent() : 60;
+
         this.autoParserButton = ButtonWidget.builder(
-                Text.literal("AutoParser: " + (autoParserConfig.isEnabled() ? "§aON" : "§cOFF")),
+                Text.literal("AutoParser: §cOFF"),
                 button -> handleAutoParserButtonClick()
         ).dimensions(leftX, leftY, 95, 20).build();
         this.addDrawableChild(autoParserButton);
 
-        this.discountSlider = new DiscountSliderWidget(leftX, leftY + 24, 95, 20, autoParserConfig.getDiscountPercent());
+        this.discountSlider = new DiscountSliderWidget(leftX, leftY + 24, 95, 20, initialDiscount);
         this.addDrawableChild(discountSlider);
     }
 
     @Unique
     private void handleAutoParserButtonClick() {
-        if (autoParserUtil.isRunning()) {
-            autoParserUtil.stop();
-            autoParserConfig.setEnabled(false);
-        } else if (autoParserConfig.isEnabled()) {
-            autoParserUtil.stop();
-            autoParserConfig.setEnabled(false);
+        AutoParser parser = AutoParser.getInstance();
+        if (parser == null) {
+            ChatMessage.autobuymessageError("AutoParser не инициализирован!");
+            return;
+        }
+
+        if (parser.isRunning()) {
+            parser.stopParsing();
         } else {
-            autoParserConfig.setEnabled(true);
-            autoParserUtil.start();
+            parser.startParsing();
         }
     }
 
