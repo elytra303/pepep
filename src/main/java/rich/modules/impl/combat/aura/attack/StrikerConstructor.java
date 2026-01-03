@@ -7,6 +7,7 @@ import net.minecraft.entity.LivingEntity;
 import net.minecraft.util.math.Box;
 import rich.IMinecraft;
 import rich.events.impl.PacketEvent;
+import rich.modules.impl.combat.TriggerBot;
 import rich.modules.impl.combat.aura.Angle;
 import rich.modules.module.setting.implement.SelectSetting;
 
@@ -28,13 +29,17 @@ public class StrikerConstructor implements IMinecraft {
         attackHandler.handleAttack(configurable);
     }
 
+    public void performTriggerAttack(AttackPerpetratorConfigurable configurable, TriggerBot triggerBot) {
+        attackHandler.handleTriggerAttack(configurable, triggerBot);
+    }
+
     @Getter
     @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
     public static class AttackPerpetratorConfigurable {
         LivingEntity target;
         Angle angle;
         float maximumRange;
-        boolean onlyCritical, shouldBreakShield, shouldUnPressShield, eatAndAttack, multiPoints;
+        boolean onlyCritical, shouldBreakShield, shouldUnPressShield, eatAndAttack, multiPoints, ignoreWalls;
         Box box;
         SelectSetting aimMode;
 
@@ -42,11 +47,12 @@ public class StrikerConstructor implements IMinecraft {
             this.target = target;
             this.angle = angle;
             this.maximumRange = maximumRange;
-            this.onlyCritical = options.contains("Crits with space");
+            this.onlyCritical = options.contains("Только криты") || options.contains("Only Critical") || options.contains("Crits with space");
             this.shouldBreakShield = options.contains("Break Shield");
             this.shouldUnPressShield = options.contains("UnPress Shield");
             this.multiPoints = options.contains("Multi Points");
             this.eatAndAttack = options.contains("No Attack When Eat");
+            this.ignoreWalls = options.contains("Бить сквозь стены") || options.contains("Ignore The Walls");
             this.box = box;
             this.aimMode = aimMode;
         }

@@ -32,6 +32,7 @@ public class AngleConnection implements IMinecraft {
     Angle previousAngle;
     Angle serverAngle = Angle.DEFAULT;
     Angle fakeAngle;
+    boolean returning = false;
 
 
     public AngleConnection() {
@@ -59,9 +60,11 @@ public class AngleConnection implements IMinecraft {
 
         return currentAngle != null ? currentAngle : previousAngle != null ? previousAngle : MathAngle.cameraAngle();
     }
+
     public void setFakeRotation(Angle angle) {
         this.fakeAngle = angle;
     }
+
     public Angle getPreviousRotation() {
         return currentAngle != null && previousAngle != null ? previousAngle : new Angle(mc.player.lastYaw, mc.player.lastPitch);
     }
@@ -80,21 +83,47 @@ public class AngleConnection implements IMinecraft {
     }
 
     public void rotateTo(Angle angle, int reset, AngleConfig configurable, TaskPriority taskPriority, ModuleStructure provider) {
-        rotateTo(configurable.createRotationPlan(angle,angle.toVector(),null, reset), taskPriority, provider);
+        rotateTo(configurable.createRotationPlan(angle, angle.toVector(), null, reset), taskPriority, provider);
     }
 
     public void rotateTo(Angle angle, AngleConfig configurable, TaskPriority taskPriority, ModuleStructure provider) {
-        rotateTo(configurable.createRotationPlan(angle,angle.toVector(),null,1), taskPriority, provider);
+        rotateTo(configurable.createRotationPlan(angle, angle.toVector(), null, 1), taskPriority, provider);
     }
 
     public void rotateTo(AngleConstructor plan, TaskPriority taskPriority, ModuleStructure provider) {
+        returning = false;
         rotationPlanTaskProcessor.addTask(new TaskProcessor.Task<>(1, taskPriority.getPriority(), provider, plan));
     }
 
 
     public void update() {
         AngleConstructor activePlan = getCurrentRotationPlan();
-        if (activePlan == null) return;
+
+        if (activePlan == null) {
+            if (currentAngle != null && returning) {
+                Angle cameraAngle = MathAngle.cameraAngle();
+                double diff = computeRotationDifference(currentAngle, cameraAngle);
+
+                if (diff < 0.5) {
+                    setRotation(null);
+                    lastRotationPlan = null;
+                    returning = false;
+                } else {
+                    float speed = 0.25f;
+                    float distanceFactor = Math.min(1.0f, (float) diff / 30.0f);
+                    speed = speed + (0.4f * distanceFactor);
+
+                    float yawDiff = MathHelper.wrapDegrees(cameraAngle.getYaw() - currentAngle.getYaw());
+                    float newYaw = currentAngle.getYaw() + yawDiff * speed;
+                    float newPitch = MathHelper.lerp(speed, currentAngle.getPitch(), cameraAngle.getPitch());
+
+                    setRotation(new Angle(newYaw, newPitch).adjustSensitivity());
+                }
+            }
+            return;
+        }
+
+        returning = false;
 
         Angle clientAngle = MathAngle.cameraAngle();
 
@@ -149,6 +178,23 @@ public class AngleConnection implements IMinecraft {
         rotationPlanTaskProcessor.activeTasks.clear();
     }
 
+    public void startReturning() {
+//        clear();
+//        lastRotationPlan = null;
+//        rotationPlanTaskProcessor.tickCounter = 0;
+//        returning = true;
+    }
+
+    public void reset() {
+//        clear();
+        currentAngle = null;
+        previousAngle = null;
+        fakeAngle = null;
+        lastRotationPlan = null;
+        rotationPlanTaskProcessor.tickCounter = 0;
+//        returning = false;
+    }
+
     @EventHandler
     public void onPlayerVelocityStrafe(PlayerVelocityStrafeEvent e) {
         AngleConstructor currentRotationPlan = getCurrentRotationPlan();
@@ -167,10 +213,12 @@ public class AngleConnection implements IMinecraft {
     @EventHandler
     public void onPacket(PacketEvent event) {
         if (!event.isCancelled()) switch (event.getPacket()) {
-            case PlayerMoveC2SPacket player when player.changesLook() -> serverAngle = new Angle(player.getYaw(1), player.getPitch(1));
-            case PlayerPositionLookS2CPacket player -> serverAngle = new Angle(player.change().yaw(), player.change().pitch());
-            default -> {}
+            case PlayerMoveC2SPacket player when player.changesLook() ->
+                    serverAngle = new Angle(player.getYaw(1), player.getPitch(1));
+            case PlayerPositionLookS2CPacket player ->
+                    serverAngle = new Angle(player.change().yaw(), player.change().pitch());
+            default -> {
+            }
         }
     }
 }
-

@@ -84,10 +84,10 @@ public class InventoryUtility implements IMinecraft {
             if (swing) mc.player.swingHand(Hand.MAIN_HAND);
 
             if (delay) {
-//                Manager.SCHEDULER.scheduleOnce(() -> {
+                Manager.SCHEDULER.scheduleOnce(() -> {
                     if (mc.player.getInventory().getSelectedSlot() != slot)
                         NetworkUtility.send(new UpdateSelectedSlotC2SPacket(mc.player.getInventory().getSelectedSlot()));
-//                }, 3);
+                }, 3);
             } else {
                 if (mc.player.getInventory().getSelectedSlot() != slot)
                     NetworkUtility.send(new UpdateSelectedSlotC2SPacket(mc.player.getInventory().getSelectedSlot()));
@@ -117,13 +117,13 @@ public class InventoryUtility implements IMinecraft {
             }
 
             int finalS = s;
-//            Manager.SCHEDULER.scheduleOnce(() -> {
+            Manager.SCHEDULER.scheduleOnce(() -> {
                 InventoryUtility.swap(
                         InventoryUtility.wrapHotbar(slot),
                         InventoryUtility.wrapHotbar(finalS)
                 );
                 NetworkUtility.send(new CloseHandledScreenC2SPacket(finalS));
-//            }, 3);
+            }, 3);
         }
 
         stopWrite();

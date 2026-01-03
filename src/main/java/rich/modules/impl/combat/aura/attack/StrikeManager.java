@@ -12,26 +12,39 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.c2s.play.ClientCommandC2SPacket;
 import net.minecraft.network.packet.c2s.play.HandSwingC2SPacket;
 import net.minecraft.network.packet.c2s.play.UpdateSelectedSlotC2SPacket;
+import net.minecraft.sound.SoundEvents;
 import net.minecraft.util.Hand;
+import org.joml.Vector3f;
 import rich.IMinecraft;
 import rich.events.api.types.EventListener;
 import rich.events.impl.PacketEvent;
 import rich.modules.impl.combat.Aura;
+import rich.modules.impl.combat.TriggerBot;
 import rich.modules.impl.combat.aura.target.RaycastAngle;
 import rich.util.player.PlayerSimulation;
 import rich.util.string.PlayerInteractionHelper;
 import rich.util.timer.StopWatch;
 
+import java.util.concurrent.ThreadLocalRandom;
+
 @Setter
 @Getter
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class StrikeManager implements IMinecraft {
-    private final StopWatch attackTimer = new StopWatch(), shieldWatch = new StopWatch(), sprintCooldown = new StopWatch();;
+    private final StopWatch attackTimer = new StopWatch();
+    private final StopWatch shieldWatch = new StopWatch();
+    private final StopWatch sprintCooldown = new StopWatch();
     private final Pressing clickScheduler = new Pressing();
     private int count = 0;
-    private boolean prevSprinting;
+    private int ticksOnBlock = 0;
 
-    void tick() {}
+    void tick() {
+        if (mc.player != null && mc.player.isOnGround()) {
+            ticksOnBlock++;
+        } else {
+            ticksOnBlock = 0;
+        }
+    }
 
     void onPacket(PacketEvent e) {
         Packet<?> packet = e.getPacket();
@@ -40,53 +53,231 @@ public class StrikeManager implements IMinecraft {
         }
     }
 
-    private ClientCommandC2SPacket.Mode lastSprintCommand = null;
-    private boolean pendingStartSprint = false;
-    private boolean pendingStopSprint = false;
-    private boolean didStopSprint = false;
-    private static final long SPRINT_COOLDOWN_MS = 200;
     void handleAttack(StrikerConstructor.AttackPerpetratorConfigurable config) {
-        if (canAttack(config, 0)) preAttackEntity(config);
-        if (!RaycastAngle.rayTrace(config) || !canAttack(config, 0)) return;
-//        mc.options.forwardKey.setPressed(false);
-        if (!mc.player.input.playerInput.sprint()) {
-            attackEntity(config);
+        Aura aura = Aura.getInstance();
+
+        if (!shouldAttack(config)) return;
+        if (!RaycastAngle.rayTrace(config)) return;
+        if (!canAttack(config, 0)) return;
+
+        if (aura.isResetSprintLegit() && mc.player.isSprinting()) {
+            return;
         }
 
-//        mc.options.forwardKey.setPressed(InputUtil.isKeyPressed(mc.getWindow().getHandle(), mc.options.forwardKey.getDefaultKey().getCode()));
+        boolean wasSprinting = EventListener.serverSprint;
+
+        if (aura.isResetSprintPacket() && wasSprinting && !mc.player.isTouchingWater()) {
+            mc.getNetworkHandler().sendPacket(new ClientCommandC2SPacket(mc.player, ClientCommandC2SPacket.Mode.STOP_SPRINTING));
+            mc.player.setSprinting(false);
+        }
+
+        attackEntity(config);
+
+        if (aura.isResetSprintPacket() && wasSprinting && !mc.player.isTouchingWater()) {
+            mc.getNetworkHandler().sendPacket(new ClientCommandC2SPacket(mc.player, ClientCommandC2SPacket.Mode.START_SPRINTING));
+            mc.player.setSprinting(true);
+        }
     }
 
-    private String getSprintMode() {
-        return "Legit";
-    }
+    void handleTriggerAttack(StrikerConstructor.AttackPerpetratorConfigurable config, TriggerBot triggerBot) {
+        if (!shouldAttackTrigger(config, triggerBot)) return;
+        if (!RaycastAngle.rayTrace(config)) return;
+        if (!canAttackTrigger(config, triggerBot, 0)) return;
 
-    void preAttackEntity(StrikerConstructor.AttackPerpetratorConfigurable config) {
-    }
+        if (triggerBot.isResetSprintLegit() && mc.player.isSprinting()) {
+            return;
+        }
 
-    void postAttackEntity(StrikerConstructor.AttackPerpetratorConfigurable config) {
+        boolean wasSprinting = EventListener.serverSprint;
+
+        if (triggerBot.isResetSprintPacket() && wasSprinting && !mc.player.isTouchingWater()) {
+            mc.getNetworkHandler().sendPacket(new ClientCommandC2SPacket(mc.player, ClientCommandC2SPacket.Mode.STOP_SPRINTING));
+            mc.player.setSprinting(false);
+        }
+
+        attackEntity(config);
+
+        if (triggerBot.isResetSprintPacket() && wasSprinting && !mc.player.isTouchingWater()) {
+            mc.getNetworkHandler().sendPacket(new ClientCommandC2SPacket(mc.player, ClientCommandC2SPacket.Mode.START_SPRINTING));
+            mc.player.setSprinting(true);
+        }
     }
 
     void attackEntity(StrikerConstructor.AttackPerpetratorConfigurable config) {
-        attack(config);
+        if (!mc.player.isOnGround()) {
+            mc.interactionManager.attackEntity(mc.player, config.getTarget());
+            mc.player.swingHand(Hand.MAIN_HAND);
+
+            if (convenientFallOffset() > 0.0F) {
+                mc.world.playSound(
+                        null,
+                        mc.player.getX(),
+                        mc.player.getY(),
+                        mc.player.getZ(),
+                        SoundEvents.ENTITY_PLAYER_ATTACK_CRIT,
+                        mc.player.getSoundCategory(),
+                        1.0f,
+                        1.0f
+                );
+                mc.player.addCritParticles(config.getTarget());
+            }
+        } else {
+            mc.interactionManager.attackEntity(mc.player, config.getTarget());
+            mc.player.swingHand(Hand.MAIN_HAND);
+        }
+
         attackTimer.reset();
         count++;
     }
 
-    private void attack(StrikerConstructor.AttackPerpetratorConfigurable config) {
-        mc.interactionManager.attackEntity(mc.player, config.getTarget());
-        mc.player.swingHand(Hand.MAIN_HAND);
+    public boolean shouldResetSprinting(StrikerConstructor.AttackPerpetratorConfigurable config) {
+        if (Aura.target == null) return false;
+        return !mc.player.isOnGround() && (canAttack(config, 1) || shouldAttack(config));
     }
 
-    private boolean isSprinting() {
-        return EventListener.serverSprint && !mc.player.isGliding() && !mc.player.isTouchingWater();
+    public boolean shouldResetSprintingForTrigger(StrikerConstructor.AttackPerpetratorConfigurable config, TriggerBot triggerBot) {
+        if (triggerBot.target == null) return false;
+        return !mc.player.isOnGround() && (canAttackTrigger(config, triggerBot, 1) || shouldAttackTrigger(config, triggerBot));
     }
 
-    private float getAttackRange() {
-        return Aura.getInstance().attackrange.getValue();
+    public boolean shouldAttack(StrikerConstructor.AttackPerpetratorConfigurable config) {
+        Aura aura = Aura.getInstance();
+
+        if (aura.isResetSprintLegit() && mc.player.isSprinting()) {
+            return false;
+        }
+
+        if (mc.player.distanceTo(config.getTarget()) > aura.attackrange.getValue()) {
+            return false;
+        }
+
+        boolean crit = true;
+
+        if (aura.getCheckCrit().isValue()) {
+            float minFallDist = 0;
+            if (aura.isRandomizeCrit()) {
+                minFallDist = ThreadLocalRandom.current().nextDouble() > 0.75
+                        ? randomFloat(0.1f, 0.4f)
+                        : randomFloat(0.0f, 0.1f);
+            }
+
+            boolean fallDistance = convenientFallOffset() > minFallDist;
+
+            boolean canCrit = (!mc.player.isOnGround()
+                    || mc.world.getBlockState(mc.player.getBlockPos().add(0, -1, 0)).isAir()
+                    || mc.player.input.playerInput.jump())
+                    && fallDistance;
+
+            canCrit = canCrit
+                    && !mc.player.isOnGround()
+                    && !mc.player.isClimbing()
+                    && !mc.player.isTouchingWater();
+
+            boolean isOnGround = mc.player.isOnGround() || !mc.player.input.playerInput.jump();
+            boolean isLiquid = mc.player.isSwimming() || mc.player.isTouchingWater() || mc.player.isInFluid();
+
+            if (aura.getSmartCrits().isValue()) {
+                crit = isOnGround || canCrit || isLiquid;
+            } else {
+                crit = canCrit || isLiquid;
+            }
+
+            crit |= PlayerInteractionHelper.isBoxInBlock(mc.player.getBoundingBox().expand(-1e-3), Blocks.COBWEB);
+            crit |= mc.player.isClimbing();
+        }
+
+        return crit;
     }
 
-    private double getTargetDistance() {
-        return mc.player.distanceTo(Aura.getInstance().target);
+    public boolean shouldAttackTrigger(StrikerConstructor.AttackPerpetratorConfigurable config, TriggerBot triggerBot) {
+        if (triggerBot.isResetSprintLegit() && mc.player.isSprinting()) {
+            return false;
+        }
+
+        if (mc.player.distanceTo(config.getTarget()) > triggerBot.attackRange.getValue()) {
+            return false;
+        }
+
+        boolean crit = true;
+
+        if (triggerBot.isOnlyCrits()) {
+            float minFallDist = 0;
+            if (triggerBot.isRandomizeCrit()) {
+                minFallDist = ThreadLocalRandom.current().nextDouble() > 0.75
+                        ? randomFloat(0.1f, 0.4f)
+                        : randomFloat(0.0f, 0.1f);
+            }
+
+            boolean fallDistance = convenientFallOffset() > minFallDist;
+
+            boolean canCrit = (!mc.player.isOnGround()
+                    || mc.world.getBlockState(mc.player.getBlockPos().add(0, -1, 0)).isAir()
+                    || mc.player.input.playerInput.jump())
+                    && fallDistance;
+
+            canCrit = canCrit
+                    && !mc.player.isOnGround()
+                    && !mc.player.isClimbing()
+                    && !mc.player.isTouchingWater();
+
+            boolean isOnGround = mc.player.isOnGround() || !mc.player.input.playerInput.jump();
+            boolean isLiquid = mc.player.isSwimming() || mc.player.isTouchingWater() || mc.player.isInFluid();
+
+            if (triggerBot.getSmartCrits().isValue()) {
+                crit = isOnGround || canCrit || isLiquid;
+            } else {
+                crit = canCrit || isLiquid;
+            }
+
+            crit |= PlayerInteractionHelper.isBoxInBlock(mc.player.getBoundingBox().expand(-1e-3), Blocks.COBWEB);
+            crit |= mc.player.isClimbing();
+        }
+
+        return crit;
+    }
+
+    public double convenientFallOffset() {
+        double fallOffset = mc.player.fallDistance;
+
+        if (mc.world != null
+                && !mc.player.isOnGround()
+                && mc.player.getVelocity().y < -0.0784000015258789D
+                && mc.world.getBlockState(mc.player.getBlockPos()).getFluidState().isEmpty()
+                && !mc.world.getBlockState(mc.player.getBlockPos().up()).getFluidState().isEmpty()) {
+
+            if (mc.player.fallDistance < -mc.player.getVelocity().y && ticksOnBlock > 6) {
+                fallOffset = -mc.player.getVelocity().y;
+            }
+        }
+        return fallOffset;
+    }
+
+    public float getFallDistance(int nextTicks) {
+        Vector3f deltaMove = new Vector3f(0, (float) mc.player.getVelocity().y, 0);
+
+        if (deltaMove.y == 0 || mc.player.isOnGround()) return 0;
+
+        float fallDistance = 0;
+        double gravity = 0.08D;
+        boolean flag = deltaMove.y <= 0.0D;
+
+        if (flag && mc.player.hasStatusEffect(StatusEffects.SLOW_FALLING)) {
+            gravity = 0.01D;
+        }
+
+        for (int i = 0; i < nextTicks + 1; i++) {
+            double d2 = deltaMove.y;
+            d2 -= gravity;
+            deltaMove.y = (float) (d2 * 0.98F);
+
+            if (deltaMove.y > 0) {
+                fallDistance = 0;
+            } else {
+                fallDistance -= deltaMove.y;
+            }
+        }
+
+        return fallDistance;
     }
 
     public boolean canAttack(StrikerConstructor.AttackPerpetratorConfigurable config, int ticks) {
@@ -96,22 +287,51 @@ public class StrikeManager implements IMinecraft {
             }
         }
         return false;
-
     }
+
+    public boolean canAttackTrigger(StrikerConstructor.AttackPerpetratorConfigurable config, TriggerBot triggerBot, int ticks) {
+        for (int i = 0; i <= ticks; i++) {
+            if (canCritTrigger(config, triggerBot, i) && attackTimer.finished(350)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public boolean canCrit(StrikerConstructor.AttackPerpetratorConfigurable config, int ticks) {
-        if (mc.player.isUsingItem() && !mc.player.getActiveItem().getItem().equals(Items.SHIELD) && config.isEatAndAttack()) {
+        if (mc.player.isUsingItem()
+                && !mc.player.getActiveItem().getItem().equals(Items.SHIELD)
+                && config.isEatAndAttack()) {
             return false;
         }
+
         if (!clickScheduler.isCooldownComplete(false, 1)) {
             return false;
         }
 
         PlayerSimulation simulated = PlayerSimulation.simulateLocalPlayer(ticks);
-        boolean noRestrict = !hasMovementRestrictions(simulated);
-        boolean critState = isPlayerInCriticalState(simulated, ticks);
 
-        if ( !hasMovementRestrictions(simulated)) {
+        if (!hasMovementRestrictions(simulated)) {
             return isPlayerInCriticalState(simulated, ticks);
+        }
+        return true;
+    }
+
+    public boolean canCritTrigger(StrikerConstructor.AttackPerpetratorConfigurable config, TriggerBot triggerBot, int ticks) {
+        if (mc.player.isUsingItem()
+                && !mc.player.getActiveItem().getItem().equals(Items.SHIELD)
+                && config.isEatAndAttack()) {
+            return false;
+        }
+
+        if (!clickScheduler.isCooldownComplete(false, 1)) {
+            return false;
+        }
+
+        PlayerSimulation simulated = PlayerSimulation.simulateLocalPlayer(ticks);
+
+        if (!hasMovementRestrictions(simulated)) {
+            return isPlayerInCriticalStateTrigger(simulated, triggerBot, ticks);
         }
         return true;
     }
@@ -128,7 +348,28 @@ public class StrikeManager implements IMinecraft {
     }
 
     private boolean isPlayerInCriticalState(PlayerSimulation simulated, int ticks) {
-        boolean fall = simulated.fallDistance > 0;
-        return !simulated.onGround && (fall);
+        Aura aura = Aura.getInstance();
+
+        if (aura.getSmartCrits().isValue() && simulated.onGround) {
+            float cooldown = mc.player.getAttackCooldownProgress(0.5F + ticks);
+            return cooldown > (mc.player.getMainHandStack().isEmpty() ? 0.99f : 0.94F);
+        }
+
+        boolean fall = simulated.fallDistance > 0 || getFallDistance(1 + ticks) > 0;
+        return !simulated.onGround && fall;
+    }
+
+    private boolean isPlayerInCriticalStateTrigger(PlayerSimulation simulated, TriggerBot triggerBot, int ticks) {
+        if (triggerBot.getSmartCrits().isValue() && simulated.onGround) {
+            float cooldown = mc.player.getAttackCooldownProgress(0.5F + ticks);
+            return cooldown > (mc.player.getMainHandStack().isEmpty() ? 0.99f : 0.94F);
+        }
+
+        boolean fall = simulated.fallDistance > 0 || getFallDistance(1 + ticks) > 0;
+        return !simulated.onGround && fall;
+    }
+
+    private float randomFloat(float min, float max) {
+        return min + ThreadLocalRandom.current().nextFloat() * (max - min);
     }
 }

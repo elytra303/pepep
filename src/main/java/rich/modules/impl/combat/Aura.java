@@ -1,5 +1,6 @@
 package rich.modules.impl.combat;
 
+import lombok.Getter;
 import lombok.experimental.NonFinal;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.util.Pair;
@@ -39,7 +40,7 @@ public class Aura extends ModuleStructure {
     }
 
     private final SelectSetting mode = new SelectSetting("Режим наводки", "Select aim mode")
-            .value("Matrix", "FunTime Snap", "SpookyTime", "HolyWorld", "LonyGrief", "Test")
+            .value("Matrix", "FunTime Snap", "Snap", "HolyWorld")
             .selected("Matrix");
 
     private final SelectSetting moveFix = new SelectSetting("Коррекция движения", "Select move fix mode")
@@ -55,31 +56,53 @@ public class Aura extends ModuleStructure {
             .setValue(1.0f);
 
     public final MultiSelectSetting options = new MultiSelectSetting("Настройки", "Select settings")
-            .value("Бить сквозь стены", "Интерполяция высоты")
+            .value("Бить сквозь стены", "Рандомизация крита")
             .selected();
 
     private final MultiSelectSetting targetType = new MultiSelectSetting("Настройка целей", "Select target settings")
             .value("Игроки", "Мобы", "Животные", "Друзья", "Стойки для брони")
             .selected("Игроки", "Мобы", "Животные");
 
+    @Getter
+    private final SelectSetting resetSprintMode = new SelectSetting("Сброс спринта", "Reset sprint mode")
+            .value("Легитный", "Интенсивный")
+            .selected("Легитный");
+
+    @Getter
+    private final BooleanSetting checkCrit = new BooleanSetting("Только криты", "Only critical hits")
+            .setValue(true);
+
+    @Getter
+    private final BooleanSetting smartCrits = new BooleanSetting("Умные криты", "Smart crits - attack on ground when possible")
+            .setValue(true)
+            .visible(() -> checkCrit.isValue());
+
     public Aura() {
         super("Aura", ModuleCategory.COMBAT);
-        setup(mode, attackrange, lookrange, options, targetType, moveFix
-        );
+        setup(mode, attackrange, lookrange, options, targetType, moveFix, resetSprintMode, checkCrit, smartCrits);
     }
 
     @NonFinal
     public static LivingEntity target;
+
     @NonFinal
     public LivingEntity lastTarget;
+
     TargetFinder targetSelector = new TargetFinder();
     MultiPoint pointFinder = new MultiPoint();
 
+    private boolean shouldRecoverSprint = false;
+
+    @Override
+    public void deactivate() {
+        AngleConnection.INSTANCE.startReturning();
+        target = null;
+        lastTarget = null;
+        shouldRecoverSprint = false;
+    }
+
     @EventHandler
     private void tick(TickEvent event) {
-
-//        mc.options.jumpKey.setPressed(true);
-//        mc.options.forwardKey.setPressed(true);
     }
 
     @EventHandler
@@ -109,8 +132,7 @@ public class Aura extends ModuleStructure {
     }
 
     public StrikerConstructor.AttackPerpetratorConfigurable getConfig() {
-        float baseRange = attackrange.getValue() + 0.25F;
-
+        float baseRange = attackrange.getValue();
 
         Pair<Vec3d, Box> pointData = pointFinder.computeVector(
                 target,
@@ -129,7 +151,6 @@ public class Aura extends ModuleStructure {
             float leadTicks = 0;
 
             if (targetSpeed > 0.35) {
-
                 Vec3d predictedPos = target.getEntityPos().add(targetVelocity.multiply(leadTicks));
                 computedPoint = predictedPos.add(0, target.getHeight() / 2, 0);
 
@@ -182,24 +203,45 @@ public class Aura extends ModuleStructure {
                 }
             }
 
-            case "Matrix", "SpookyTime", "LonyGrief", "Test" -> {
+            case "Snap" -> {
+                if (attackHandler.canAttack(config, 0)) {
+                    controller.rotateTo(rotation, target, 0, rotationConfig, TaskPriority.HIGH_IMPORTANCE_1, this);
+                }
+            }
+
+            case "Matrix", "SpookyTime" -> {
                 controller.rotateTo(rotation, target, 1, rotationConfig, TaskPriority.HIGH_IMPORTANCE_1, this);
             }
 
-        };
-
+        }
     }
 
     @EventHandler
     public void onInput(InputEvent event) {
-        PlayerInput input = mc.player.input.playerInput;
-        if (Initialization.getInstance().getManager().getAttackPerpetrator().getAttackHandler().canAttack(getConfig(), 2) && Aura.getInstance().target != null && Aura.getInstance().isState() && Aura.target.distanceTo(mc.player) <= Aura.getInstance().attackrange.getValue()) {
-            event.setDirectional(false, input.backward(), input.left(), input.right(), input.sneak(), false, input.jump());
-            mc.player.setSprinting(false);
+        if (mc.player == null || mc.world == null) return;
+        if (!isState()) return;
+
+        PlayerInput input = event.getInput();
+        if (input == null) return;
+
+        if (shouldRecoverSprint) {
+            event.setDirectional(true, input.backward(), input.left(), input.right(), input.sneak(), true, input.jump());
+            shouldRecoverSprint = false;
+            return;
         }
 
-        if (mc.player == null || mc.world == null) return;
         if (target == null || !target.isAlive()) return;
+
+        StrikeManager attackHandler = Initialization.getInstance().getManager().getAttackPerpetrator().getAttackHandler();
+
+        if (isResetSprintLegit()) {
+            boolean shouldReset = attackHandler.shouldResetSprinting(getConfig());
+            if (shouldReset && !mc.player.isTouchingWater() && input.forward()) {
+                event.setDirectional(false, input.backward(), input.left(), input.right(), input.sneak(), false, input.jump());
+                shouldRecoverSprint = true;
+                return;
+            }
+        }
 
         boolean w = mc.options.forwardKey.isPressed();
         boolean s = mc.options.backKey.isPressed();
@@ -258,7 +300,7 @@ public class Aura extends ModuleStructure {
             double halfWidth = target.getWidth() / 2.0;
             double offset = halfWidth + 0.1;
 
-            Vec3d moveTarget = center;
+            Vec3d moveTargetVec = center;
             Vec3d offsetVec = Vec3d.ZERO;
 
             if (w) offsetVec = offsetVec.add(forwardDir);
@@ -268,11 +310,11 @@ public class Aura extends ModuleStructure {
 
             if (offsetVec.lengthSquared() > 0) {
                 offsetVec = offsetVec.normalize().multiply(offset);
-                moveTarget = center.add(offsetVec);
+                moveTargetVec = center.add(offsetVec);
             }
 
-            moveTarget = new Vec3d(moveTarget.x, playerPos.y, moveTarget.z);
-            Vec3d dir = moveTarget.subtract(playerPos).normalize();
+            moveTargetVec = new Vec3d(moveTargetVec.x, playerPos.y, moveTargetVec.z);
+            Vec3d dir = moveTargetVec.subtract(playerPos).normalize();
 
             float yaw = AngleConnection.INSTANCE.getRotation().getYaw();
             float moveAngle = (float) Math.toDegrees(Math.atan2(dir.z, dir.x)) - 90F;
@@ -318,11 +360,21 @@ public class Aura extends ModuleStructure {
         return switch (mode.getSelected()) {
             case "FunTime Snap" -> new FTAngle();
             case "HolyWorld" -> new HWAngle();
-            case "Test" -> new TestAngle();
-            case "LonyGrief" -> new LonyAngle();
-            case "SpookyTime" -> new SPAngle();
+            case "Snap" -> new SnapAngle();
             case "Matrix" -> new MatrixAngle();
             default -> new LinearConstructor();
         };
+    }
+
+    public boolean isResetSprintLegit() {
+        return resetSprintMode.isSelected("Легитный");
+    }
+
+    public boolean isResetSprintPacket() {
+        return resetSprintMode.isSelected("Интенсивный");
+    }
+
+    public boolean isRandomizeCrit() {
+        return options.isSelected("Рандомизация крита");
     }
 }

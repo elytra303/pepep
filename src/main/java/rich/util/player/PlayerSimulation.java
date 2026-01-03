@@ -22,7 +22,7 @@ import net.minecraft.entity.effect.StatusEffect;
 import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.entity.effect.StatusEffects;
 import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.entity.vehicle.BoatEntity;
+import net.minecraft.entity.vehicle.AbstractBoatEntity;
 import net.minecraft.fluid.Fluid;
 import net.minecraft.fluid.FluidState;
 import net.minecraft.registry.entry.RegistryEntry;
@@ -38,6 +38,7 @@ import net.minecraft.util.shape.VoxelShape;
 import rich.IMinecraft;
 import rich.util.move.MoveUtil;
 
+@SuppressWarnings("deprecation")
 public class PlayerSimulation implements Simulation, IMinecraft {
 
     public final PlayerEntity player;
@@ -606,8 +607,8 @@ public class PlayerSimulation implements Simulation, IMinecraft {
     }
 
     private void checkWaterState() {
-        if (player.getVehicle() instanceof BoatEntity) {
-            BoatEntity boat = (BoatEntity) player.getVehicle();
+        Entity vehicle = player.getVehicle();
+        if (vehicle instanceof AbstractBoatEntity boat) {
             if (!boat.isSubmergedInWater()) {
                 touchingWater = false;
                 return;
@@ -636,8 +637,7 @@ public class PlayerSimulation implements Simulation, IMinecraft {
         submergedFluidTag.clear();
         double eyeLevel = getEyeY() - 0.1111111119389534;
         Entity vehicle = player.getVehicle();
-        if (vehicle instanceof BoatEntity) {
-            BoatEntity boat = (BoatEntity) vehicle;
+        if (vehicle instanceof AbstractBoatEntity boat) {
             if (!boat.isSubmergedInWater() &&
                     boat.getBoundingBox().maxY >= eyeLevel &&
                     boat.getBoundingBox().minY <= eyeLevel) {
@@ -831,7 +831,6 @@ public class PlayerSimulation implements Simulation, IMinecraft {
         public static SimulatedPlayerInput fromClientPlayer(PlayerInput input) {
             return new SimulatedPlayerInput(input);
         }
-
 
         public static SimulatedPlayerInput guessInput(PlayerEntity entity) {
             Vec3d velocity = entity.getEntityPos().subtract(new Vec3d(entity.lastX, entity.lastY, entity.lastZ));

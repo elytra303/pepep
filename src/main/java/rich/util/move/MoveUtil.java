@@ -6,6 +6,7 @@ import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec2f;
 import net.minecraft.util.math.Vec3d;
 import rich.IMinecraft;
+import rich.modules.impl.combat.aura.AngleConnection;
 
 import java.util.Objects;
 
@@ -33,73 +34,64 @@ public class MoveUtil implements IMinecraft {
         return Math.toDegrees(wrapDegrees((optimalYaw - currentYaw)));
     }
 
-//    public static void setVelocity(double velocity) {
-//        final double[] direction = calculateDirection(velocity);
-//        Objects.requireNonNull(mc.player).setVelocity(direction[0], mc.player.getVelocity().getY(), direction[1]);
-//    }
+    public static void setVelocity(double velocity) {
+        final double[] direction = calculateDirection(velocity);
+        Objects.requireNonNull(mc.player).setVelocity(direction[0], mc.player.getVelocity().getY(), direction[1]);
+    }
 
-//    public static double[] forward(final double d) {
-//        Vec2f movement = mc.player.input.getMovementInput();
-//        float f = movement.y;
-//        float f2 = movement.x;
-//        float f3 = AngleConnection.INSTANCE.getRotation().getYaw();
-//        if (f != 0.0f) {
-//            if (f2 > 0.0f) {
-//                f3 += ((f > 0.0f) ? -45 : 45);
-//            } else if (f2 < 0.0f) {
-//                f3 += ((f > 0.0f) ? 45 : -45);
-//            }
-//            f2 = 0.0f;
-//            if (f > 0.0f) {
-//                f = 1.0f;
-//            } else if (f < 0.0f) {
-//                f = -1.0f;
-//            }
-//        }
-//        final double d2 = Math.sin(Math.toRadians(f3 + 90.0f));
-//        final double d3 = Math.cos(Math.toRadians(f3 + 90.0f));
-//        final double d4 = f * d * d3 + f2 * d * d2;
-//        final double d5 = f * d * d2 - f2 * d * d3;
-//        return new double[]{d4, d5};
-//    }
+    public static double[] forward(final double d) {
+        Vec2f movement = mc.player.input.getMovementInput();
+        float f = movement.y;
+        float f2 = movement.x;
+        float f3 = AngleConnection.INSTANCE.getRotation().getYaw();
+        if (f != 0.0f) {
+            if (f2 > 0.0f) {
+                f3 += ((f > 0.0f) ? -45 : 45);
+            } else if (f2 < 0.0f) {
+                f3 += ((f > 0.0f) ? 45 : -45);
+            }
+            f2 = 0.0f;
+            if (f > 0.0f) {
+                f = 1.0f;
+            } else if (f < 0.0f) {
+                f = -1.0f;
+            }
+        }
+        final double d2 = Math.sin(Math.toRadians(f3 + 90.0f));
+        final double d3 = Math.cos(Math.toRadians(f3 + 90.0f));
+        final double d4 = f * d * d3 + f2 * d * d2;
+        final double d5 = f * d * d2 - f2 * d * d3;
+        return new double[]{d4, d5};
+    }
 
-//    public static double[] calculateDirection(double distance) {
-//        Vec2f movement = mc.player.input.getMovementInput();
-//        float forward = movement.y;
-//        float sideways = movement.x;
-//        return calculateDirection(forward, sideways, distance);
-//    }
+    public static double[] calculateDirection(double distance) {
+        Vec2f movement = mc.player.input.getMovementInput();
+        float forward = movement.y;
+        float sideways = movement.x;
+        return calculateDirection(forward, sideways, distance);
+    }
 
-//    public static double[] calculateDirection(float forward, float sideways, double distance) {
-//        float yaw = AngleConnection.INSTANCE.getRotation().getYaw();
-//        if (forward != 0.0f) {
-//            if (sideways > 0.0f) {
-//                yaw += (forward > 0.0f) ? -45 : 45;
-//            } else if (sideways < 0.0f) {
-//                yaw += (forward > 0.0f) ? 45 : -45;
-//            }
-//            sideways = 0.0f;
-//            forward = (forward > 0.0f) ? 1.0f : -1.0f;
-//        }
-//
-//        double sinYaw = Math.sin(Math.toRadians(yaw + 90.0f));
-//        double cosYaw = Math.cos(Math.toRadians(yaw + 90.0f));
-//        double xMovement = forward * distance * cosYaw + sideways * distance * sinYaw;
-//        double zMovement = forward * distance * sinYaw - sideways * distance * cosYaw;
-//
-//        return new double[]{xMovement, zMovement};
-//    }
+    public static double[] calculateDirection(float forward, float sideways, double distance) {
+        float yaw = AngleConnection.INSTANCE.getRotation().getYaw();
+        if (forward != 0.0f) {
+            if (sideways > 0.0f) {
+                yaw += (forward > 0.0f) ? -45 : 45;
+            } else if (sideways < 0.0f) {
+                yaw += (forward > 0.0f) ? 45 : -45;
+            }
+            sideways = 0.0f;
+            forward = (forward > 0.0f) ? 1.0f : -1.0f;
+        }
 
-    public static float calculateBodyYaw(
-            float yaw,
-            float prevBodyYaw,
-            double prevX,
-            double prevZ,
-            double currentX,
-            double currentZ,
-            float handSwingProgress
-    ) {
+        double sinYaw = Math.sin(Math.toRadians(yaw + 90.0f));
+        double cosYaw = Math.cos(Math.toRadians(yaw + 90.0f));
+        double xMovement = forward * distance * cosYaw + sideways * distance * sinYaw;
+        double zMovement = forward * distance * sinYaw - sideways * distance * cosYaw;
 
+        return new double[]{xMovement, zMovement};
+    }
+
+    public static float calculateBodyYaw(float yaw, float prevBodyYaw, double prevX, double prevZ, double currentX, double currentZ, float handSwingProgress) {
         double motionX = currentX - prevX;
         double motionZ = currentZ - prevZ;
         float motionSquared = (float)(motionX * motionX + motionZ * motionZ);

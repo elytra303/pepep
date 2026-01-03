@@ -12,14 +12,17 @@ import net.minecraft.util.math.Vec3d;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+import rich.Initialization;
 import rich.events.api.EventManager;
 import rich.events.api.types.EventType;
 import rich.events.impl.*;
 import rich.modules.impl.combat.aura.AngleConnection;
+import rich.modules.impl.movement.AutoSprint;
 import rich.util.move.MoveUtil;
 
 import static rich.IMinecraft.mc;
@@ -65,6 +68,22 @@ public abstract class ClientPlayerEntityMixin extends AbstractClientPlayerEntity
         CloseScreenEvent event = new CloseScreenEvent(client.currentScreen);
         EventManager.callEvent(event);
         if (event.isCancelled()) info.cancel();
+    }
+
+    @Unique
+    private boolean ignorehunger() {
+        return AutoSprint.getInstance().isState() && AutoSprint.getInstance().getIgnoreHunger().isValue();
+    }
+
+    @Inject(method = "canSprint", at = @At("RETURN"), cancellable = true)
+    private void hunger(CallbackInfoReturnable<Boolean> cir) {
+        if (cir.getReturnValue() || !ignorehunger()) return;
+
+        ClientPlayerEntity player = (ClientPlayerEntity)(Object)this;
+        if (player.getHungerManager().getFoodLevel() > 6) return;
+        if (this.input == null || !this.input.playerInput.forward()) return;
+
+        cir.setReturnValue(true);
     }
 
     @Inject(method = "pushOutOfBlocks", at = @At("HEAD"), cancellable = true)

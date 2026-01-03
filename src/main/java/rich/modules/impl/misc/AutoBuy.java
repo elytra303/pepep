@@ -30,7 +30,7 @@ public class AutoBuy extends ModuleStructure {
 
     private final SelectSetting mode = new SelectSetting("Режим", "Проверяющий").value("Проверяющий", "Покупающий");
     private final SelectSetting serverType = new SelectSetting("Сервера", "Выкл").value("Выкл", "1.16.5", "1.21.4");
-    private final SliderSettings updateDelay = new SliderSettings("Задержка обновления", "").range(450, 1000).setValue(500);
+    private final SliderSettings updateDelay = new SliderSettings("Задержка обновления", "").range(300, 1000).setValue(500);
     private final SliderSettings serverSwitchTime = new SliderSettings("Время смены сервера", "").range(30, 120).setValue(30);
     private final BooleanSetting notifications = new BooleanSetting("Уведомления", "").setValue(true);
 
@@ -251,7 +251,7 @@ public class AutoBuy extends ModuleStructure {
         if (mode.isSelected("Покупающий")) {
             processBuyRequestsInstant(screen);
 
-            if (updateTimer.hasTimeElapsed((long) updateDelay.getValue())) {
+            if (updateTimer.hasTimeElapsed((long) updateDelay.getValue() - 200)) {
                 int clientsInAuction = network.getClientsInAuctionCount();
                 if (clientsInAuction > 0) {
                     network.sendUpdateCommand();

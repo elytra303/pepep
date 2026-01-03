@@ -9,13 +9,17 @@
     "ClientPlayNetworkHandlerMixin",
     "GameRendererMixin",
     "GenericContainerScreenMixin",
+    "HeldItemRendererMixin",
     "IClientWorld",
     "InGameHudMixin",
+    "IScreen",
     "KeyboardInputMixin",
     "KeyboardMixin",
+    "LightmapTextureManagerMixin",
     "LivingEntityRendererMixin",
     "MinecraftClientMixin",
     "MouseMixin",
+    "MultiplayerScreenOpenMixin",
     "ScreenMixin"
   ],
   "injectors": {
@@ -23,6 +27,7 @@
   },
   "mixins": [
     "ClientConnectionAccessor",
+    "ClientConnectionMixin",
     "EntityMixin",
     "LivingEntityMixin",
     "PlayerEntityMixin"

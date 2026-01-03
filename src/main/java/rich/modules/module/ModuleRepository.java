@@ -3,10 +3,19 @@ package rich.modules.module;
 import lombok.AccessLevel;
 import lombok.experimental.FieldDefaults;
 import rich.modules.impl.combat.Aura;
+import rich.modules.impl.combat.TriggerBot;
 import rich.modules.impl.misc.AutoBuy;
 import rich.modules.impl.misc.ElytraHelper;
 import rich.modules.impl.misc.autoparser.AutoParser;
 import rich.modules.impl.misc.autoparser.dev.ItemParser;
+import rich.modules.impl.movement.AutoSprint;
+import rich.modules.impl.movement.Jesus;
+import rich.modules.impl.movement.NoWeb;
+import rich.modules.impl.movement.Speed;
+import rich.modules.impl.player.AutoRespawn;
+import rich.modules.impl.player.NoDelay;
+import rich.modules.impl.player.NoEntityTrace;
+import rich.modules.impl.player.NoPush;
 import rich.modules.impl.render.*;
 
 import java.util.ArrayList;
@@ -18,11 +27,26 @@ public class ModuleRepository {
     List<ModuleStructure> hiddenModules = new ArrayList<>();
 
     public void setup() {
+
+        //                new ItemParser(),
+
         register(
                 new Hud(),
-                new ItemParser(),
                 new Aura(),
+                new TriggerBot(),
                 new ElytraHelper(),
+                new Jesus(),
+                new NoWeb(),
+                new FullBright(),
+                new NoDelay(),
+                new SeeInvisible(),
+                new ViewModel(),
+                new Speed(),
+//                new SwingAnimation(),
+                new NoEntityTrace(),
+                new AutoRespawn(),
+                new NoPush(),
+                new AutoSprint(),
                 new AutoBuy()
         );
 

@@ -19,6 +19,10 @@ public class InputEvent extends EventCancellable {
         input = new PlayerInput(input.forward(), input.backward(), input.left(), input.right(), jump, input.sneak(), input.sprint());
     }
 
+    public void setSprinting(boolean sprint) {
+        input = new PlayerInput(input.forward(), input.backward(), input.left(), input.right(), input.jump(), input.sneak(), sprint);
+    }
+
     public void setDirectional(boolean forward, boolean backward, boolean left, boolean right, boolean sneak, boolean sprint, boolean jump) {
         input = new PlayerInput(forward, backward, left, right, jump, sneak, sprint);
     }

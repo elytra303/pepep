@@ -1,7 +1,11 @@
 package rich.util.inventory;
 
+import rich.events.api.EventHandler;
 import rich.events.api.EventManager;
+import rich.events.impl.TickEvent;
+
 import java.util.ArrayList;
+import java.util.Iterator;
 
 public class Scheduler {
     private final ArrayList<SchedulerAction> actions = new ArrayList<>();
@@ -18,23 +22,23 @@ public class Scheduler {
         actions.add(new SchedulerAction(runnable, interval, true));
     }
 
-//    @EventHandler
-//    public void onTick(EventGameTick event) {
-//        if (actions.isEmpty()) return;
-//
-//        Iterator<SchedulerAction> iterator = actions.iterator();
-//        while (iterator.hasNext()) {
-//            SchedulerAction action = iterator.next();
-//            action.tick--;
-//            if (action.tick <= 0) {
-//                action.action.run();
-//                if (!action.forever)
-//                    iterator.remove();
-//                else
-//                    action.tick = action.startTick;
-//            }
-//        }
-//    }
+    @EventHandler
+    public void onTick(TickEvent event) {
+        if (actions.isEmpty()) return;
+
+        Iterator<SchedulerAction> iterator = actions.iterator();
+        while (iterator.hasNext()) {
+            SchedulerAction action = iterator.next();
+            action.tick--;
+            if (action.tick <= 0) {
+                action.action.run();
+                if (!action.forever)
+                    iterator.remove();
+                else
+                    action.tick = action.startTick;
+            }
+        }
+    }
 
     private static class SchedulerAction {
         int tick, startTick;

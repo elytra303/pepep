@@ -35,8 +35,6 @@ public class HWAngle extends RotateConstructor {
         float speed = canAttack ? preAttackSpeed : postAttackSpeed * speedFactor;
         float lineYaw = (Math.abs(yawDelta / rotationDifference) * 180);
         float linePitch = (Math.abs(pitchDelta / rotationDifference) * 180);
-        float jitterYaw = canAttack ? 0 : (float) (9 * Math.sin(System.currentTimeMillis() / 65D));
-        float jitterPitch = canAttack ? 0 : (float) (5 * Math.sin(System.currentTimeMillis() / 65D));
 
         float moveYaw = MathHelper.clamp(yawDelta, -lineYaw, lineYaw);
         float movePitch = MathHelper.clamp(pitchDelta, -linePitch, linePitch);

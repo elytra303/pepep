@@ -24,21 +24,13 @@ public class Hud extends ModuleStructure {
             .selected("Module Switch", "Item Pick Up", "Auto Armor", "Break Shield")
             .visible(() -> interfaceSettings.isSelected("Notifications"));
 
-    public ColorSetting colorSetting = new ColorSetting("Изменяет цвет некоторых модулей", "Выберите цвет клиента")
-            .setColor(new Color(255, 101, 57, 255).getRGB())
-            .presets(0xFF6C9AFD, 0xFF8C7FFF, 0xFFFFA576, 0xFFFF7B7B);
-
     public SliderSettings soundVolumeSetting = new SliderSettings("Sound Volume", "Volume for module switch sounds")
             .range(0.0f, 1.0f)
             .setValue(1.0f)
             .visible(() -> interfaceSettings.isSelected("Notifications"));
 
-    public float getModuleVolume() {
-        return soundVolumeSetting.getValue();
-    }
-
     public Hud() {
         super("Hud", ModuleCategory.RENDER);
-        setup(colorSetting, interfaceSettings, notificationSettings, soundVolumeSetting);
+        setup(interfaceSettings, notificationSettings, soundVolumeSetting);
     }
 }
