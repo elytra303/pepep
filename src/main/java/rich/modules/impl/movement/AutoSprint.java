@@ -19,17 +19,15 @@ public class AutoSprint extends ModuleStructure {
 
     public static int tickStop;
 
+    @Getter
     private final MultiSelectSetting settings = new MultiSelectSetting("Игнорировать", "Не дает спринтиться при эффектах")
-            .value("Slowness", "Blindness")
+            .value("Голод", "Замедление", "Слепота")
             .selected();
 
-    @Getter
-    private final BooleanSetting ignoreHunger = new BooleanSetting("Игнор голода", "Даёт спринтится при голоде")
-            .setValue(false);
 
     public AutoSprint() {
         super("AutoSprint", ModuleCategory.MOVEMENT);
-        setup(settings, ignoreHunger);
+        setup(settings);
     }
 
     @EventHandler
@@ -39,8 +37,8 @@ public class AutoSprint extends ModuleStructure {
         boolean hasSlowness = mc.player.hasStatusEffect(StatusEffects.SLOWNESS);
         boolean hasBlindness = mc.player.hasStatusEffect(StatusEffects.BLINDNESS);
 
-        boolean shouldCancelSprintDueToSlowness = hasSlowness && !settings.isSelected("Slowness");
-        boolean shouldCancelSprintDueToBlindness = hasBlindness && !settings.isSelected("Blindness");
+        boolean shouldCancelSprintDueToSlowness = hasSlowness && !settings.isSelected("Замедление");
+        boolean shouldCancelSprintDueToBlindness = hasBlindness && !settings.isSelected("Слепота");
 
         boolean horizontal = mc.player.horizontalCollision && !mc.player.collidedSoftly;
         boolean sneaking = mc.player.isSneaking() && !mc.player.isSwimming();

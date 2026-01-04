@@ -10,6 +10,7 @@ import org.lwjgl.glfw.GLFW;
 import rich.IMinecraft;
 import rich.Initialization;
 import rich.events.api.EventManager;
+import rich.events.impl.ModuleToggleEvent;
 import rich.modules.module.category.ModuleCategory;
 import rich.modules.module.setting.SettingRepository;
 import rich.util.animations.Animation;
@@ -77,6 +78,9 @@ public class ModuleStructure extends SettingRepository implements IMinecraft {
             }
         }
         toggleSilent(state);
+
+        ModuleToggleEvent event = new ModuleToggleEvent(this, state);
+        EventManager.callEvent(event);
     }
 
     private void toggleSilent(boolean activate) {

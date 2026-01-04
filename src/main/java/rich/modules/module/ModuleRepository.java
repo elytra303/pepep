@@ -2,20 +2,12 @@ package rich.modules.module;
 
 import lombok.AccessLevel;
 import lombok.experimental.FieldDefaults;
-import rich.modules.impl.combat.Aura;
-import rich.modules.impl.combat.TriggerBot;
-import rich.modules.impl.misc.AutoBuy;
-import rich.modules.impl.misc.ElytraHelper;
+import rich.modules.impl.combat.*;
+import rich.modules.impl.combat.aura.NoInteract;
+import rich.modules.impl.misc.*;
 import rich.modules.impl.misc.autoparser.AutoParser;
-import rich.modules.impl.misc.autoparser.dev.ItemParser;
-import rich.modules.impl.movement.AutoSprint;
-import rich.modules.impl.movement.Jesus;
-import rich.modules.impl.movement.NoWeb;
-import rich.modules.impl.movement.Speed;
-import rich.modules.impl.player.AutoRespawn;
-import rich.modules.impl.player.NoDelay;
-import rich.modules.impl.player.NoEntityTrace;
-import rich.modules.impl.player.NoPush;
+import rich.modules.impl.movement.*;
+import rich.modules.impl.player.*;
 import rich.modules.impl.render.*;
 
 import java.util.ArrayList;
@@ -36,11 +28,30 @@ public class ModuleRepository {
                 new TriggerBot(),
                 new ElytraHelper(),
                 new Jesus(),
+                new ClientSounds(),
+                new HitSound(),
+                new TargetStrafe(),
+                new AutoLeave(),
+                new Strafe(),
+                new AutoDuel(),
                 new NoWeb(),
+                new AutoTpAccept(),
+                new ClickFriend(),
+                new FreeLook(),
                 new FullBright(),
                 new NoDelay(),
                 new SeeInvisible(),
+                new NoFallDamage(),
+                new ShiftTap(),
+                new HitBoxModule(),
+                new NoFriendDamage(),
+                new ProjectileHelper(),
+                new NoInteract(),
+                new AntiBot(),
                 new ViewModel(),
+                new SuperFireWork(),
+                new LongJump(),
+                new ElytraTarget(),
                 new Speed(),
 //                new SwingAnimation(),
                 new NoEntityTrace(),

@@ -12,6 +12,7 @@ import net.minecraft.entity.passive.AnimalEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.util.math.Vec3d;
 import rich.IMinecraft;
+import rich.modules.impl.combat.AntiBot;
 import rich.modules.impl.combat.aura.AngleConnection;
 import rich.modules.impl.combat.aura.MathAngle;
 import rich.modules.impl.combat.aura.impl.LinearConstructor;
@@ -88,7 +89,7 @@ public class TargetFinder implements IMinecraft {
         public boolean isValid(LivingEntity entity) {
             if (isLocalPlayer(entity)) return false;
             if (isInvalidHealth(entity)) return false;
-//            if (isBotPlayer(entity)) return false;
+            if (isBotPlayer(entity)) return false;
             return isValidEntityType(entity);
         }
 
@@ -100,9 +101,9 @@ public class TargetFinder implements IMinecraft {
             return !entity.isAlive() || entity.getHealth() <= 0;
         }
 
-//        private boolean isBotPlayer(LivingEntity entity) {
-//            return entity instanceof PlayerEntity player && AntiBot.getInstance().isBot(player);
-//        }
+        private boolean isBotPlayer(LivingEntity entity) {
+            return entity instanceof PlayerEntity player && AntiBot.getInstance().isBot(player);
+        }
 
         private boolean isNakedPlayer(LivingEntity entity) {
             return entity.isPlayer();

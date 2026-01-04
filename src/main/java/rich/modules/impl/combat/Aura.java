@@ -25,6 +25,7 @@ import rich.modules.impl.combat.aura.impl.RotateConstructor;
 import rich.modules.impl.combat.aura.rotations.*;
 import rich.modules.impl.combat.aura.target.MultiPoint;
 import rich.modules.impl.combat.aura.target.TargetFinder;
+import rich.modules.impl.movement.ElytraTarget;
 import rich.modules.module.ModuleStructure;
 import rich.modules.module.category.ModuleCategory;
 import rich.modules.module.setting.implement.*;
@@ -144,11 +145,15 @@ public class Aura extends ModuleStructure {
 
         Vec3d computedPoint = pointData.getLeft();
         Box hitbox = pointData.getRight();
+
         if (mc.player.isGliding() && target.isGliding()) {
             Vec3d targetVelocity = target.getVelocity();
             double targetSpeed = targetVelocity.horizontalLength();
 
             float leadTicks = 0;
+            if (ElytraTarget.shouldElytraTarget && ElytraTarget.getInstance() != null && ElytraTarget.getInstance().isState()) {
+                leadTicks = ElytraTarget.getInstance().elytraForward.getValue();
+            }
 
             if (targetSpeed > 0.35) {
                 Vec3d predictedPos = target.getEntityPos().add(targetVelocity.multiply(leadTicks));
@@ -188,6 +193,8 @@ public class Aura extends ModuleStructure {
         Angle.VecRotation rotation = new Angle.VecRotation(config.getAngle(), config.getAngle().toVector());
         AngleConfig rotationConfig = getRotationConfig();
 
+        boolean elytraMode = mc.player.isGliding() && ElytraTarget.getInstance() != null && ElytraTarget.getInstance().isState();
+
         switch (mode.getSelected()) {
 
             case "FunTime Snap" -> {
@@ -213,6 +220,10 @@ public class Aura extends ModuleStructure {
                 controller.rotateTo(rotation, target, 1, rotationConfig, TaskPriority.HIGH_IMPORTANCE_1, this);
             }
 
+        }
+
+        if (elytraMode) {
+            controller.rotateTo(rotation, target, 1, rotationConfig, TaskPriority.HIGH_IMPORTANCE_1, this);
         }
     }
 
@@ -347,7 +358,7 @@ public class Aura extends ModuleStructure {
 
     private LivingEntity updateTarget() {
         TargetFinder.EntityFilter filter = new TargetFinder.EntityFilter(targetType.getSelected());
-        float range = attackrange.getValue() + 0.25F + lookrange.getValue();
+        float range = attackrange.getValue() + 0.25F + (mc.player.isGliding() && ElytraTarget.getInstance() != null && ElytraTarget.getInstance().isState() ? ElytraTarget.getInstance().elytraFindRange.getValue() : lookrange.getValue());
 
         float dynamicFov = 360;
 
@@ -357,6 +368,9 @@ public class Aura extends ModuleStructure {
     }
 
     public RotateConstructor getSmoothMode() {
+        if (mc.player.isGliding() && ElytraTarget.getInstance() != null && ElytraTarget.getInstance().isState()) {
+            return new LinearConstructor();
+        }
         return switch (mode.getSelected()) {
             case "FunTime Snap" -> new FTAngle();
             case "HolyWorld" -> new HWAngle();

@@ -1,8 +1,10 @@
 package rich.mixin;
 
+import com.llamalad7.mixinextras.injector.v2.WrapWithCondition;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.Mouse;
 import net.minecraft.client.input.MouseInput;
+import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.client.util.InputUtil;
 import org.lwjgl.glfw.GLFW;
 import org.spongepowered.asm.mixin.Final;
@@ -12,7 +14,9 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import rich.events.api.EventManager;
+import rich.events.impl.FovEvent;
 import rich.events.impl.KeyEvent;
+import rich.events.impl.MouseRotationEvent;
 import rich.screens.clickgui.ClickGui;
 
 @Mixin(Mouse.class)
@@ -59,6 +63,26 @@ public abstract class MouseMixin {
                 ci.cancel();
             }
         }
+    }
+
+    @Inject(method = "updateMouse", at = @At(value = "HEAD"))
+    private void onUpdateMouse(double timeDelta, CallbackInfo ci) {
+        FovEvent event = new FovEvent();
+        EventManager.callEvent(event);
+        if (event.isCancelled()) {
+            double slowdown = (double) event.getFov() / client.options.getFov().getValue();
+            this.cursorDeltaX *= slowdown;
+            this.cursorDeltaY *= slowdown;
+        }
+    }
+
+    @WrapWithCondition(method = "updateMouse", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/network/ClientPlayerEntity;changeLookDirection(DD)V"), require = 1, allow = 1)
+    private boolean modifyMouseRotationInput(ClientPlayerEntity instance, double cursorDeltaX, double cursorDeltaY) {
+        MouseRotationEvent event = new MouseRotationEvent((float) cursorDeltaX, (float) cursorDeltaY);
+        EventManager.callEvent(event);
+        if (event.isCancelled()) return false;
+        instance.changeLookDirection(event.getCursorDeltaX(), event.getCursorDeltaY());
+        return false;
     }
 
     @Inject(method = "tick", at = @At("HEAD"))

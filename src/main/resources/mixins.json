@@ -3,10 +3,13 @@
   "package": "rich.mixin",
   "compatibilityLevel": "JAVA_21",
   "client": [
+    "CameraMixin",
     "ChatInputSuggestorMixin",
     "ChatScreenMixin",
     "ClientPlayerEntityMixin",
     "ClientPlayNetworkHandlerMixin",
+    "ClientWorldMixin",
+    "CustomCapeMixin",
     "GameRendererMixin",
     "GenericContainerScreenMixin",
     "HeldItemRendererMixin",
@@ -18,6 +21,7 @@
     "LightmapTextureManagerMixin",
     "LivingEntityRendererMixin",
     "MinecraftClientMixin",
+    "MixinClientPlayerInteractionManager",
     "MouseMixin",
     "MultiplayerScreenOpenMixin",
     "ScreenMixin"
@@ -29,6 +33,7 @@
     "ClientConnectionAccessor",
     "ClientConnectionMixin",
     "EntityMixin",
+    "FireworkRocketEntityMixin",
     "LivingEntityMixin",
     "PlayerEntityMixin"
   ]

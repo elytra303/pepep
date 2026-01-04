@@ -17,9 +17,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
-import rich.Initialization;
 import rich.events.api.EventManager;
-import rich.events.api.types.EventType;
 import rich.events.impl.*;
 import rich.modules.impl.combat.aura.AngleConnection;
 import rich.modules.impl.movement.AutoSprint;
@@ -72,7 +70,7 @@ public abstract class ClientPlayerEntityMixin extends AbstractClientPlayerEntity
 
     @Unique
     private boolean ignorehunger() {
-        return AutoSprint.getInstance().isState() && AutoSprint.getInstance().getIgnoreHunger().isValue();
+        return AutoSprint.getInstance().isState() && AutoSprint.getInstance().getSettings().isSelected("Голод");
     }
 
     @Inject(method = "canSprint", at = @At("RETURN"), cancellable = true)

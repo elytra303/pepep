@@ -2,7 +2,15 @@ package rich.mixin;
 
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.network.ClientPlayerEntity;
+import net.minecraft.client.network.ClientPlayerInteractionManager;
+import net.minecraft.client.render.GameRenderer;
+import net.minecraft.util.ActionResult;
+import net.minecraft.util.Hand;
+import org.jetbrains.annotations.Nullable;
+import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -10,6 +18,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import rich.Initialization;
 import rich.events.api.EventManager;
 import rich.events.impl.SetScreenEvent;
+import rich.modules.impl.combat.aura.NoInteract;
 import rich.screens.clickgui.ClickGui;
 import rich.util.config.ConfigSystem;
 import rich.util.window.WindowStyle;
@@ -18,6 +27,17 @@ import static rich.IMinecraft.mc;
 
 @Mixin(MinecraftClient.class)
 public abstract class MinecraftClientMixin {
+    @Shadow
+    @Nullable
+    public ClientPlayerEntity player;
+
+    @Shadow
+    @Nullable
+    public ClientPlayerInteractionManager interactionManager;
+
+    @Shadow
+    @Final
+    public GameRenderer gameRenderer;
 
     @Inject(method = "<init>", at = @At("TAIL"))
     private void onInit(CallbackInfo ci) {
@@ -61,6 +81,23 @@ public abstract class MinecraftClientMixin {
     @Inject(method = "getWindowTitle", at = @At("RETURN"), cancellable = true)
     private void getWindowTitle(CallbackInfoReturnable<String> cir) {
         cir.setReturnValue(String.format("Rich Modern (Developer - Baflllik)", cir.getReturnValue().replace("Minecraft", "").replace("*", "").strip()));
+    }
+
+    @Inject(method = "doItemUse", at = @At(value = "INVOKE", target = "Lnet/minecraft/util/Hand;values()[Lnet/minecraft/util/Hand;"), cancellable = true)
+    public void doItemUseHook(CallbackInfo ci) {
+        if (NoInteract.getInstance().isState()) {
+            for (Hand hand : Hand.values()) {
+                if (player.getStackInHand(hand).isEmpty()) continue;
+                ActionResult result = interactionManager.interactItem(player, hand);
+                if (result.isAccepted()) {
+                    if (result instanceof ActionResult.Success success && success.swingSource().equals(ActionResult.SwingSource.CLIENT)) {
+                        gameRenderer.firstPersonRenderer.resetEquipProgress(hand);
+                        player.swingHand(hand);
+                    }
+                    ci.cancel();
+                }
+            }
+        }
     }
 
     @Inject(method = "onResolutionChanged", at = @At("TAIL"))

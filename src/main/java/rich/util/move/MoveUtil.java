@@ -23,6 +23,15 @@ public class MoveUtil implements IMinecraft {
         return vec.x != 0f || vec.y != 0f;
     }
 
+    public static double getDistanceToGround() {
+        for (double y = mc.player.getY(); y > 0; y -= 0.1) {
+            if (!mc.world.getBlockState(mc.player.getBlockPos().down((int) ((mc.player.getY() - y) + 1))).isAir()) {
+                return mc.player.getY() - y;
+            }
+        }
+        return 256;
+    }
+
     public static double getDegreesRelativeToView(
             Vec3d positionRelativeToPlayer,
             float yaw) {
@@ -89,6 +98,34 @@ public class MoveUtil implements IMinecraft {
         double zMovement = forward * distance * sinYaw - sideways * distance * cosYaw;
 
         return new double[]{xMovement, zMovement};
+    }
+
+    public static final boolean moveKeyPressed(int keyNumber) {
+        boolean w = mc.options.forwardKey.isPressed();
+        boolean a = mc.options.leftKey.isPressed();
+        boolean s = mc.options.backKey.isPressed();
+        boolean d = mc.options.rightKey.isPressed();
+        return keyNumber == 0 ? w : (keyNumber == 1 ? a : (keyNumber == 2 ? s : keyNumber == 3 && d));
+    }
+
+    public static final boolean w() {
+        return moveKeyPressed(0);
+    }
+
+    public static final boolean a() {
+        return moveKeyPressed(1);
+    }
+
+    public static final boolean s() {
+        return moveKeyPressed(2);
+    }
+
+    public static final boolean d() {
+        return moveKeyPressed(3);
+    }
+
+    public static final float moveYaw(float entityYaw) {
+        return entityYaw + (float)(!a() || !d() || w() && s() || !w() && !s() ? (w() && s() && (!a() || !d()) && (a() || d()) ? (a() ? -90 : (d() ? 90 : 0)) : (a() && d() && (!w() || !s()) || w() && s() && (!a() || !d()) ? 0 : (!a() && !d() && !s() ? 0 : (w() && !s() ? 45 : (s() && !w() ? (!a() && !d() ? 180 : 135) : ((w() || s()) && (!w() || !s()) ? 0 : 90))) * (a() ? -1 : 1)))) : (w() ? 0 : (s() ? 180 : 0)));
     }
 
     public static float calculateBodyYaw(float yaw, float prevBodyYaw, double prevX, double prevZ, double currentX, double currentZ, float handSwingProgress) {

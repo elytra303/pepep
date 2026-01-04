@@ -1,0 +1,57 @@
+{
+  "kolokolnia_kill": {
+    "sounds": [
+      "minecraft:kolokolnia_kill"
+    ]
+  },
+  "moan1": {
+    "sounds": [
+      "minecraft:moan1"
+    ]
+  },
+  "moan2": {
+    "sounds": [
+      "minecraft:moan2"
+    ]
+  },
+  "moan3": {
+    "sounds": [
+      "minecraft:moan3"
+    ]
+  },
+  "moan4": {
+    "sounds": [
+      "minecraft:moan4"
+    ]
+  },
+  "module_disable": {
+    "sounds": [
+      "minecraft:module_disable"
+    ]
+  },
+  "module_enable": {
+    "sounds": [
+      "minecraft:module_enable"
+    ]
+  },
+  "off": {
+    "sounds": [
+      "minecraft:off"
+    ]
+  },
+  "on": {
+    "sounds": [
+      "minecraft:on"
+    ]
+  },
+  "crime": {
+    "sounds": [
+      "minecraft:crime"
+    ]
+  },
+  "metallic": {
+    "sounds": [
+      "minecraft:metallic"
+    ]
+  }
+}
