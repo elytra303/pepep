@@ -3,20 +3,17 @@ package rich.modules.impl.combat;
 import lombok.Getter;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.util.Pair;
-import net.minecraft.util.PlayerInput;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
 import rich.Initialization;
 import rich.events.api.EventHandler;
 import rich.events.api.types.EventType;
-import rich.events.impl.InputEvent;
 import rich.events.impl.PacketEvent;
 import rich.events.impl.RotationUpdateEvent;
 import rich.events.impl.TickEvent;
 import rich.modules.impl.combat.aura.Angle;
 import rich.modules.impl.combat.aura.AngleConnection;
 import rich.modules.impl.combat.aura.MathAngle;
-import rich.modules.impl.combat.aura.attack.StrikeManager;
 import rich.modules.impl.combat.aura.attack.StrikerConstructor;
 import rich.modules.impl.combat.aura.impl.LinearConstructor;
 import rich.modules.impl.combat.aura.impl.RotateConstructor;
@@ -38,7 +35,6 @@ public class TriggerBot extends ModuleStructure {
     private final TargetFinder targetSelector = new TargetFinder();
     private final MultiPoint pointFinder = new MultiPoint();
     public LivingEntity target;
-    private boolean shouldRecoverSprint = false;
 
     public SliderSettings attackRange = new SliderSettings("Дистанция удара", "Дальность атаки до цели")
             .setValue(3).range(1F, 6F);
@@ -73,7 +69,6 @@ public class TriggerBot extends ModuleStructure {
     @Override
     public void deactivate() {
         target = null;
-        shouldRecoverSprint = false;
     }
 
     private LivingEntity updateTarget() {
@@ -94,33 +89,6 @@ public class TriggerBot extends ModuleStructure {
                 if (target != null) {
                     Initialization.getInstance().getManager().getAttackPerpetrator().performTriggerAttack(getConfig(), this);
                 }
-            }
-        }
-    }
-
-    @EventHandler
-    public void onInput(InputEvent event) {
-        if (mc.player == null || mc.world == null) return;
-        if (!isState()) return;
-
-        PlayerInput input = event.getInput();
-        if (input == null) return;
-
-        if (shouldRecoverSprint) {
-            event.setDirectional(true, input.backward(), input.left(), input.right(), input.sneak(), true, input.jump());
-            shouldRecoverSprint = false;
-            return;
-        }
-
-        if (target == null || !target.isAlive()) return;
-
-        StrikeManager attackHandler = Initialization.getInstance().getManager().getAttackPerpetrator().getAttackHandler();
-
-        if (isResetSprintLegit()) {
-            boolean shouldReset = attackHandler.shouldResetSprintingForTrigger(getConfig(), this);
-            if (shouldReset && !mc.player.isTouchingWater() && input.forward()) {
-                event.setDirectional(false, input.backward(), input.left(), input.right(), input.sneak(), false, input.jump());
-                shouldRecoverSprint = true;
             }
         }
     }

@@ -1,4 +1,4 @@
-package rich.util.inventory;
+package rich.util.inventory.impl;
 
 import rich.events.api.EventHandler;
 import rich.events.api.EventManager;

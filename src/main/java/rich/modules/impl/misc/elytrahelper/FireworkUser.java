@@ -2,7 +2,7 @@ package rich.modules.impl.misc.elytrahelper;
 
 import net.minecraft.item.Item;
 import rich.IMinecraft;
-import rich.util.inventory.InventoryUtility;
+import rich.util.inventory.impl.InventoryUtility;
 
 public class FireworkUser implements IMinecraft {
 

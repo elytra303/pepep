@@ -1,4 +1,4 @@
-package rich.modules.impl.combat.aura;
+package rich.modules.impl.combat;
 
 import lombok.AccessLevel;
 import lombok.experimental.FieldDefaults;

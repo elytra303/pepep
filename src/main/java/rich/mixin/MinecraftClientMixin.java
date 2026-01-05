@@ -5,6 +5,7 @@ import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.client.network.ClientPlayerInteractionManager;
 import net.minecraft.client.render.GameRenderer;
+import net.minecraft.client.world.ClientWorld;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.Hand;
 import org.jetbrains.annotations.Nullable;
@@ -17,8 +18,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import rich.Initialization;
 import rich.events.api.EventManager;
+import rich.events.impl.GameLeftEvent;
 import rich.events.impl.SetScreenEvent;
-import rich.modules.impl.combat.aura.NoInteract;
+import rich.modules.impl.combat.NoInteract;
 import rich.screens.clickgui.ClickGui;
 import rich.util.config.ConfigSystem;
 import rich.util.window.WindowStyle;
@@ -39,6 +41,9 @@ public abstract class MinecraftClientMixin {
     @Final
     public GameRenderer gameRenderer;
 
+    @Shadow
+    public ClientWorld world;
+
     @Inject(method = "<init>", at = @At("TAIL"))
     private void onInit(CallbackInfo ci) {
         new Initialization().init();
@@ -49,6 +54,13 @@ public abstract class MinecraftClientMixin {
         ConfigSystem configSystem = ConfigSystem.getInstance();
         if (configSystem != null) {
             configSystem.shutdown();
+        }
+    }
+
+    @Inject(method = "disconnect(Lnet/minecraft/client/gui/screen/Screen;Z)V", at = @At("HEAD"))
+    private void onDisconnect(Screen screen, boolean transferring, CallbackInfo info) {
+        if (world != null) {
+            EventManager.callEvent(GameLeftEvent.get());
         }
     }
 

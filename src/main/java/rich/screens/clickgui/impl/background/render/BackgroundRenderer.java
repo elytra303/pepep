@@ -43,6 +43,6 @@ public class BackgroundRenderer {
         float textHeight = Fonts.BOLD.getHeight(textSize);
         float centerX = bgX + 12.5f + (70 - textWidth) / 2f;
         float centerY = bgY + 220.5f + (17 - textHeight) / 2f;
-        Fonts.BOLD.draw(soonText, centerX, centerY, textSize, new Color(150, 150, 150, (int)(200 * alphaMultiplier)).getRGB());
+        Fonts.BOLD.draw(soonText, centerX, centerY, textSize, new Color(150, 150, 150, (int) (200 * alphaMultiplier)).getRGB());
     }
 }

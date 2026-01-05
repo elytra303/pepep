@@ -12,6 +12,7 @@ import rich.events.impl.TickEvent;
 import rich.modules.module.ModuleStructure;
 import rich.modules.module.category.ModuleCategory;
 import rich.modules.module.setting.implement.SelectSetting;
+import rich.modules.module.setting.implement.SliderSettings;
 import rich.util.move.MoveUtil;
 import rich.util.timer.StopWatch;
 
@@ -20,24 +21,32 @@ import rich.util.timer.StopWatch;
 public class Jesus extends ModuleStructure {
 
     SelectSetting mode = new SelectSetting("Режим", "Выберите режим передвижения по воде")
-            .value("Matrix", "MetaHVH")
+            .value("Matrix", "MetaHVH", "FunTime New")
             .selected("Matrix");
+
+    SliderSettings funtimeSpeed = new SliderSettings("Скорость FT", "Скорость передвижения по воде")
+            .range(0.01f, 0.2f)
+            .setValue(0.08f)
+            .visible(() -> mode.isSelected("FunTime New"));
 
     StopWatch timer = new StopWatch();
 
     @NonFinal
     boolean isMoving;
 
+    @NonFinal
+    int tickCounter = 0;
+
     float melonBallSpeed = 0.44F;
 
     public Jesus() {
         super("Jesus", ModuleCategory.MOVEMENT);
-        setup(mode);
+        setup(mode, funtimeSpeed);
     }
 
     @Override
     public void deactivate() {
-
+        tickCounter = 0;
     }
 
     @EventHandler
@@ -48,6 +57,8 @@ public class Jesus extends ModuleStructure {
             handleMatrixMode();
         } else if (mode.isSelected("MetaHVH")) {
             handleMetaHVHMode();
+        } else if (mode.isSelected("FunTime New")) {
+            handleFunTimeNewMode();
         }
     }
 
@@ -128,6 +139,36 @@ public class Jesus extends ModuleStructure {
 
             double yMotion = mc.options.jumpKey.isPressed() ? 0.025 : 0.005;
             mc.player.setVelocity(mc.player.getVelocity().x, yMotion, mc.player.getVelocity().z);
+        }
+    }
+
+    private void handleFunTimeNewMode() {
+        if (mc.player.isInFluid() || mc.player.isTouchingWater()) {
+            tickCounter++;
+            if (tickCounter > 2) tickCounter = 0;
+
+            if (MoveUtil.hasPlayerMovement()) {
+                double speed = funtimeSpeed.getValue();
+
+                double yaw = Math.toRadians(mc.player.getYaw());
+                double motionX = -Math.sin(yaw) * speed;
+                double motionZ = Math.cos(yaw) * speed;
+
+                double motionY;
+                if (tickCounter == 0) {
+                    motionY = 0.05;
+                } else if (tickCounter == 2) {
+                    motionY = -0.05;
+                } else {
+                    motionY = 0;
+                }
+
+                mc.player.setVelocity(motionX, motionY, motionZ);
+            } else {
+                mc.player.setVelocity(0, 0, 0);
+            }
+        } else {
+            tickCounter = 0;
         }
     }
 }

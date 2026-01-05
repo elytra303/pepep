@@ -15,6 +15,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import rich.events.api.EventManager;
 import rich.events.impl.FovEvent;
+import rich.events.impl.HotBarScrollEvent;
 import rich.events.impl.KeyEvent;
 import rich.events.impl.MouseRotationEvent;
 import rich.screens.clickgui.ClickGui;
@@ -48,6 +49,13 @@ public abstract class MouseMixin {
         if (input.button() != GLFW.GLFW_KEY_UNKNOWN && window == client.getWindow().getHandle()) {
             EventManager.callEvent(new KeyEvent(client.currentScreen, InputUtil.Type.MOUSE, input.button(), action));
         }
+    }
+
+    @Inject(method = "onMouseScroll", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/network/ClientPlayerEntity;getInventory()Lnet/minecraft/entity/player/PlayerInventory;"), cancellable = true)
+    public void onMouseScrollHook(long window, double horizontal, double vertical, CallbackInfo ci) {
+        HotBarScrollEvent event = new HotBarScrollEvent(horizontal, vertical);
+        EventManager.callEvent(event);
+        if (event.isCancelled()) ci.cancel();
     }
 
     @Inject(method = "lockCursor", at = @At("HEAD"), cancellable = true)

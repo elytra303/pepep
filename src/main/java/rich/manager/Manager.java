@@ -7,7 +7,7 @@ import rich.modules.impl.combat.aura.attack.StrikerConstructor;
 import rich.modules.module.*;
 import rich.screens.clickgui.ClickGui;
 import rich.util.config.ConfigSystem;
-import rich.util.inventory.Scheduler;
+import rich.util.inventory.impl.Scheduler;
 import rich.util.modules.ModuleProvider;
 import rich.util.modules.ModuleSwitcher;
 import rich.util.render.RenderCore;

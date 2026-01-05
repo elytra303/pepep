@@ -17,9 +17,11 @@ public class Pressing implements IMinecraft {
     public boolean isCooldownComplete(boolean dynamicCooldown, int ticks) {
         boolean isMace = isHoldingMace();
 
-        float cooldownProgress = mc.player.getAttackCooldownProgress(ticks);
+        assert mc.player != null;
+         boolean cooldownReady = isMace || mc.player.getAttackCooldownProgress(ticks) > 0.9F;
+        boolean minimumDelayPassed = lastClickPassed() >= 500;
 
-        return isMace || cooldownProgress > 0.9F;
+        return cooldownReady && minimumDelayPassed;
     }
 
 

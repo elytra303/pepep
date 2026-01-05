@@ -25,6 +25,7 @@ import rich.modules.impl.combat.aura.impl.RotateConstructor;
 import rich.modules.impl.combat.aura.rotations.*;
 import rich.modules.impl.combat.aura.target.MultiPoint;
 import rich.modules.impl.combat.aura.target.TargetFinder;
+import rich.modules.impl.movement.AutoSprint;
 import rich.modules.impl.movement.ElytraTarget;
 import rich.modules.module.ModuleStructure;
 import rich.modules.module.category.ModuleCategory;
@@ -48,6 +49,7 @@ public class Aura extends ModuleStructure {
             .value("Сфокусированная", "Свободная", "Преследование", "Таргет", "Отключена")
             .selected("Focus");
 
+    @Getter
     public final SliderSettings attackrange = new SliderSettings("Дистанция удара", "Set range value")
             .range(2.0f, 6.0f)
             .setValue(3.0f);
@@ -92,14 +94,15 @@ public class Aura extends ModuleStructure {
     TargetFinder targetSelector = new TargetFinder();
     MultiPoint pointFinder = new MultiPoint();
 
-    private boolean shouldRecoverSprint = false;
-
     @Override
     public void deactivate() {
         AngleConnection.INSTANCE.startReturning();
+        Initialization.getInstance().getManager()
+                .getAttackPerpetrator()
+                .getAttackHandler()
+                .resetPendingState();
         target = null;
         lastTarget = null;
-        shouldRecoverSprint = false;
     }
 
     @EventHandler
@@ -110,7 +113,16 @@ public class Aura extends ModuleStructure {
     public void onRotationUpdate(RotationUpdateEvent e) {
         switch (e.getType()) {
             case EventType.PRE -> {
+                LivingEntity previousTarget = target;
                 target = updateTarget();
+
+                if (previousTarget != null && target == null) {
+                    Initialization.getInstance().getManager()
+                            .getAttackPerpetrator()
+                            .getAttackHandler()
+                            .resetPendingState();
+                }
+
                 boolean passed = false;
                 if (mode.isSelected("FunTime Snap") || mode.isSelected("HolyWorld")) {
                     passed = true;
@@ -127,6 +139,10 @@ public class Aura extends ModuleStructure {
             case EventType.POST -> {
                 if (target != null) {
                     Initialization.getInstance().getManager().getAttackPerpetrator().performAttack(getConfig());
+                } else {
+                    if (AutoSprint.isBlocked()) {
+                        AutoSprint.unblockSprint();
+                    }
                 }
             }
         }
@@ -230,29 +246,18 @@ public class Aura extends ModuleStructure {
     @EventHandler
     public void onInput(InputEvent event) {
         if (mc.player == null || mc.world == null) return;
-        if (!isState()) return;
 
         PlayerInput input = event.getInput();
         if (input == null) return;
 
-        if (shouldRecoverSprint) {
-            event.setDirectional(true, input.backward(), input.left(), input.right(), input.sneak(), true, input.jump());
-            shouldRecoverSprint = false;
-            return;
+        if (AutoSprint.isBlocked() && input.sprint()) {
+            event.setSprinting(false);
+            input = event.getInput();
         }
+
+        if (!isState()) return;
 
         if (target == null || !target.isAlive()) return;
-
-        StrikeManager attackHandler = Initialization.getInstance().getManager().getAttackPerpetrator().getAttackHandler();
-
-        if (isResetSprintLegit()) {
-            boolean shouldReset = attackHandler.shouldResetSprinting(getConfig());
-            if (shouldReset && !mc.player.isTouchingWater() && input.forward()) {
-                event.setDirectional(false, input.backward(), input.left(), input.right(), input.sneak(), false, input.jump());
-                shouldRecoverSprint = true;
-                return;
-            }
-        }
 
         boolean w = mc.options.forwardKey.isPressed();
         boolean s = mc.options.backKey.isPressed();
@@ -354,7 +359,6 @@ public class Aura extends ModuleStructure {
             event.setDirectionalLow(forward, back, left, right);
         }
     }
-
 
     private LivingEntity updateTarget() {
         TargetFinder.EntityFilter filter = new TargetFinder.EntityFilter(targetType.getSelected());

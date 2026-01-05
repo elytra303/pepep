@@ -9,7 +9,6 @@ import net.minecraft.entity.EntityPose;
 import net.minecraft.entity.effect.StatusEffects;
 import net.minecraft.item.Items;
 import net.minecraft.network.packet.Packet;
-import net.minecraft.network.packet.c2s.play.ClientCommandC2SPacket;
 import net.minecraft.network.packet.c2s.play.HandSwingC2SPacket;
 import net.minecraft.network.packet.c2s.play.UpdateSelectedSlotC2SPacket;
 import net.minecraft.sound.SoundEvents;
@@ -18,12 +17,12 @@ import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
 import org.joml.Vector3f;
 import rich.IMinecraft;
-import rich.events.api.types.EventListener;
 import rich.events.impl.PacketEvent;
 import rich.modules.impl.combat.Aura;
 import rich.modules.impl.combat.TriggerBot;
 import rich.modules.impl.combat.aura.AngleConnection;
 import rich.modules.impl.combat.aura.target.RaycastAngle;
+import rich.modules.impl.movement.AutoSprint;
 import rich.modules.impl.movement.ElytraTarget;
 import rich.util.player.PlayerSimulation;
 import rich.util.string.PlayerInteractionHelper;
@@ -35,12 +34,13 @@ import java.util.concurrent.ThreadLocalRandom;
 @Getter
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class StrikeManager implements IMinecraft {
+    private final Pressing clickScheduler = new Pressing();
     private final StopWatch attackTimer = new StopWatch();
     private final StopWatch shieldWatch = new StopWatch();
-    private final StopWatch sprintCooldown = new StopWatch();
-    private final Pressing clickScheduler = new Pressing();
+
     private int count = 0;
     private int ticksOnBlock = 0;
+    private boolean pendingAttack = false;
 
     void tick() {
         if (mc.player != null && mc.player.isOnGround()) {
@@ -57,63 +57,153 @@ public class StrikeManager implements IMinecraft {
         }
     }
 
+    public void resetPendingState() {
+        if (pendingAttack || AutoSprint.isBlocked()) {
+            pendingAttack = false;
+            AutoSprint.unblockSprint();
+        }
+    }
+
+    private void cancelPendingAttack() {
+        pendingAttack = false;
+        AutoSprint.unblockSprint();
+    }
+
     void handleAttack(StrikerConstructor.AttackPerpetratorConfigurable config) {
-        Aura aura = Aura.getInstance();
+        if (config.getTarget() == null || !config.getTarget().isAlive()) {
+            resetPendingState();
+            return;
+        }
 
-        if (!shouldAttack(config)) return;
+        boolean noResetSprint = AutoSprint.getInstance() != null &&
+                AutoSprint.getInstance().isState() &&
+                AutoSprint.getInstance().getNoReset().isValue();
 
-        boolean elytraMode = Aura.target != null &&
+        boolean inWater = mc.player.isSubmergedInWater();
+        boolean needSprintReset = !noResetSprint && !inWater && mc.player.isSprinting();
+
+        if (pendingAttack && AutoSprint.isBlocked() && AutoSprint.sprintBlockTicks >= 1) {
+            if (!shouldAttack(config)) {
+                cancelPendingAttack();
+                return;
+            }
+
+            boolean elytraMode = checkElytraMode(config);
+            if (elytraMode && !checkElytraRaycast(config)) {
+                cancelPendingAttack();
+                return;
+            }
+
+            if (!RaycastAngle.rayTrace(config)) {
+                cancelPendingAttack();
+                return;
+            }
+
+            if (!canAttack(config, 0)) {
+                if (AutoSprint.sprintBlockTicks > 8) {
+                    cancelPendingAttack();
+                }
+                return;
+            }
+
+            executeAttack(config);
+            cancelPendingAttack();
+            return;
+        }
+
+        if (!shouldAttack(config)) {
+            if (pendingAttack) cancelPendingAttack();
+            return;
+        }
+
+        boolean elytraMode = checkElytraMode(config);
+        if (elytraMode && !checkElytraRaycast(config)) {
+            if (pendingAttack) cancelPendingAttack();
+            return;
+        }
+
+        if (!RaycastAngle.rayTrace(config)) {
+            if (pendingAttack) cancelPendingAttack();
+            return;
+        }
+
+        if (canAttack(config, 0)) {
+            if (needSprintReset && !AutoSprint.isBlocked()) {
+                handleShieldUnpress(config);
+                AutoSprint.blockSprint();
+                pendingAttack = true;
+                return;
+            }
+
+            executeAttack(config);
+            return;
+        }
+
+        if (canAttack(config, 2) && needSprintReset && !AutoSprint.isBlocked()) {
+            handleShieldUnpress(config);
+            AutoSprint.blockSprint();
+            pendingAttack = true;
+        }
+    }
+
+    private boolean checkElytraMode(StrikerConstructor.AttackPerpetratorConfigurable config) {
+        return Aura.target != null &&
                 Aura.target.isGliding() &&
                 mc.player.isGliding() &&
                 ElytraTarget.getInstance() != null &&
                 ElytraTarget.getInstance().isState();
+    }
 
-        if (elytraMode) {
-            Vec3d targetVelocity = config.getTarget().getVelocity();
-            double targetSpeed = targetVelocity.horizontalLength();
-            float leadTicks = 0;
-            if (ElytraTarget.shouldElytraTarget) {
-                leadTicks = ElytraTarget.getInstance().elytraForward.getValue();
-            }
+    private boolean checkElytraRaycast(StrikerConstructor.AttackPerpetratorConfigurable config) {
+        Vec3d targetVelocity = config.getTarget().getVelocity();
+        float leadTicks = 0;
+        if (ElytraTarget.shouldElytraTarget) {
+            leadTicks = ElytraTarget.getInstance().elytraForward.getValue();
+        }
 
-            Vec3d predictedPos = config.getTarget().getEntityPos().add(targetVelocity.multiply(leadTicks));
-            Box predictedBox = new Box(
-                    predictedPos.x - config.getTarget().getWidth() / 2,
-                    predictedPos.y,
-                    predictedPos.z - config.getTarget().getWidth() / 2,
-                    predictedPos.x + config.getTarget().getWidth() / 2,
-                    predictedPos.y + config.getTarget().getHeight(),
-                    predictedPos.z + config.getTarget().getWidth() / 2
+        Vec3d predictedPos = config.getTarget().getEntityPos().add(targetVelocity.multiply(leadTicks));
+        Box predictedBox = new Box(
+                predictedPos.x - config.getTarget().getWidth() / 2,
+                predictedPos.y,
+                predictedPos.z - config.getTarget().getWidth() / 2,
+                predictedPos.x + config.getTarget().getWidth() / 2,
+                predictedPos.y + config.getTarget().getHeight(),
+                predictedPos.z + config.getTarget().getWidth() / 2
+        );
+
+        Vec3d eyePos = mc.player.getEyePos();
+        Vec3d lookVec = AngleConnection.INSTANCE.getRotation().toVector();
+        return predictedBox.raycast(eyePos, eyePos.add(lookVec.multiply(config.getMaximumRange()))).isPresent();
+    }
+
+    private void executeAttack(StrikerConstructor.AttackPerpetratorConfigurable config) {
+        mc.interactionManager.attackEntity(mc.player, config.getTarget());
+        mc.player.swingHand(Hand.MAIN_HAND);
+
+        if (!mc.player.isOnGround() && convenientFallOffset() > 0.0F) {
+            mc.world.playSound(
+                    null,
+                    mc.player.getX(),
+                    mc.player.getY(),
+                    mc.player.getZ(),
+                    SoundEvents.ENTITY_PLAYER_ATTACK_CRIT,
+                    mc.player.getSoundCategory(),
+                    1.0f,
+                    1.0f
             );
-
-            Vec3d eyePos = mc.player.getEyePos();
-            Vec3d lookVec = AngleConnection.INSTANCE.getRotation().toVector();
-            if (!predictedBox.raycast(eyePos, eyePos.add(lookVec.multiply(config.getMaximumRange()))).isPresent()) {
-                return;
-            }
-
-            if (!RaycastAngle.rayTrace(config) || !canAttack(config, 0)) return;
-        } else {
-            if (!RaycastAngle.rayTrace(config)) return;
-            if (!canAttack(config, 0)) return;
+            mc.player.addCritParticles(config.getTarget());
         }
 
-        if (aura.isResetSprintLegit() && mc.player.isSprinting()) {
-            return;
-        }
+        attackTimer.reset();
+        count++;
+    }
 
-        boolean wasSprinting = EventListener.serverSprint;
-
-        if (aura.isResetSprintPacket() && wasSprinting && !mc.player.isTouchingWater()) {
-            mc.getNetworkHandler().sendPacket(new ClientCommandC2SPacket(mc.player, ClientCommandC2SPacket.Mode.STOP_SPRINTING));
-            mc.player.setSprinting(false);
-        }
-
-        attackEntity(config);
-
-        if (aura.isResetSprintPacket() && wasSprinting && !mc.player.isTouchingWater()) {
-            mc.getNetworkHandler().sendPacket(new ClientCommandC2SPacket(mc.player, ClientCommandC2SPacket.Mode.START_SPRINTING));
-            mc.player.setSprinting(true);
+    private void handleShieldUnpress(StrikerConstructor.AttackPerpetratorConfigurable config) {
+        if (config.isShouldUnPressShield() &&
+                mc.player.isUsingItem() &&
+                mc.player.getActiveItem().getItem().equals(Items.SHIELD)) {
+            mc.interactionManager.stopUsingItem(mc.player);
+            shieldWatch.reset();
         }
     }
 
@@ -122,50 +212,23 @@ public class StrikeManager implements IMinecraft {
         if (!RaycastAngle.rayTrace(config)) return;
         if (!canAttackTrigger(config, triggerBot, 0)) return;
 
-        if (triggerBot.isResetSprintLegit() && mc.player.isSprinting()) {
+        boolean noResetSprint = AutoSprint.getInstance() != null &&
+                AutoSprint.getInstance().isState() &&
+                AutoSprint.getInstance().getNoReset().isValue();
+
+        if (!noResetSprint && !mc.player.isSubmergedInWater() && mc.player.isSprinting()) {
+            AutoSprint.blockSprint();
+        }
+
+        if (AutoSprint.isBlocked() && AutoSprint.sprintBlockTicks < 1) {
             return;
         }
 
-        boolean wasSprinting = EventListener.serverSprint;
+        executeAttack(config);
 
-        if (triggerBot.isResetSprintPacket() && wasSprinting && !mc.player.isTouchingWater()) {
-            mc.getNetworkHandler().sendPacket(new ClientCommandC2SPacket(mc.player, ClientCommandC2SPacket.Mode.STOP_SPRINTING));
-            mc.player.setSprinting(false);
+        if (AutoSprint.isBlocked()) {
+            AutoSprint.unblockSprint();
         }
-
-        attackEntity(config);
-
-        if (triggerBot.isResetSprintPacket() && wasSprinting && !mc.player.isTouchingWater()) {
-            mc.getNetworkHandler().sendPacket(new ClientCommandC2SPacket(mc.player, ClientCommandC2SPacket.Mode.START_SPRINTING));
-            mc.player.setSprinting(true);
-        }
-    }
-
-    void attackEntity(StrikerConstructor.AttackPerpetratorConfigurable config) {
-        if (!mc.player.isOnGround()) {
-            mc.interactionManager.attackEntity(mc.player, config.getTarget());
-            mc.player.swingHand(Hand.MAIN_HAND);
-
-            if (convenientFallOffset() > 0.0F) {
-                mc.world.playSound(
-                        null,
-                        mc.player.getX(),
-                        mc.player.getY(),
-                        mc.player.getZ(),
-                        SoundEvents.ENTITY_PLAYER_ATTACK_CRIT,
-                        mc.player.getSoundCategory(),
-                        1.0f,
-                        1.0f
-                );
-                mc.player.addCritParticles(config.getTarget());
-            }
-        } else {
-            mc.interactionManager.attackEntity(mc.player, config.getTarget());
-            mc.player.swingHand(Hand.MAIN_HAND);
-        }
-
-        attackTimer.reset();
-        count++;
     }
 
     public boolean shouldResetSprinting(StrikerConstructor.AttackPerpetratorConfigurable config) {
@@ -180,10 +243,6 @@ public class StrikeManager implements IMinecraft {
 
     public boolean shouldAttack(StrikerConstructor.AttackPerpetratorConfigurable config) {
         Aura aura = Aura.getInstance();
-
-        if (aura.isResetSprintLegit() && mc.player.isSprinting()) {
-            return false;
-        }
 
         if (mc.player.distanceTo(config.getTarget()) > aura.attackrange.getValue()) {
             return false;
@@ -228,10 +287,6 @@ public class StrikeManager implements IMinecraft {
     }
 
     public boolean shouldAttackTrigger(StrikerConstructor.AttackPerpetratorConfigurable config, TriggerBot triggerBot) {
-        if (triggerBot.isResetSprintLegit() && mc.player.isSprinting()) {
-            return false;
-        }
-
         if (mc.player.distanceTo(config.getTarget()) > triggerBot.attackRange.getValue()) {
             return false;
         }
@@ -320,7 +375,7 @@ public class StrikeManager implements IMinecraft {
 
     public boolean canAttack(StrikerConstructor.AttackPerpetratorConfigurable config, int ticks) {
         for (int i = 0; i <= ticks; i++) {
-            if (canCrit(config, i) && attackTimer.finished(350)) {
+            if (canCrit(config, i) && attackTimer.finished(50)) {
                 return true;
             }
         }
@@ -329,7 +384,7 @@ public class StrikeManager implements IMinecraft {
 
     public boolean canAttackTrigger(StrikerConstructor.AttackPerpetratorConfigurable config, TriggerBot triggerBot, int ticks) {
         for (int i = 0; i <= ticks; i++) {
-            if (canCritTrigger(config, triggerBot, i) && attackTimer.finished(350)) {
+            if (canCritTrigger(config, triggerBot, i) && attackTimer.finished(50)) {
                 return true;
             }
         }

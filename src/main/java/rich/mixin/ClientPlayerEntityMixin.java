@@ -53,6 +53,7 @@ public abstract class ClientPlayerEntityMixin extends AbstractClientPlayerEntity
         }
     }
 
+
     @Inject(method = "tickMovement", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/input/Input;tick()V", shift = At.Shift.AFTER))
     private void onInputTick(CallbackInfo ci) {
         if (mc.player == null) return;
@@ -68,21 +69,21 @@ public abstract class ClientPlayerEntityMixin extends AbstractClientPlayerEntity
         if (event.isCancelled()) info.cancel();
     }
 
-    @Unique
-    private boolean ignorehunger() {
-        return AutoSprint.getInstance().isState() && AutoSprint.getInstance().getSettings().isSelected("Голод");
-    }
-
-    @Inject(method = "canSprint", at = @At("RETURN"), cancellable = true)
-    private void hunger(CallbackInfoReturnable<Boolean> cir) {
-        if (cir.getReturnValue() || !ignorehunger()) return;
-
-        ClientPlayerEntity player = (ClientPlayerEntity)(Object)this;
-        if (player.getHungerManager().getFoodLevel() > 6) return;
-        if (this.input == null || !this.input.playerInput.forward()) return;
-
-        cir.setReturnValue(true);
-    }
+//    @Unique
+//    private boolean ignorehunger() {
+//        return AutoSprint.getInstance().isState() && AutoSprint.getInstance().getSettings().isSelected("Голод");
+//    }
+//
+//    @Inject(method = "canSprint", at = @At("RETURN"), cancellable = true)
+//    private void hunger(CallbackInfoReturnable<Boolean> cir) {
+//        if (cir.getReturnValue() || !ignorehunger()) return;
+//
+//        ClientPlayerEntity player = (ClientPlayerEntity)(Object)this;
+//        if (player.getHungerManager().getFoodLevel() > 6) return;
+//        if (this.input == null || !this.input.playerInput.forward()) return;
+//
+//        cir.setReturnValue(true);
+//    }
 
     @Inject(method = "pushOutOfBlocks", at = @At("HEAD"), cancellable = true)
     public void pushOutOfBlocks(double x, double z, CallbackInfo ci) {

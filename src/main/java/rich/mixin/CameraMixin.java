@@ -16,6 +16,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import rich.events.api.EventManager;
 import rich.events.impl.CameraEvent;
+import rich.events.impl.CameraPositionEvent;
 import rich.modules.impl.combat.aura.Angle;
 
 
@@ -47,6 +48,15 @@ public abstract class CameraMixin {
             moveBy(event.isCameraClip() ? -distance : -clipToSpace(distance), 0.0F, 0.0F);
             ci.cancel();
         }
+    }
+
+    @Inject(method = "setPos(Lnet/minecraft/util/math/Vec3d;)V", at = @At("HEAD"), cancellable = true)
+    private void posHook(Vec3d pos, CallbackInfo ci) {
+        CameraPositionEvent event = new CameraPositionEvent(pos);
+        EventManager.callEvent(event);
+        this.pos = pos = event.getPos();
+        blockPos.set(pos.x,pos.y,pos.z);
+        ci.cancel();
     }
 
 }

@@ -3,7 +3,7 @@ package rich.modules.module;
 import lombok.AccessLevel;
 import lombok.experimental.FieldDefaults;
 import rich.modules.impl.combat.*;
-import rich.modules.impl.combat.aura.NoInteract;
+import rich.modules.impl.combat.NoInteract;
 import rich.modules.impl.misc.*;
 import rich.modules.impl.misc.autoparser.AutoParser;
 import rich.modules.impl.movement.*;
@@ -29,34 +29,53 @@ public class ModuleRepository {
                 new ElytraHelper(),
                 new Jesus(),
                 new ClientSounds(),
+                new TargetESP(),
+                new BlockOverlay(),
                 new HitSound(),
+                new ItemScroller(),
                 new TargetStrafe(),
                 new AutoLeave(),
                 new Strafe(),
                 new AutoDuel(),
                 new NoWeb(),
                 new AutoTpAccept(),
+                new Spider(),
                 new ClickFriend(),
                 new FreeLook(),
+                new Fly(),
+                new ElytraMotion(),
                 new FullBright(),
+                new CameraSettings(),
+                new ItemPhysic(),
                 new NoDelay(),
+                new ServerRPSpoofer(),
                 new SeeInvisible(),
+                new AutoPilot(),
                 new NoFallDamage(),
+                new NoRender(),
                 new ShiftTap(),
                 new HitBoxModule(),
+                new WaterSpeed(),
+                new NameProtect(),
                 new NoFriendDamage(),
                 new ProjectileHelper(),
+                new InventoryMove(),
+                new ChestStealer(),
                 new NoInteract(),
                 new AntiBot(),
                 new ViewModel(),
                 new SuperFireWork(),
                 new LongJump(),
                 new ElytraTarget(),
+                new FreeCam(),
                 new Speed(),
 //                new SwingAnimation(),
                 new NoEntityTrace(),
                 new AutoRespawn(),
+                new AutoSwap(),
+//                new AutoCrystal(),
                 new NoPush(),
+                new Velocity(),
                 new AutoSprint(),
                 new AutoBuy()
         );

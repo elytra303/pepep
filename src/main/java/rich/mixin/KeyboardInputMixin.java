@@ -12,6 +12,7 @@ import rich.events.impl.InputEvent;
 import rich.modules.impl.combat.aura.Angle;
 import rich.modules.impl.combat.aura.AngleConnection;
 import rich.modules.impl.combat.aura.AngleConstructor;
+import rich.modules.impl.movement.AutoSprint;
 
 import static rich.IMinecraft.mc;
 
@@ -20,7 +21,21 @@ public class KeyboardInputMixin {
 
     @ModifyExpressionValue(method = "tick", at = @At(value = "NEW", target = "(ZZZZZZZ)Lnet/minecraft/util/PlayerInput;"))
     private PlayerInput tickHook(PlayerInput original) {
-        InputEvent event = new InputEvent(original);
+        PlayerInput processed = original;
+
+        if (AutoSprint.isBlocked()) {
+            processed = new PlayerInput(
+                    original.forward(),
+                    original.backward(),
+                    original.left(),
+                    original.right(),
+                    original.jump(),
+                    original.sneak(),
+                    false
+            );
+        }
+
+        InputEvent event = new InputEvent(processed);
         EventManager.callEvent(event);
         return transformInput(event.getInput());
     }
@@ -31,7 +46,8 @@ public class KeyboardInputMixin {
         Angle angle = rotationController.getCurrentAngle();
         AngleConstructor configurable = rotationController.getCurrentRotationPlan();
 
-        if (mc.player == null || angle == null || configurable == null || !(configurable.isMoveCorrection() && configurable.isFreeCorrection())) {
+        if (mc.player == null || angle == null || configurable == null ||
+                !(configurable.isMoveCorrection() && configurable.isFreeCorrection())) {
             return input;
         }
 
@@ -40,8 +56,19 @@ public class KeyboardInputMixin {
         float x = KeyboardInput.getMovementMultiplier(input.left(), input.right());
         float newX = x * MathHelper.cos(deltaYaw * 0.017453292f) - z * MathHelper.sin(deltaYaw * 0.017453292f);
         float newZ = z * MathHelper.cos(deltaYaw * 0.017453292f) + x * MathHelper.sin(deltaYaw * 0.017453292f);
-        int movementSideways = Math.round(newX), movementForward = Math.round(newZ);
+        int movementSideways = Math.round(newX);
+        int movementForward = Math.round(newZ);
 
-        return new PlayerInput(movementForward > 0F, movementForward < 0F, movementSideways > 0F, movementSideways < 0F, input.jump(), input.sneak(), input.sprint());
+        boolean sprintValue = AutoSprint.isBlocked() ? false : input.sprint();
+
+        return new PlayerInput(
+                movementForward > 0F,
+                movementForward < 0F,
+                movementSideways > 0F,
+                movementSideways < 0F,
+                input.jump(),
+                input.sneak(),
+                sprintValue
+        );
     }
 }

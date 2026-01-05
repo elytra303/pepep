@@ -1,15 +1,11 @@
 package rich.modules.impl.movement;
 
 import lombok.Getter;
-import net.minecraft.entity.effect.StatusEffects;
 import rich.events.api.EventHandler;
 import rich.events.impl.TickEvent;
-import rich.modules.impl.combat.Aura;
-import rich.modules.impl.combat.TriggerBot;
 import rich.modules.module.ModuleStructure;
 import rich.modules.module.category.ModuleCategory;
 import rich.modules.module.setting.implement.BooleanSetting;
-import rich.modules.module.setting.implement.MultiSelectSetting;
 import rich.util.Instance;
 
 public class AutoSprint extends ModuleStructure {
@@ -17,66 +13,72 @@ public class AutoSprint extends ModuleStructure {
         return Instance.get(AutoSprint.class);
     }
 
-    public static int tickStop;
+    public static volatile boolean sprintBlocked = false;
+    public static volatile int sprintBlockTicks = 0;
+    private static final int MAX_BLOCK_TICKS = 10;
 
     @Getter
-    private final MultiSelectSetting settings = new MultiSelectSetting("Игнорировать", "Не дает спринтиться при эффектах")
-            .value("Голод", "Замедление", "Слепота")
-            .selected();
-
+    private final BooleanSetting noReset = new BooleanSetting("Не сбрасывать спринт", "Don't reset sprint for crits")
+            .setValue(false);
 
     public AutoSprint() {
-        super("AutoSprint", ModuleCategory.MOVEMENT);
-        setup(settings);
+        super("AutoSprint", null, ModuleCategory.MOVEMENT);
+        setup(noReset);
+    }
+
+    public static void blockSprint() {
+        if (mc.player == null) return;
+        sprintBlocked = true;
+        sprintBlockTicks = 0;
+        mc.player.setSprinting(false);
+    }
+
+    public static void unblockSprint() {
+        sprintBlocked = false;
+        sprintBlockTicks = 0;
+    }
+
+    public static boolean isBlocked() {
+        return sprintBlocked;
+    }
+
+    public static void tickBlockTimeout() {
+        if (!sprintBlocked) return;
+
+        sprintBlockTicks++;
+        if (sprintBlockTicks > MAX_BLOCK_TICKS) {
+            unblockSprint();
+        }
     }
 
     @EventHandler
-    public void onTick(TickEvent event) {
-        if (mc.player == null || mc.world == null) return;
+    public void onTick(TickEvent e) {
+        if (mc.player == null) return;
 
-        boolean hasSlowness = mc.player.hasStatusEffect(StatusEffects.SLOWNESS);
-        boolean hasBlindness = mc.player.hasStatusEffect(StatusEffects.BLINDNESS);
+        tickBlockTimeout();
 
-        boolean shouldCancelSprintDueToSlowness = hasSlowness && !settings.isSelected("Замедление");
-        boolean shouldCancelSprintDueToBlindness = hasBlindness && !settings.isSelected("Слепота");
+        if (sprintBlocked) {
+            if (mc.player.isSprinting()) {
+                mc.player.setSprinting(false);
+            }
+            return;
+        }
 
         boolean horizontal = mc.player.horizontalCollision && !mc.player.collidedSoftly;
         boolean sneaking = mc.player.isSneaking() && !mc.player.isSwimming();
+        boolean canSprint = !horizontal && mc.player.forwardSpeed > 0;
 
-        if (shouldPreventSprintForCombat()) {
-            tickStop = 2;
+        if (sneaking) {
+            return;
         }
 
-        if (tickStop > 0 || sneaking || shouldCancelSprintDueToSlowness || shouldCancelSprintDueToBlindness) {
-            mc.player.setSprinting(false);
-        } else if (!horizontal && mc.player.forwardSpeed > 0 && !mc.options.sprintKey.isPressed()) {
+        if (canSprint && !mc.player.isSprinting()) {
             mc.player.setSprinting(true);
         }
-
-        tickStop--;
     }
 
-    private boolean shouldPreventSprintForCombat() {
-        Aura aura = Aura.getInstance();
-        if (aura != null && aura.isState() && Aura.target != null && Aura.target.isAlive()) {
-            if (aura.isResetSprintLegit() || aura.isResetSprintPacket()) {
-                float distance = mc.player.distanceTo(Aura.target);
-                if (distance <= aura.attackrange.getValue() + 0.5f) {
-                    return true;
-                }
-            }
-        }
-
-        TriggerBot triggerBot = TriggerBot.getInstance();
-        if (triggerBot != null && triggerBot.isState() && triggerBot.target != null && triggerBot.target.isAlive()) {
-            if (triggerBot.isResetSprintLegit() || triggerBot.isResetSprintPacket()) {
-                float distance = mc.player.distanceTo(triggerBot.target);
-                if (distance <= triggerBot.attackRange.getValue() + 0.5f) {
-                    return true;
-                }
-            }
-        }
-
-        return false;
+    @Override
+    public void deactivate() {
+        unblockSprint();
     }
 }

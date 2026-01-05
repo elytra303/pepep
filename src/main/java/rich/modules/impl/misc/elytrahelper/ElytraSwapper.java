@@ -6,7 +6,7 @@ import net.minecraft.entity.EquipmentSlot;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import rich.IMinecraft;
-import rich.util.inventory.InventoryUtility;
+import rich.util.inventory.impl.InventoryUtility;
 
 public class ElytraSwapper implements IMinecraft {
 

@@ -1,4 +1,4 @@
-package rich.util.inventory;
+package rich.util.inventory.impl;
 
 import com.google.common.collect.Lists;
 import com.google.common.primitives.Shorts;
@@ -94,8 +94,7 @@ public class InventoryUtility implements IMinecraft {
             }
         } else {
             int s = mc.player.getInventory().getSelectedSlot();
-            if (cooldown)
-                s = (s + 1) % 8;
+            if (cooldown) s = (s + 1) % 8;
 
             InventoryUtility.swap(
                     InventoryUtility.wrapHotbar(slot),

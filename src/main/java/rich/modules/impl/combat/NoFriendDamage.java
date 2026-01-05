@@ -3,7 +3,7 @@ package rich.modules.impl.combat;
 import lombok.AccessLevel;
 import lombok.experimental.FieldDefaults;
 import rich.events.api.EventHandler;
-import rich.events.impl.AttackEvent;
+import rich.events.impl.InteractEntityEvent;
 import rich.modules.module.ModuleStructure;
 import rich.modules.module.category.ModuleCategory;
 import rich.util.repository.FriendUtils;
@@ -16,7 +16,7 @@ public class NoFriendDamage extends ModuleStructure {
     }
 
     @EventHandler
-    public void onAttack(AttackEvent e) {
+    public void onAttack(InteractEntityEvent e) {
         e.setCancelled(FriendUtils.isFriend(e.getEntity()));
     }
 }

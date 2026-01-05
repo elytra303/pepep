@@ -50,3 +50,5 @@ accessible   method  com/mojang/blaze3d/pipeline/RenderPipeline$Builder <init> (
 accessible   method   com/mojang/blaze3d/pipeline/RenderPipeline$Builder withSnippet (Lcom/mojang/blaze3d/pipeline/RenderPipeline$Snippet;)V
 accessible   class   net/minecraft/client/resource/ResourceReloadLogger$ReloadState
 accessible   class   net/minecraft/client/world/ClientChunkManager$ClientChunkMap
+
+accessible method net/minecraft/client/render/GameRenderer getProjectionMatrix (F)Lorg/joml/Matrix4f;

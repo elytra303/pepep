@@ -13,7 +13,7 @@ import net.minecraft.util.hit.BlockHitResult;
 import rich.IMinecraft;
 import rich.mixin.ClientConnectionAccessor;
 import rich.mixin.IClientWorld;
-import rich.util.inventory.Angle;
+import rich.modules.impl.combat.aura.Angle;
 import rich.util.timer.TimerUtil;
 
 import java.nio.charset.StandardCharsets;

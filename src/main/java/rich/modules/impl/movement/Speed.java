@@ -53,12 +53,9 @@ public class Speed extends ModuleStructure {
         }
         if ((mode.isSelected("Grim")) && e.isPre() && MoveUtil.hasPlayerMovement()) {
             int collisions = 0;
-            float box = 0.35F;
-            if (!mc.player.isOnGround()) {
-                box = 0.45F;
-            }
+
             for (Entity ent : mc.world.getEntities())
-                if (ent != mc.player && (!(ent instanceof ArmorStandEntity)) && (ent instanceof LivingEntity || ent instanceof BoatEntity) && mc.player.getBoundingBox().expand(box).intersects(ent.getBoundingBox()))
+                if (ent != mc.player && (!(ent instanceof ArmorStandEntity)) && (ent instanceof LivingEntity || ent instanceof BoatEntity) && mc.player.getBoundingBox().expand(0.25f).intersects(ent.getBoundingBox()))
                     collisions++;
             double[] motion = MoveUtil.forward(0.07 * collisions);
             mc.player.addVelocity(motion[0], 0, motion[1]);

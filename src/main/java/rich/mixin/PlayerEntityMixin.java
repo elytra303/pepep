@@ -12,7 +12,9 @@ import rich.IMinecraft;
 import rich.events.api.EventManager;
 import rich.events.impl.PlayerTravelEvent;
 import rich.events.impl.PushEvent;
+import rich.events.impl.SwimmingEvent;
 import rich.modules.impl.combat.aura.AngleConnection;
+
 
 @Mixin(PlayerEntity.class)
 public abstract class PlayerEntityMixin implements IMinecraft {
@@ -48,6 +50,13 @@ public abstract class PlayerEntityMixin implements IMinecraft {
         if (event.isCancelled()) {
             ci.cancel();
         }
+    }
+
+    @ModifyExpressionValue(method = "travel", at = @At(value = "INVOKE", target = "Lnet/minecraft/entity/player/PlayerEntity;getRotationVector()Lnet/minecraft/util/math/Vec3d;"))
+    public Vec3d travelHook(Vec3d vec3d) {
+        SwimmingEvent event = new SwimmingEvent(vec3d);
+        EventManager.callEvent(event);
+        return event.getVector();
     }
 
     @Inject(method = "travel", at = @At("RETURN"))

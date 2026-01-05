@@ -6,15 +6,18 @@
     "CameraMixin",
     "ChatInputSuggestorMixin",
     "ChatScreenMixin",
+    "ChunkOcclusionDataBuilderMixin",
     "ClientPlayerEntityMixin",
     "ClientPlayNetworkHandlerMixin",
     "ClientWorldMixin",
     "CustomCapeMixin",
     "GameRendererMixin",
     "GenericContainerScreenMixin",
+    "HandledScreenMixin",
     "HeldItemRendererMixin",
     "IClientWorld",
     "InGameHudMixin",
+    "InGameOverlayRendererMixin",
     "IScreen",
     "KeyboardInputMixin",
     "KeyboardMixin",
@@ -22,9 +25,12 @@
     "LivingEntityRendererMixin",
     "MinecraftClientMixin",
     "MixinClientPlayerInteractionManager",
+    "MixinItemEntityRenderer",
     "MouseMixin",
     "MultiplayerScreenOpenMixin",
-    "ScreenMixin"
+    "ScreenMixin",
+    "StatusEffectFogModifierMixin",
+    "WorldRendererMixin"
   ],
   "injectors": {
     "defaultRequire": 1
@@ -35,6 +41,7 @@
     "EntityMixin",
     "FireworkRocketEntityMixin",
     "LivingEntityMixin",
-    "PlayerEntityMixin"
+    "PlayerEntityMixin",
+    "TextVisitFactoryMixin"
   ]
 }

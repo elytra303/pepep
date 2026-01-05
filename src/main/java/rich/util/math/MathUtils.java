@@ -110,6 +110,14 @@ public class MathUtils implements IMinecraft {
         return new Vec3d(interpolate(prevPos.x, pos.x), interpolate(prevPos.y, pos.y), interpolate(prevPos.z, pos.z));
     }
 
+    public Vec3d interpolate(Entity entity) {
+        if (entity == null) return Vec3d.ZERO;
+        return new Vec3d(
+                interpolate(entity.lastX, entity.getX()),
+                interpolate(entity.lastY, entity.getY()),
+                interpolate(entity.lastZ, entity.getZ())
+        );
+    }
 
     public float interpolate(float prev, float orig) {
         return lerp(tickCounter.getTickProgress(false), prev, orig);
