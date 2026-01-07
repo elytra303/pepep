@@ -1,6 +1,5 @@
 package rich.util;
 
-import io.netty.util.internal.MathUtil;
 import it.unimi.dsi.fastutil.chars.Char2IntArrayMap;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -11,7 +10,6 @@ import net.minecraft.util.math.MathHelper;
 import org.joml.Vector4i;
 import org.lwjgl.opengl.GL11;
 import rich.util.math.MathUtils;
-
 
 import java.awt.*;
 import java.nio.ByteBuffer;
@@ -319,7 +317,29 @@ public class ColorUtil {
         return interpolateD(oldValue, newValue, (float) interpolationValue).intValue();
     }
 
+    public int lerpColor(int c1, int c2, float t) {
+        int a1 = (c1 >> 24) & 0xFF;
+        int r1 = (c1 >> 16) & 0xFF;
+        int g1 = (c1 >> 8) & 0xFF;
+        int b1 = c1 & 0xFF;
 
+        int a2 = (c2 >> 24) & 0xFF;
+        int r2 = (c2 >> 16) & 0xFF;
+        int g2 = (c2 >> 8) & 0xFF;
+        int b2 = c2 & 0xFF;
+
+        int a = (int) (a1 + (a2 - a1) * t);
+        int r = (int) (r1 + (r2 - r1) * t);
+        int g = (int) (g1 + (g2 - g1) * t);
+        int b = (int) (b1 + (b2 - b1) * t);
+
+        return (a << 24) | (r << 16) | (g << 8) | b;
+    }
+
+    public int withAlpha(int color, int alpha) {
+        alpha = Math.max(0, Math.min(255, alpha));
+        return (color & 0x00FFFFFF) | (alpha << 24);
+    }
 
     public static int getRed(final int hex) {
         return hex >> 16 & 255;
@@ -422,7 +442,7 @@ public class ColorUtil {
                 (int) MathUtils.interpolate(startColor[2] * 255, endColor[2] * 255, value),
                 (int) MathUtils.interpolate(startColor[3] * 255, endColor[3] * 255, value));
     }
-    
+
     public static int[] solid(int color) {
         return new int[]{color, color, color, color, color, color, color, color, color};
     }
@@ -475,6 +495,22 @@ public class ColorUtil {
 
     public String formatting(int color) {
         return "⏏" + color + "⏏";
+    }
+
+    public int darkenColor(int color, float factor) {
+        int a = (color >> 24) & 0xFF;
+        int r = (int) (((color >> 16) & 0xFF) * factor);
+        int g = (int) (((color >> 8) & 0xFF) * factor);
+        int b = (int) ((color & 0xFF) * factor);
+        return (a << 24) | (r << 16) | (g << 8) | b;
+    }
+
+    public int lightenColor(int color, float factor) {
+        int a = (color >> 24) & 0xFF;
+        int r = Math.min(255, (int) (((color >> 16) & 0xFF) * factor));
+        int g = Math.min(255, (int) (((color >> 8) & 0xFF) * factor));
+        int b = Math.min(255, (int) ((color & 0xFF) * factor));
+        return (a << 24) | (r << 16) | (g << 8) | b;
     }
 
     @Getter

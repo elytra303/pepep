@@ -52,13 +52,17 @@ public class Render3D implements IMinecraft {
     private double smoothY = 0;
     private double smoothY2 = 0;
 
-    public void updateTargetEsp() {
+    public void updateTargetEsp(float deltaTime) {
         prevEspValue = espValue;
-        espValue += espSpeed;
+        espValue += espSpeed * deltaTime;
         if (espSpeed > 25) flipSpeed = true;
         if (espSpeed < -25) flipSpeed = false;
-        espSpeed = flipSpeed ? espSpeed - 0.5f : espSpeed + 0.5f;
-        circleStep += 0.06f;
+        espSpeed = flipSpeed ? espSpeed - 0.5f * deltaTime : espSpeed + 0.5f * deltaTime;
+        circleStep += 0.06f * deltaTime;
+    }
+
+    public void updateTargetEsp() {
+        updateTargetEsp(1.0f);
     }
 
     public float getEspValue() {
@@ -217,7 +221,7 @@ public class Render3D implements IMinecraft {
         buffer.vertex(entry, x4, y4, z4).color(quad.c4);
     }
 
-    public void drawCircle(MatrixStack matrix, LivingEntity lastTarget, float anim, float red, int baseColor) {
+    public void drawCircle(MatrixStack matrix, LivingEntity lastTarget, float anim, float red, int baseColor1, int baseColor2) {
         double cs = MathUtils.interpolate(circleStep - 0.17, circleStep);
         Vec3d target = MathUtils.interpolate(lastTarget);
         boolean canSee = mc.player != null && mc.player.canSee(lastTarget);
@@ -236,14 +240,26 @@ public class Render3D implements IMinecraft {
         smoothY = lerp(smoothY, targetY, 0.12);
         smoothY2 = lerp(smoothY2, targetY2, 0.10);
 
-        int color = ColorUtil.multRed(baseColor, 1 + red * 125);
+        int color1 = ColorUtil.multRed(baseColor1, 1 + red * 125);
+        int color2 = ColorUtil.multRed(baseColor2, 1 + red * 125);
 
-        int brightColor = ColorUtil.multAlpha(color, 0.8f * anim);
-        int fadeColor = ColorUtil.multAlpha(color, 0f);
+        for (int i = 0; i < size; i++) {
+            float t = (float) i / size;
+            float tNext = (float) ((i + 1) % size) / size;
 
-        for (int i = 0; i <= size; i++) {
+            float gradientT = (float) (0.5 - 0.5 * Math.cos(t * Math.PI * 2));
+            float gradientTNext = (float) (0.5 - 0.5 * Math.cos(tNext * Math.PI * 2));
+
+            int currentColor = ColorUtil.lerpColor(color1, color2, gradientT);
+            int nextColor = ColorUtil.lerpColor(color1, color2, gradientTNext);
+
+            int brightColor = ColorUtil.multAlpha(currentColor, 0.8f * anim);
+            int brightColorNext = ColorUtil.multAlpha(nextColor, 0.8f * anim);
+            int fadeColor = ColorUtil.multAlpha(currentColor, 0f);
+            int fadeColorNext = ColorUtil.multAlpha(nextColor, 0f);
+
             Vec3d cosSin = MathUtils.cosSin(i, size, entityWidth);
-            Vec3d nextCosSin = MathUtils.cosSin(i + 1, size, entityWidth);
+            Vec3d nextCosSin = MathUtils.cosSin((i + 1) % size, size, entityWidth);
 
             Vec3d circlePoint = target.add(cosSin.x, smoothY, cosSin.z);
             Vec3d trailPoint = target.add(cosSin.x, smoothY2, cosSin.z);
@@ -256,8 +272,8 @@ public class Render3D implements IMinecraft {
                     nextTrailPoint,
                     trailPoint,
                     brightColor,
-                    brightColor,
-                    fadeColor,
+                    brightColorNext,
+                    fadeColorNext,
                     fadeColor,
                     canSee
             );
@@ -268,18 +284,19 @@ public class Render3D implements IMinecraft {
                     nextCirclePoint,
                     circlePoint,
                     fadeColor,
-                    fadeColor,
-                    brightColor,
+                    fadeColorNext,
+                    brightColorNext,
                     brightColor,
                     canSee
             );
 
-            int trailColorTop = ColorUtil.multAlpha(color, 0.15f * anim);
-            int trailColorBottom = ColorUtil.multAlpha(color, 0f);
+            int trailColorTop = ColorUtil.multAlpha(currentColor, 0.15f * anim);
+            int trailColorBottom = ColorUtil.multAlpha(currentColor, 0f);
             drawLineGradient(circlePoint, trailPoint, trailColorTop, trailColorBottom, 6f, canSee);
 
-            int circleColor = ColorUtil.multAlpha(color, 1f * anim);
-            drawLine(circlePoint, nextCirclePoint, circleColor, 2f, canSee);
+            int circleColor = ColorUtil.multAlpha(currentColor, 1f * anim);
+            int circleColorNext = ColorUtil.multAlpha(nextColor, 1f * anim);
+            drawLineGradient(circlePoint, nextCirclePoint, circleColor, circleColorNext, 2f, canSee);
         }
     }
 

@@ -2,6 +2,7 @@ package rich.mixin;
 
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.effect.StatusEffect;
 import net.minecraft.entity.effect.StatusEffectInstance;
@@ -16,8 +17,10 @@ import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import rich.events.api.EventManager;
+import rich.events.impl.JumpEvent;
 import rich.events.impl.PushEvent;
 import rich.events.impl.SwingDurationEvent;
 import rich.modules.impl.combat.aura.AngleConnection;
@@ -47,6 +50,15 @@ public abstract class LivingEntityMixin {
         }
         float yaw = AngleConnection.INSTANCE.getMoveRotation().getYaw() * 0.017453292F;
         return new Vec3d(-MathHelper.sin(yaw) * 0.2F, 0.0, MathHelper.cos(yaw) * 0.2F);
+    }
+
+    @Inject(method = "jump", at = @At("HEAD"), cancellable = true)
+    private void jump(CallbackInfo info) {
+        if ((Object) this instanceof ClientPlayerEntity player) {
+            JumpEvent event = new JumpEvent(player);
+            EventManager.callEvent(event);
+            if (event.isCancelled()) info.cancel();
+        }
     }
 
     @Inject(method = "getHandSwingDuration", at = @At("HEAD"), cancellable = true)

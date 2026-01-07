@@ -25,6 +25,8 @@ public class ModuleRepository {
         register(
                 new Hud(),
                 new Aura(),
+                new HitEffect(),
+                new BlockESP(),
                 new TriggerBot(),
                 new ElytraHelper(),
                 new Jesus(),
@@ -32,6 +34,7 @@ public class ModuleRepository {
                 new TargetESP(),
                 new BlockOverlay(),
                 new HitSound(),
+                new JumpCircle(),
                 new ItemScroller(),
                 new TargetStrafe(),
                 new AutoLeave(),
