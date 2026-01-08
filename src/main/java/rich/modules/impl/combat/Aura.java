@@ -55,12 +55,12 @@ public class Aura extends ModuleStructure {
             .setValue(3.0f);
 
     private final SliderSettings lookrange = new SliderSettings("Дистанция поиска", "Set look range value")
-            .range(0.0f, 3.0f)
-            .setValue(1.0f);
+            .range(0.0f, 10.0f)
+            .setValue(1.5f);
 
     public final MultiSelectSetting options = new MultiSelectSetting("Настройки", "Select settings")
-            .value("Бить сквозь стены", "Рандомизация крита")
-            .selected();
+            .value("Бить сквозь стены", "Рандомизация крита", "Не бить если ешь")
+            .selected("Бить сквозь стены", "Рандомизация крита", "Не бить если ешь");
 
     private final MultiSelectSetting targetType = new MultiSelectSetting("Настройка целей", "Select target settings")
             .value("Игроки", "Мобы", "Животные", "Друзья", "Стойки для брони")

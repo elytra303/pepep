@@ -52,3 +52,8 @@ accessible   class   net/minecraft/client/resource/ResourceReloadLogger$ReloadSt
 accessible   class   net/minecraft/client/world/ClientChunkManager$ClientChunkMap
 
 accessible method net/minecraft/client/render/GameRenderer getProjectionMatrix (F)Lorg/joml/Matrix4f;
+
+accessible method net/minecraft/client/MinecraftClient doAttack ()Z
+accessible method net/minecraft/client/MinecraftClient doItemUse ()V
+
+accessible method net/minecraft/client/render/entity/LivingEntityRenderer addFeature (Lnet/minecraft/client/render/entity/feature/FeatureRenderer;)Z

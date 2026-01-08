@@ -8,6 +8,7 @@ import net.minecraft.block.Blocks;
 import net.minecraft.entity.EntityPose;
 import net.minecraft.entity.effect.StatusEffects;
 import net.minecraft.item.Items;
+import net.minecraft.item.consume.UseAction;
 import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.c2s.play.HandSwingC2SPacket;
 import net.minecraft.network.packet.c2s.play.UpdateSelectedSlotC2SPacket;
@@ -17,7 +18,9 @@ import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
 import org.joml.Vector3f;
 import rich.IMinecraft;
+import rich.events.api.types.EventType;
 import rich.events.impl.PacketEvent;
+import rich.events.impl.UsingItemEvent;
 import rich.modules.impl.combat.Aura;
 import rich.modules.impl.combat.TriggerBot;
 import rich.modules.impl.combat.aura.AngleConnection;
@@ -50,6 +53,12 @@ public class StrikeManager implements IMinecraft {
         }
     }
 
+    void onUsingItem(UsingItemEvent e) {
+        if (e.getType() == EventType.START && !shieldWatch.finished(50)) {
+            e.cancel();
+        }
+    }
+
     void onPacket(PacketEvent e) {
         Packet<?> packet = e.getPacket();
         if (packet instanceof HandSwingC2SPacket || packet instanceof UpdateSelectedSlotC2SPacket) {
@@ -69,9 +78,41 @@ public class StrikeManager implements IMinecraft {
         AutoSprint.unblockSprint();
     }
 
+    private boolean isHoldingMace() {
+        return clickScheduler.isHoldingMace();
+    }
+
+    private boolean isPlayerEating() {
+        if (mc.player == null) return false;
+        if (!mc.player.isUsingItem()) return false;
+
+        var activeItem = mc.player.getActiveItem();
+        if (activeItem.isEmpty()) return false;
+
+        var useAction = activeItem.getUseAction();
+        return useAction == UseAction.EAT || useAction == UseAction.DRINK;
+    }
+
+    private boolean shouldWaitForEating() {
+        Aura aura = Aura.getInstance();
+        return aura.options.isSelected("Не бить если ешь") && isPlayerEating();
+    }
+
     void handleAttack(StrikerConstructor.AttackPerpetratorConfigurable config) {
         if (config.getTarget() == null || !config.getTarget().isAlive()) {
             resetPendingState();
+            return;
+        }
+
+        if (shouldWaitForEating()) {
+            if (pendingAttack) {
+                cancelPendingAttack();
+            }
+            return;
+        }
+
+        if (isHoldingMace()) {
+            handleMaceAttack(config);
             return;
         }
 
@@ -83,6 +124,11 @@ public class StrikeManager implements IMinecraft {
         boolean needSprintReset = !noResetSprint && !inWater && mc.player.isSprinting();
 
         if (pendingAttack && AutoSprint.isBlocked() && AutoSprint.sprintBlockTicks >= 1) {
+            if (shouldWaitForEating()) {
+                cancelPendingAttack();
+                return;
+            }
+
             if (!shouldAttack(config)) {
                 cancelPendingAttack();
                 return;
@@ -144,6 +190,47 @@ public class StrikeManager implements IMinecraft {
             AutoSprint.blockSprint();
             pendingAttack = true;
         }
+    }
+
+    private void handleMaceAttack(StrikerConstructor.AttackPerpetratorConfigurable config) {
+        if (shouldWaitForEating()) {
+            return;
+        }
+
+        if (mc.player.distanceTo(config.getTarget()) > Aura.getInstance().getAttackrange().getValue()) {
+            return;
+        }
+
+        if (!RaycastAngle.rayTrace(config)) {
+            return;
+        }
+
+        if (!clickScheduler.isMaceFastAttack()) {
+            return;
+        }
+
+        if (!attackTimer.finished(25)) {
+            return;
+        }
+
+        boolean noResetSprint = AutoSprint.getInstance() != null &&
+                AutoSprint.getInstance().isState() &&
+                AutoSprint.getInstance().getNoReset().isValue();
+
+        if (!noResetSprint && !mc.player.isSubmergedInWater() && mc.player.isSprinting()) {
+            AutoSprint.blockSprint();
+            if (AutoSprint.sprintBlockTicks < 1) {
+                pendingAttack = true;
+                return;
+            }
+        }
+
+        executeAttack(config);
+
+        if (AutoSprint.isBlocked()) {
+            AutoSprint.unblockSprint();
+        }
+        pendingAttack = false;
     }
 
     private boolean checkElytraMode(StrikerConstructor.AttackPerpetratorConfigurable config) {
@@ -208,6 +295,7 @@ public class StrikeManager implements IMinecraft {
     }
 
     void handleTriggerAttack(StrikerConstructor.AttackPerpetratorConfigurable config, TriggerBot triggerBot) {
+        if (shouldWaitForEating()) return;
         if (!shouldAttackTrigger(config, triggerBot)) return;
         if (!RaycastAngle.rayTrace(config)) return;
         if (!canAttackTrigger(config, triggerBot, 0)) return;
@@ -233,19 +321,30 @@ public class StrikeManager implements IMinecraft {
 
     public boolean shouldResetSprinting(StrikerConstructor.AttackPerpetratorConfigurable config) {
         if (Aura.target == null) return false;
+        if (shouldWaitForEating()) return false;
+        if (isHoldingMace()) return true;
         return !mc.player.isOnGround() && (canAttack(config, 1) || shouldAttack(config));
     }
 
     public boolean shouldResetSprintingForTrigger(StrikerConstructor.AttackPerpetratorConfigurable config, TriggerBot triggerBot) {
         if (triggerBot.target == null) return false;
+        if (shouldWaitForEating()) return false;
         return !mc.player.isOnGround() && (canAttackTrigger(config, triggerBot, 1) || shouldAttackTrigger(config, triggerBot));
     }
 
     public boolean shouldAttack(StrikerConstructor.AttackPerpetratorConfigurable config) {
         Aura aura = Aura.getInstance();
 
+        if (shouldWaitForEating()) {
+            return false;
+        }
+
         if (mc.player.distanceTo(config.getTarget()) > aura.attackrange.getValue()) {
             return false;
+        }
+
+        if (isHoldingMace()) {
+            return true;
         }
 
         boolean crit = true;
@@ -261,7 +360,7 @@ public class StrikeManager implements IMinecraft {
             boolean fallDistance = convenientFallOffset() > minFallDist;
 
             boolean canCrit = (!mc.player.isOnGround()
-                    || mc.world.getBlockState(mc.player.getBlockPos().add(0, -1, 0)).isAir()
+                    || mc.world.getBlockState(mc.player.getBlockPos().add(0, 0, 0)).isAir()
                     || mc.player.input.playerInput.jump())
                     && fallDistance;
 
@@ -287,6 +386,10 @@ public class StrikeManager implements IMinecraft {
     }
 
     public boolean shouldAttackTrigger(StrikerConstructor.AttackPerpetratorConfigurable config, TriggerBot triggerBot) {
+        if (shouldWaitForEating()) {
+            return false;
+        }
+
         if (mc.player.distanceTo(config.getTarget()) > triggerBot.attackRange.getValue()) {
             return false;
         }
@@ -304,7 +407,7 @@ public class StrikeManager implements IMinecraft {
             boolean fallDistance = convenientFallOffset() > minFallDist;
 
             boolean canCrit = (!mc.player.isOnGround()
-                    || mc.world.getBlockState(mc.player.getBlockPos().add(0, -1, 0)).isAir()
+                    || mc.world.getBlockState(mc.player.getBlockPos().add(0, 0, 0)).isAir()
                     || mc.player.input.playerInput.jump())
                     && fallDistance;
 
@@ -374,6 +477,14 @@ public class StrikeManager implements IMinecraft {
     }
 
     public boolean canAttack(StrikerConstructor.AttackPerpetratorConfigurable config, int ticks) {
+        if (shouldWaitForEating()) {
+            return false;
+        }
+
+        if (isHoldingMace()) {
+            return attackTimer.finished(25) && clickScheduler.isMaceFastAttack();
+        }
+
         for (int i = 0; i <= ticks; i++) {
             if (canCrit(config, i) && attackTimer.finished(50)) {
                 return true;
@@ -383,6 +494,10 @@ public class StrikeManager implements IMinecraft {
     }
 
     public boolean canAttackTrigger(StrikerConstructor.AttackPerpetratorConfigurable config, TriggerBot triggerBot, int ticks) {
+        if (shouldWaitForEating()) {
+            return false;
+        }
+
         for (int i = 0; i <= ticks; i++) {
             if (canCritTrigger(config, triggerBot, i) && attackTimer.finished(50)) {
                 return true;
@@ -392,6 +507,10 @@ public class StrikeManager implements IMinecraft {
     }
 
     public boolean canCrit(StrikerConstructor.AttackPerpetratorConfigurable config, int ticks) {
+        if (isHoldingMace()) {
+            return true;
+        }
+
         if (mc.player.isUsingItem()
                 && !mc.player.getActiveItem().getItem().equals(Items.SHIELD)
                 && config.isEatAndAttack()) {

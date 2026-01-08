@@ -6,11 +6,13 @@ import net.minecraft.entity.EquipmentSlot;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import rich.IMinecraft;
-import rich.util.inventory.impl.InventoryUtility;
+import rich.util.inventory.InventoryUtils;
 
 public class ElytraSwapper implements IMinecraft {
 
     public void swap() {
+        if (mc.player == null) return;
+
         boolean isElytraEquipped = mc.player.getInventory().getStack(38).getItem() == Items.ELYTRA;
 
         for (int i = 0; i < 46; i++) {
@@ -22,10 +24,8 @@ public class ElytraSwapper implements IMinecraft {
             if ((stack.getItem() == Items.ELYTRA && !isElytraEquipped)
                     || (isElytraEquipped && stack.getItem() != Items.ELYTRA)) {
 
-                InventoryUtility.swap(
-                        InventoryUtility.wrapHotbar(i),
-                        6
-                );
+                int fromSlot = InventoryUtils.wrapSlot(i);
+                InventoryUtils.swap(fromSlot, 6);
                 return;
             }
         }

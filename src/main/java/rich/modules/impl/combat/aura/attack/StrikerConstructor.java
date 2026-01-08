@@ -7,6 +7,7 @@ import net.minecraft.entity.LivingEntity;
 import net.minecraft.util.math.Box;
 import rich.IMinecraft;
 import rich.events.impl.PacketEvent;
+import rich.events.impl.UsingItemEvent;
 import rich.modules.impl.combat.TriggerBot;
 import rich.modules.impl.combat.aura.Angle;
 import rich.modules.module.setting.implement.SelectSetting;
@@ -33,6 +34,9 @@ public class StrikerConstructor implements IMinecraft {
         attackHandler.handleTriggerAttack(configurable, triggerBot);
     }
 
+    public void onUsingItem(UsingItemEvent e) {
+        attackHandler.onUsingItem(e);
+    }
     @Getter
     @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
     public static class AttackPerpetratorConfigurable {

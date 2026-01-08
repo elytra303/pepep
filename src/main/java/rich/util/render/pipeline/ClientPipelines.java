@@ -153,4 +153,46 @@ public class ClientPipelines {
                         .build();
                 return RenderLayer.of("bloom_esp", setup);
             });
+
+    public static final RenderPipeline CHINA_HAT_PIPELINE = RenderPipelines.register(
+            RenderPipeline.builder(TRANSFORMS_AND_PROJECTION_SNIPPET)
+                    .withLocation("pipeline/china_hat")
+                    .withVertexShader("core/position_color")
+                    .withFragmentShader("core/position_color")
+                    .withBlend(BlendFunction.TRANSLUCENT)
+                    .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
+                    .withDepthWrite(true)
+                    .withCull(false)
+                    .withVertexFormat(VertexFormats.POSITION_COLOR, VertexFormat.DrawMode.TRIANGLE_FAN)
+                    .build()
+    );
+
+    public static final RenderLayer CHINA_HAT = RenderLayer.of(
+            "china_hat",
+            RenderSetup.builder(CHINA_HAT_PIPELINE)
+                    .translucent()
+                    .expectedBufferSize(8192)
+                    .build()
+    );
+
+    public static final RenderPipeline CHINA_HAT_OUTLINE_PIPELINE = RenderPipelines.register(
+            RenderPipeline.builder(TRANSFORMS_AND_PROJECTION_SNIPPET)
+                    .withLocation("pipeline/china_hat_outline")
+                    .withVertexShader("core/position_color")
+                    .withFragmentShader("core/position_color")
+                    .withBlend(BlendFunction.TRANSLUCENT)
+                    .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
+                    .withDepthWrite(true)
+                    .withCull(false)
+                    .withVertexFormat(VertexFormats.POSITION_COLOR, VertexFormat.DrawMode.DEBUG_LINE_STRIP)
+                    .build()
+    );
+
+    public static final RenderLayer CHINA_HAT_OUTLINE = RenderLayer.of(
+            "china_hat_outline",
+            RenderSetup.builder(CHINA_HAT_OUTLINE_PIPELINE)
+                    .translucent()
+                    .expectedBufferSize(4096)
+                    .build()
+    );
 }

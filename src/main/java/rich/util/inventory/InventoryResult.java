@@ -1,39 +1,23 @@
 package rich.util.inventory;
 
 import net.minecraft.item.ItemStack;
-import org.jetbrains.annotations.NotNull;
-
-import static rich.IMinecraft.mc;
 
 public record InventoryResult(int slot, boolean found, ItemStack stack) {
-    private static final InventoryResult NOT_FOUND_RESULT = new InventoryResult(-1, false, null);
+    private static final InventoryResult NOT_FOUND = new InventoryResult(-1, false, ItemStack.EMPTY);
 
     public static InventoryResult notFound() {
-        return NOT_FOUND_RESULT;
+        return NOT_FOUND;
     }
 
-    public static @NotNull InventoryResult inOffhand(ItemStack stack) {
-        return new InventoryResult(999, true, stack);
+    public static InventoryResult of(int slot, ItemStack stack) {
+        return new InventoryResult(slot, true, stack);
     }
 
-    @SuppressWarnings("BooleanMethodIsAlwaysInverted")
-    public boolean isHolding() {
-        if (mc.player == null) return false;
-
-        return mc.player.getInventory().getSelectedSlot() == slot;
+    public boolean isHotbar() {
+        return slot >= 0 && slot < 9;
     }
 
-    public boolean isInHotBar() {
-        return slot < 9;
-    }
-
-    public void switchTo() {
-        if (found && isInHotBar())
-            InventoryToolkit.switchTo(slot);
-    }
-
-    public void switchToSilent() {
-        if (found && isInHotBar())
-            InventoryToolkit.switchToSilent(slot);
+    public int toScreenSlot() {
+        return slot < 9 ? slot + 36 : slot;
     }
 }

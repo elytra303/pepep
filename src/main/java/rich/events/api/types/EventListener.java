@@ -7,6 +7,7 @@ import rich.Initialization;
 import rich.events.api.EventHandler;
 import rich.events.impl.PacketEvent;
 import rich.events.impl.TickEvent;
+import rich.events.impl.UsingItemEvent;
 import rich.screens.hud.drags.AbstractDraggable;
 
 public class EventListener implements Listener {
@@ -34,4 +35,9 @@ public class EventListener implements Listener {
         Initialization.getInstance().getManager().getDraggableRepository().draggable().forEach(drag -> drag.packet(e));
     }
 
+
+    @EventHandler
+    public void onUsingItemEvent(UsingItemEvent e) {
+        Initialization.getInstance().getManager().getAttackPerpetrator().onUsingItem(e);
+    }
 }

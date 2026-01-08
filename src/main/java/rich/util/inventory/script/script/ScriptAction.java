@@ -1,4 +1,4 @@
-package rich.util.inventory;
+package rich.util.inventory.script.script;
 
 /**
  * Functional interface representing an action to be performed by a script.

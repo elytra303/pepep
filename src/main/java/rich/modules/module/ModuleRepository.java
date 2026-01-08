@@ -4,6 +4,7 @@ import lombok.AccessLevel;
 import lombok.experimental.FieldDefaults;
 import rich.modules.impl.combat.*;
 import rich.modules.impl.combat.NoInteract;
+import rich.modules.impl.combat.AutoTotem;
 import rich.modules.impl.misc.*;
 import rich.modules.impl.misc.autoparser.AutoParser;
 import rich.modules.impl.movement.*;
@@ -28,9 +29,15 @@ public class ModuleRepository {
                 new HitEffect(),
                 new BlockESP(),
                 new TriggerBot(),
+                new BowSpammer(),
+                new AutoTotem(),
+                new TapeMouse(),
                 new ElytraHelper(),
+                new ChinaHat(),
+                new AutoPotion(),
                 new Jesus(),
                 new ClientSounds(),
+                new AutoGApple(),
                 new TargetESP(),
                 new BlockOverlay(),
                 new HitSound(),
@@ -41,6 +48,7 @@ public class ModuleRepository {
                 new Strafe(),
                 new AutoDuel(),
                 new NoWeb(),
+                new AutoCrystal(),
                 new AutoTpAccept(),
                 new Spider(),
                 new ClickFriend(),
@@ -72,12 +80,11 @@ public class ModuleRepository {
                 new ElytraTarget(),
                 new FreeCam(),
                 new Speed(),
-//                new SwingAnimation(),
                 new NoEntityTrace(),
                 new AutoRespawn(),
                 new AutoSwap(),
-//                new AutoCrystal(),
                 new NoPush(),
+                new NoSlow(),
                 new Velocity(),
                 new AutoSprint(),
                 new AutoBuy()

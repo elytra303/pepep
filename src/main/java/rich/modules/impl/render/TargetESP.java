@@ -302,7 +302,7 @@ public class TargetESP extends ModuleStructure implements IMinecraft {
         float particleSize = 0.5f;
         int alphaFactor = 15;
 
-        long elapsed = System.currentTimeMillis() - stopWatch.getStartTime();
+        long elapsed = System.currentTimeMillis();
 
         int baseColor;
         switch (colorIndex) {
@@ -314,7 +314,7 @@ public class TargetESP extends ModuleStructure implements IMinecraft {
         for (int i = 0; i < 40 * alpha; i++) {
             stack.push();
 
-            double angle = 0.15 * ((elapsed) / 33.33 - (i * distance)) / 30.0;
+            double angle = 0.15 * ((elapsed * 0.5) - (i * distance)) / 30.0;
 
             double sin = Math.sin(angle) * radius;
             double cos = Math.cos(angle) * radius;
@@ -324,7 +324,7 @@ public class TargetESP extends ModuleStructure implements IMinecraft {
 
             stack.multiply(mc.gameRenderer.getCamera().getRotation());
 
-            float spinRotation = (elapsed / 166.67f - i * 100f / 16.67f);
+            float spinRotation = (elapsed * 0.1f) - (i * 10f);
             stack.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(spinRotation));
 
             stack.translate(particleSize / 2f, particleSize / 2f, 0);

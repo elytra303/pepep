@@ -1,4 +1,4 @@
-package rich.util.inventory;
+package rich.util.inventory.script.script;
 
 import com.google.common.collect.Lists;
 import lombok.Getter;

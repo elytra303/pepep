@@ -7,7 +7,6 @@ import rich.modules.impl.combat.aura.attack.StrikerConstructor;
 import rich.modules.module.*;
 import rich.screens.clickgui.ClickGui;
 import rich.util.config.ConfigSystem;
-import rich.util.inventory.impl.Scheduler;
 import rich.util.modules.ModuleProvider;
 import rich.util.modules.ModuleSwitcher;
 import rich.util.render.RenderCore;
@@ -22,8 +21,6 @@ import rich.screens.hud.drags.DraggableRepository;
 @Getter
 public class Manager {
     public StrikerConstructor attackPerpetrator = new StrikerConstructor();
-    public static Scheduler SCHEDULER = new Scheduler();
-
     private EventManager eventManager;
     private RenderCore renderCore;
     private Scissor scissor;

@@ -1,4 +1,4 @@
-package rich.util.inventory;
+package rich.util.inventory.script.script;
 
 import java.util.Collections;
 import java.util.Map;

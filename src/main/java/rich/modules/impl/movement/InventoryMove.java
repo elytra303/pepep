@@ -3,11 +3,16 @@ package rich.modules.impl.movement;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.experimental.FieldDefaults;
+import net.minecraft.client.gui.screen.ChatScreen;
+import net.minecraft.client.gui.screen.ingame.AbstractCommandBlockScreen;
+import net.minecraft.client.gui.screen.ingame.AnvilScreen;
+import net.minecraft.client.gui.screen.ingame.SignEditScreen;
+import net.minecraft.client.gui.screen.ingame.StructureBlockScreen;
+import net.minecraft.client.util.InputUtil;
 import net.minecraft.network.packet.Packet;
-import net.minecraft.network.packet.c2s.play.*;
+import net.minecraft.network.packet.c2s.play.ClickSlotC2SPacket;
 import net.minecraft.network.packet.s2c.play.CloseScreenS2CPacket;
 import net.minecraft.screen.slot.SlotActionType;
-import net.minecraft.client.util.InputUtil;
 import net.minecraft.util.PlayerInput;
 import rich.events.api.EventHandler;
 import rich.events.impl.ClickSlotEvent;
@@ -17,25 +22,26 @@ import rich.events.impl.TickEvent;
 import rich.modules.module.ModuleStructure;
 import rich.modules.module.category.ModuleCategory;
 import rich.modules.module.setting.implement.SelectSetting;
-import rich.util.inventory.InventoryFlowManager;
-import rich.util.inventory.InventoryTask;
+import rich.util.inventory.InventoryUtils;
 import rich.util.move.MoveUtil;
 import rich.util.string.PlayerInteractionHelper;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
 
 @Getter
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class InventoryMove extends ModuleStructure {
+
     private final List<Packet<?>> packets = new ArrayList<>();
     private final SelectSetting mode = new SelectSetting("Режим", "Выберите режим передвижения в инвентаре")
             .value("Normal", "Legit")
             .selected("Legit");
 
     enum MovePhase { READY, SLOWING_DOWN, ALLOW_MOVEMENT, SPEEDING_UP, SEND_PACKETS, FINISHED }
+
     MovePhase movePhase = MovePhase.READY;
     long actionStartTime = 0L;
-    boolean playerFullyStopped = false;
     boolean wasForwardPressed, wasBackPressed, wasLeftPressed, wasRightPressed, wasJumpPressed;
     boolean keysOverridden = false;
     boolean inventoryOpened = false;
@@ -46,17 +52,23 @@ public class InventoryMove extends ModuleStructure {
         setup(mode);
     }
 
+    @Override
+    public void deactivate() {
+        resetState();
+    }
+
     @EventHandler
     public void onPacket(PacketEvent e) {
         if (mode.isSelected("Legit")) {
-            switch (e.getPacket()) {
-                case ClickSlotC2SPacket slot when (packetsHeld || MoveUtil.hasPlayerMovement()) && InventoryFlowManager.shouldSkipExecution() -> {
+            if (e.getPacket() instanceof ClickSlotC2SPacket slot) {
+                if ((packetsHeld || MoveUtil.hasPlayerMovement()) && shouldSkipExecution()) {
                     packets.add(slot);
                     e.cancel();
                     packetsHeld = true;
                 }
-                case CloseScreenS2CPacket screen when screen.getSyncId() == 0 -> e.cancel();
-                default -> {
+            } else if (e.getPacket() instanceof CloseScreenS2CPacket screen) {
+                if (screen.getSyncId() == 0) {
+                    e.cancel();
                 }
             }
         }
@@ -64,11 +76,13 @@ public class InventoryMove extends ModuleStructure {
 
     @EventHandler
     public void onTick(TickEvent e) {
+        if (mc.player == null) return;
+
         if (mode.isSelected("Legit")) {
             processLegitMovement();
         } else {
-            if (!InventoryTask.isServerScreen() && InventoryFlowManager.shouldSkipExecution()) {
-                InventoryFlowManager.updateMoveKeys();
+            if (!isServerScreen() && shouldSkipExecution()) {
+                updateMoveKeys();
             }
         }
     }
@@ -98,11 +112,11 @@ public class InventoryMove extends ModuleStructure {
     }
 
     private void startLegitMovement() {
-        wasForwardPressed = InputUtil.isKeyPressed(mc.getWindow(), mc.options.forwardKey.getDefaultKey().getCode());
-        wasBackPressed = InputUtil.isKeyPressed(mc.getWindow(), mc.options.backKey.getDefaultKey().getCode());
-        wasLeftPressed = InputUtil.isKeyPressed(mc.getWindow(), mc.options.leftKey.getDefaultKey().getCode());
-        wasRightPressed = InputUtil.isKeyPressed(mc.getWindow(), mc.options.rightKey.getDefaultKey().getCode());
-        wasJumpPressed = InputUtil.isKeyPressed(mc.getWindow(), mc.options.jumpKey.getDefaultKey().getCode());
+        wasForwardPressed = isKeyPressed(mc.options.forwardKey.getDefaultKey().getCode());
+        wasBackPressed = isKeyPressed(mc.options.backKey.getDefaultKey().getCode());
+        wasLeftPressed = isKeyPressed(mc.options.leftKey.getDefaultKey().getCode());
+        wasRightPressed = isKeyPressed(mc.options.rightKey.getDefaultKey().getCode());
+        wasJumpPressed = isKeyPressed(mc.options.jumpKey.getDefaultKey().getCode());
 
         movePhase = MovePhase.ALLOW_MOVEMENT;
         keysOverridden = false;
@@ -139,8 +153,8 @@ public class InventoryMove extends ModuleStructure {
             }
 
             case ALLOW_MOVEMENT -> {
-                if (!InventoryTask.isServerScreen() && InventoryFlowManager.shouldSkipExecution()) {
-                    InventoryFlowManager.updateMoveKeys();
+                if (!isServerScreen() && shouldSkipExecution()) {
+                    updateMoveKeys();
                 }
             }
 
@@ -148,7 +162,7 @@ public class InventoryMove extends ModuleStructure {
                 if (!packets.isEmpty()) {
                     packets.forEach(PlayerInteractionHelper::sendPacketWithOutEvent);
                     packets.clear();
-                    InventoryTask.updateSlots();
+                    updateSlots();
                 }
                 packetsHeld = false;
                 movePhase = MovePhase.SPEEDING_UP;
@@ -164,7 +178,7 @@ public class InventoryMove extends ModuleStructure {
                 }
 
                 if (mc.player != null && mc.player.input != null) {
-                    boolean forward = InputUtil.isKeyPressed(mc.getWindow(), mc.options.forwardKey.getDefaultKey().getCode());
+                    boolean forward = isKeyPressed(mc.options.forwardKey.getDefaultKey().getCode());
 
                     if (speedupProgress > 0.5f && forward && !mc.player.isSprinting()) {
                         mc.player.setSprinting(true);
@@ -176,18 +190,16 @@ public class InventoryMove extends ModuleStructure {
                 }
             }
 
-            case FINISHED -> {
-                resetState();
-            }
+            case FINISHED -> resetState();
         }
     }
 
     private void restoreKeyStates() {
-        boolean currentForward = InputUtil.isKeyPressed(mc.getWindow(), mc.options.forwardKey.getDefaultKey().getCode());
-        boolean currentBack = InputUtil.isKeyPressed(mc.getWindow(), mc.options.backKey.getDefaultKey().getCode());
-        boolean currentLeft = InputUtil.isKeyPressed(mc.getWindow(), mc.options.leftKey.getDefaultKey().getCode());
-        boolean currentRight = InputUtil.isKeyPressed(mc.getWindow(), mc.options.rightKey.getDefaultKey().getCode());
-        boolean currentJump = InputUtil.isKeyPressed(mc.getWindow(), mc.options.jumpKey.getDefaultKey().getCode());
+        boolean currentForward = isKeyPressed(mc.options.forwardKey.getDefaultKey().getCode());
+        boolean currentBack = isKeyPressed(mc.options.backKey.getDefaultKey().getCode());
+        boolean currentLeft = isKeyPressed(mc.options.leftKey.getDefaultKey().getCode());
+        boolean currentRight = isKeyPressed(mc.options.rightKey.getDefaultKey().getCode());
+        boolean currentJump = isKeyPressed(mc.options.jumpKey.getDefaultKey().getCode());
 
         mc.options.forwardKey.setPressed(wasForwardPressed && currentForward);
         mc.options.backKey.setPressed(wasBackPressed && currentBack);
@@ -202,7 +214,6 @@ public class InventoryMove extends ModuleStructure {
             restoreKeyStates();
         }
         movePhase = MovePhase.READY;
-        playerFullyStopped = false;
         inventoryOpened = false;
         packetsHeld = false;
         packets.clear();
@@ -212,7 +223,9 @@ public class InventoryMove extends ModuleStructure {
     public void onClickSlot(ClickSlotEvent e) {
         if (mode.isSelected("Legit")) {
             SlotActionType actionType = e.getActionType();
-            if ((packetsHeld || MoveUtil.hasPlayerMovement()) && ((e.getButton() == 1 && !actionType.equals(SlotActionType.SWAP) && !actionType.equals(SlotActionType.THROW)) || actionType.equals(SlotActionType.PICKUP_ALL))) {
+            if ((packetsHeld || MoveUtil.hasPlayerMovement()) &&
+                    ((e.getButton() == 1 && !actionType.equals(SlotActionType.SWAP) && !actionType.equals(SlotActionType.THROW))
+                            || actionType.equals(SlotActionType.PICKUP_ALL))) {
                 e.cancel();
             }
         }
@@ -224,5 +237,41 @@ public class InventoryMove extends ModuleStructure {
             movePhase = MovePhase.SLOWING_DOWN;
             actionStartTime = System.currentTimeMillis();
         }
+    }
+
+    private boolean isKeyPressed(int keyCode) {
+        return InputUtil.isKeyPressed(mc.getWindow(), keyCode);
+    }
+
+    private void updateMoveKeys() {
+        mc.options.forwardKey.setPressed(isKeyPressed(mc.options.forwardKey.getDefaultKey().getCode()));
+        mc.options.backKey.setPressed(isKeyPressed(mc.options.backKey.getDefaultKey().getCode()));
+        mc.options.leftKey.setPressed(isKeyPressed(mc.options.leftKey.getDefaultKey().getCode()));
+        mc.options.rightKey.setPressed(isKeyPressed(mc.options.rightKey.getDefaultKey().getCode()));
+        mc.options.jumpKey.setPressed(isKeyPressed(mc.options.jumpKey.getDefaultKey().getCode()));
+    }
+
+    private boolean shouldSkipExecution() {
+        return mc.currentScreen != null
+                && !(mc.currentScreen instanceof ChatScreen)
+                && !(mc.currentScreen instanceof SignEditScreen)
+                && !(mc.currentScreen instanceof AnvilScreen)
+                && !(mc.currentScreen instanceof AbstractCommandBlockScreen)
+                && !(mc.currentScreen instanceof StructureBlockScreen);
+    }
+
+    private boolean isServerScreen() {
+        if (mc.player == null) return false;
+        return mc.player.currentScreenHandler.slots.size() != 46;
+    }
+
+    private void updateSlots() {
+        if (mc.player == null || mc.interactionManager == null) return;
+        mc.interactionManager.clickSlot(
+                mc.player.currentScreenHandler.syncId,
+                0, 0,
+                SlotActionType.PICKUP_ALL,
+                mc.player
+        );
     }
 }

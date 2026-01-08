@@ -8,16 +8,17 @@ import net.minecraft.client.network.AbstractClientPlayerEntity;
 import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.client.world.ClientWorld;
 import net.minecraft.entity.MovementType;
+import net.minecraft.util.math.Vec2f;
 import net.minecraft.util.math.Vec3d;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
-import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import rich.events.api.EventManager;
+import rich.events.api.types.EventType;
 import rich.events.impl.*;
 import rich.modules.impl.combat.aura.AngleConnection;
 import rich.modules.impl.movement.AutoSprint;
@@ -30,6 +31,11 @@ public abstract class ClientPlayerEntityMixin extends AbstractClientPlayerEntity
 
     @Shadow
     protected abstract void autoJump(float dx, float dz);
+
+    @Shadow
+    public abstract boolean isUsingItem();
+
+    public abstract boolean hasVehicle();
 
     @Final
     @Shadow
@@ -53,7 +59,6 @@ public abstract class ClientPlayerEntityMixin extends AbstractClientPlayerEntity
         }
     }
 
-
     @Inject(method = "tickMovement", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/input/Input;tick()V", shift = At.Shift.AFTER))
     private void onInputTick(CallbackInfo ci) {
         if (mc.player == null) return;
@@ -61,6 +66,28 @@ public abstract class ClientPlayerEntityMixin extends AbstractClientPlayerEntity
         EventManager.callEvent(event);
     }
 
+    @Redirect(
+            method = "applyMovementSpeedFactors",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/util/math/Vec2f;multiply(F)Lnet/minecraft/util/math/Vec2f;",
+                    ordinal = 1
+            )
+    )
+    private Vec2f cancelItemSlowdown(Vec2f vec2f, float multiplier) {
+        UsingItemEvent event = new UsingItemEvent(EventType.ON);
+        EventManager.callEvent(event);
+
+        if (event.isCancelled() && this.isUsingItem() && !this.hasVehicle()) {
+            return vec2f.multiply(1.0F);
+        }
+
+        if (this.isUsingItem() && !this.hasVehicle()) {
+            AutoSprint.blockSprint();
+        }
+
+        return vec2f.multiply(multiplier);
+    }
 
     @Inject(method = "closeHandledScreen", at = @At(value = "HEAD"), cancellable = true)
     private void closeHandledScreenHook(CallbackInfo info) {
@@ -68,22 +95,6 @@ public abstract class ClientPlayerEntityMixin extends AbstractClientPlayerEntity
         EventManager.callEvent(event);
         if (event.isCancelled()) info.cancel();
     }
-
-//    @Unique
-//    private boolean ignorehunger() {
-//        return AutoSprint.getInstance().isState() && AutoSprint.getInstance().getSettings().isSelected("Голод");
-//    }
-//
-//    @Inject(method = "canSprint", at = @At("RETURN"), cancellable = true)
-//    private void hunger(CallbackInfoReturnable<Boolean> cir) {
-//        if (cir.getReturnValue() || !ignorehunger()) return;
-//
-//        ClientPlayerEntity player = (ClientPlayerEntity)(Object)this;
-//        if (player.getHungerManager().getFoodLevel() > 6) return;
-//        if (this.input == null || !this.input.playerInput.forward()) return;
-//
-//        cir.setReturnValue(true);
-//    }
 
     @Inject(method = "pushOutOfBlocks", at = @At("HEAD"), cancellable = true)
     public void pushOutOfBlocks(double x, double z, CallbackInfo ci) {
