@@ -9,7 +9,7 @@ import rich.events.impl.KeyEvent;
 import rich.modules.module.ModuleStructure;
 import rich.modules.module.category.ModuleCategory;
 import rich.modules.module.setting.implement.BindSetting;
-import rich.util.repository.FriendUtils;
+import rich.util.repository.friend.FriendUtils;
 
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class ClickFriend extends ModuleStructure {

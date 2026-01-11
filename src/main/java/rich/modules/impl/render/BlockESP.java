@@ -15,6 +15,7 @@ import rich.modules.module.setting.implement.BooleanSetting;
 import rich.modules.module.setting.implement.ColorSetting;
 import rich.modules.module.setting.implement.SliderSettings;
 import rich.util.ColorUtil;
+import rich.util.config.impl.blockesp.BlockESPConfig;
 import rich.util.render.render3D.Render3D;
 import rich.util.string.chat.ChatMessage;
 
@@ -27,6 +28,7 @@ public class BlockESP extends ModuleStructure {
     ColorSetting color = new ColorSetting("Цвет", "Цвет подсветки блоков").value(ColorUtil.getColor(255, 0, 0, 255));
     SliderSettings range = new SliderSettings("Радиус", "Радиус поиска блоков").range(1, 128).setValue(32);
     BooleanSetting notifyInChat = new BooleanSetting("Уведомления", "Показывать координаты найденных блоков в чате").setValue(false);
+
     Set<String> blocksToHighlight = new CopyOnWriteArraySet<>();
     Map<BlockPos, BlockState> renderBlocks = new HashMap<>();
     Set<BlockPos> notifiedBlocks = new CopyOnWriteArraySet<>();
@@ -44,13 +46,13 @@ public class BlockESP extends ModuleStructure {
 
     @Override
     public void activate() {
-        super.activate();
+        blocksToHighlight.clear();
+        blocksToHighlight.addAll(BlockESPConfig.getInstance().getBlocks());
         notifiedBlocks.clear();
     }
 
     @Override
     public void deactivate() {
-        super.deactivate();
         renderBlocks.clear();
         notifiedBlocks.clear();
     }
@@ -152,18 +154,14 @@ public class BlockESP extends ModuleStructure {
             });
         }
         checkCounter++;
-        renderBlocks.forEach((pos, state) -> {
+        renderBlocks.forEach((pos, blockState) -> {
             Render3D.drawBox(new Box(pos), color.getColor(), 1);
         });
     }
 
     private void notifyBlockFound(BlockPos pos, String blockName) {
         if (mc.player != null) {
-            mc.player.sendMessage(ChatMessage.blockesp().append(" -> Найден блок " + blockName + " на координатах -> " + pos.getX() + ", " + pos.getY() + ", " + pos.getZ()), false);
+            ChatMessage.brandmessage("Найден блок " + blockName + " -> " + pos.getX() + ", " + pos.getY() + ", " + pos.getZ());
         }
-    }
-
-    private String getBlockName(BlockState state) {
-        return state.getBlock().asItem().toString().replace("minecraft:", "").replace("_ore", "").replace("_", " ");
     }
 }

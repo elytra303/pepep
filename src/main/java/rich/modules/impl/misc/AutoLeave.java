@@ -12,7 +12,7 @@ import rich.modules.module.setting.implement.MultiSelectSetting;
 import rich.modules.module.setting.implement.SelectSetting;
 import rich.modules.module.setting.implement.SliderSettings;
 import rich.util.network.Network;
-import rich.util.repository.FriendUtils;
+import rich.util.repository.friend.FriendUtils;
 
 
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)

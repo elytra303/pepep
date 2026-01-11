@@ -8,7 +8,7 @@ import rich.events.api.EventHandler;
 import rich.events.impl.PacketEvent;
 import rich.events.impl.TickEvent;
 import rich.events.impl.UsingItemEvent;
-import rich.screens.hud.drags.AbstractDraggable;
+import rich.client.draggables.AbstractDraggable;
 
 public class EventListener implements Listener {
     public static boolean serverSprint;

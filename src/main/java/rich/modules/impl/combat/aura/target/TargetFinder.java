@@ -16,6 +16,7 @@ import rich.modules.impl.combat.AntiBot;
 import rich.modules.impl.combat.aura.AngleConnection;
 import rich.modules.impl.combat.aura.MathAngle;
 import rich.modules.impl.combat.aura.impl.LinearConstructor;
+import rich.util.repository.friend.FriendUtils;
 
 import java.util.Comparator;
 import java.util.List;
@@ -45,7 +46,6 @@ public class TargetFinder implements IMinecraft {
         this.currentTarget = null;
     }
 
-
     public void validateTarget(Predicate<LivingEntity> predicate) {
         findFirstMatch(predicate).ifPresent(this::lockTarget);
 
@@ -53,7 +53,6 @@ public class TargetFinder implements IMinecraft {
             releaseTarget();
         }
     }
-
 
     public void searchTargets(Iterable<Entity> entities, float maxDistance, float maxFov, boolean ignoreWalls) {
         if (currentTarget != null && (!pointFinder.hasValidPoint(currentTarget, maxDistance, ignoreWalls) || getFov(currentTarget, maxDistance, ignoreWalls) > maxFov)) {
@@ -67,7 +66,6 @@ public class TargetFinder implements IMinecraft {
         Vec3d attackVector = pointFinder.computeVector(entity, maxDistance, AngleConnection.INSTANCE.getRotation(), new LinearConstructor().randomValue(), ignoreWalls).getLeft();
         return RaycastAngle.rayTrace(maxDistance, entity.getBoundingBox()) ? 0 : AngleConnection.computeRotationDifference(MathAngle.cameraAngle(), MathAngle.calculateAngle(attackVector));
     }
-
 
     private Stream<LivingEntity> createStreamFromEntities(Iterable<Entity> entities, float maxDistance, float maxFov, boolean ignoreWalls) {
         return StreamSupport.stream(entities.spliterator(), false)
@@ -105,19 +103,27 @@ public class TargetFinder implements IMinecraft {
             return entity instanceof PlayerEntity player && AntiBot.getInstance().isBot(player);
         }
 
-        private boolean isNakedPlayer(LivingEntity entity) {
-            return entity.isPlayer();
+        private boolean isFriendPlayer(LivingEntity entity) {
+            return entity instanceof PlayerEntity && FriendUtils.isFriend(entity);
         }
 
         private boolean isValidEntityType(LivingEntity entity) {
-            return switch (entity) {
-                case PlayerEntity player -> targetSettings.contains("Игроки");
-                case AnimalEntity animal -> targetSettings.contains("Животные");
-                case MobEntity mob -> targetSettings.contains("Мобы");
-                case ArmorStandEntity armorStand -> targetSettings.contains("Стойки для брони");
-
-                default -> false;
-            };
+            if (entity instanceof PlayerEntity player) {
+                if (FriendUtils.isFriend(player)) {
+                    return targetSettings.contains("Друзья");
+                }
+                return targetSettings.contains("Игроки");
+            }
+            if (entity instanceof AnimalEntity) {
+                return targetSettings.contains("Животные");
+            }
+            if (entity instanceof MobEntity) {
+                return targetSettings.contains("Мобы");
+            }
+            if (entity instanceof ArmorStandEntity) {
+                return targetSettings.contains("Стойки для брони");
+            }
+            return false;
         }
     }
 }

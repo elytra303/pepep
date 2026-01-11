@@ -1,6 +1,5 @@
 package rich.util.render.render3D;
 
-import com.mojang.blaze3d.systems.RenderSystem;
 import lombok.Setter;
 import lombok.experimental.UtilityClass;
 import net.minecraft.client.render.*;
@@ -13,6 +12,7 @@ import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.util.shape.VoxelShape;
 import org.joml.Matrix4f;
+import org.joml.Quaternionf;
 import org.joml.Vector3f;
 import rich.IMinecraft;
 import rich.events.impl.WorldRenderEvent;
@@ -36,12 +36,18 @@ public class Render3D implements IMinecraft {
     public final List<GradientQuad> GRADIENT_QUAD = new ArrayList<>();
     public final List<GradientQuad> GRADIENT_QUAD_DEPTH = new ArrayList<>();
 
+    public final Matrix4f lastProjMat = new Matrix4f();
+    public final Matrix4f lastModMat = new Matrix4f();
+    public final Matrix4f lastWorldSpaceMatrix = new Matrix4f();
+
     @Setter
-    public Matrix4f lastProjMat = new Matrix4f();
-    @Setter
-    public MatrixStack.Entry lastWorldSpaceMatrix = new MatrixStack().peek();
+    public MatrixStack.Entry lastWorldSpaceEntry = new MatrixStack().peek();
     @Setter
     public float lastTickDelta = 1.0f;
+    @Setter
+    public Vec3d lastCameraPos = Vec3d.ZERO;
+    @Setter
+    public Quaternionf lastCameraRotation = new Quaternionf();
 
     private float espValue = 1f;
     private float espSpeed = 1f;
@@ -92,7 +98,7 @@ public class Render3D implements IMinecraft {
         MatrixStack matrices = e.getStack();
         VertexConsumerProvider.Immediate immediate = mc.getBufferBuilders().getEntityVertexConsumers();
 
-        Vec3d cameraPos = mc.gameRenderer.getCamera().getCameraPos();
+        Vec3d cameraPos = lastCameraPos;
 
         renderGradientQuads(matrices, immediate, cameraPos);
         renderQuads(matrices, immediate, cameraPos);
@@ -298,6 +304,291 @@ public class Render3D implements IMinecraft {
             int circleColorNext = ColorUtil.multAlpha(nextColor, 1f * anim);
             drawLineGradient(circlePoint, nextCirclePoint, circleColor, circleColorNext, 2f, canSee);
         }
+    }
+
+    public void drawRadiusCircle(Vec3d center, float radius, int color) {
+        if (mc.player == null) return;
+
+        double baseY = center.y;
+        int fillColor = ColorUtil.multAlpha(color, 0.25f);
+
+        int radiusInt = (int) Math.ceil(radius) + 1;
+
+        for (int dx = -radiusInt; dx <= radiusInt; dx++) {
+            for (int dz = -radiusInt; dz <= radiusInt; dz++) {
+                boolean hasCornerInside = false;
+                boolean hasCornerOutside = false;
+
+                for (double ox = -0.5; ox <= 0.5; ox += 1.0) {
+                    for (double oz = -0.5; oz <= 0.5; oz += 1.0) {
+                        double cornerDist = Math.sqrt((dx + ox) * (dx + ox) + (dz + oz) * (dz + oz));
+                        if (cornerDist <= radius) {
+                            hasCornerInside = true;
+                        } else {
+                            hasCornerOutside = true;
+                        }
+                    }
+                }
+
+                if (hasCornerInside && hasCornerOutside) {
+                    double x = center.x + dx;
+                    double z = center.z + dz;
+
+                    Box box = new Box(
+                            x - 0.5, baseY, z - 0.5,
+                            x + 0.5, baseY + 1, z + 0.5
+                    );
+
+                    drawBoxWithCross(box, color, fillColor, 2f);
+                }
+            }
+        }
+    }
+
+    public void drawBoxWithCross(Box box, int lineColor, int fillColor, float lineWidth) {
+        double x1 = box.minX;
+        double y1 = box.minY;
+        double z1 = box.minZ;
+        double x2 = box.maxX;
+        double y2 = box.maxY;
+        double z2 = box.maxZ;
+
+        drawQuad(new Vec3d(x1, y1, z1), new Vec3d(x2, y1, z1), new Vec3d(x2, y1, z2), new Vec3d(x1, y1, z2), fillColor, false);
+        drawQuad(new Vec3d(x1, y1, z1), new Vec3d(x1, y2, z1), new Vec3d(x2, y2, z1), new Vec3d(x2, y1, z1), fillColor, false);
+        drawQuad(new Vec3d(x2, y1, z1), new Vec3d(x2, y2, z1), new Vec3d(x2, y2, z2), new Vec3d(x2, y1, z2), fillColor, false);
+        drawQuad(new Vec3d(x1, y1, z2), new Vec3d(x2, y1, z2), new Vec3d(x2, y2, z2), new Vec3d(x1, y2, z2), fillColor, false);
+        drawQuad(new Vec3d(x1, y1, z1), new Vec3d(x1, y1, z2), new Vec3d(x1, y2, z2), new Vec3d(x1, y2, z1), fillColor, false);
+        drawQuad(new Vec3d(x1, y2, z1), new Vec3d(x1, y2, z2), new Vec3d(x2, y2, z2), new Vec3d(x2, y2, z1), fillColor, false);
+
+        drawLine(new Vec3d(x1, y1, z1), new Vec3d(x2, y1, z1), lineColor, lineWidth, false);
+        drawLine(new Vec3d(x2, y1, z1), new Vec3d(x2, y1, z2), lineColor, lineWidth, false);
+        drawLine(new Vec3d(x2, y1, z2), new Vec3d(x1, y1, z2), lineColor, lineWidth, false);
+        drawLine(new Vec3d(x1, y1, z2), new Vec3d(x1, y1, z1), lineColor, lineWidth, false);
+        drawLine(new Vec3d(x1, y1, z2), new Vec3d(x1, y2, z2), lineColor, lineWidth, false);
+        drawLine(new Vec3d(x1, y1, z1), new Vec3d(x1, y2, z1), lineColor, lineWidth, false);
+        drawLine(new Vec3d(x2, y1, z2), new Vec3d(x2, y2, z2), lineColor, lineWidth, false);
+        drawLine(new Vec3d(x2, y1, z1), new Vec3d(x2, y2, z1), lineColor, lineWidth, false);
+        drawLine(new Vec3d(x1, y2, z1), new Vec3d(x2, y2, z1), lineColor, lineWidth, false);
+        drawLine(new Vec3d(x2, y2, z1), new Vec3d(x2, y2, z2), lineColor, lineWidth, false);
+        drawLine(new Vec3d(x2, y2, z2), new Vec3d(x1, y2, z2), lineColor, lineWidth, false);
+        drawLine(new Vec3d(x1, y2, z2), new Vec3d(x1, y2, z1), lineColor, lineWidth, false);
+
+        int crossColor = ColorUtil.multAlpha(lineColor, 0.6f);
+        float crossWidth = lineWidth * 0.8f;
+
+        drawLine(new Vec3d(x1, y1, z1), new Vec3d(x2, y1, z2), crossColor, crossWidth, false);
+        drawLine(new Vec3d(x2, y1, z1), new Vec3d(x1, y1, z2), crossColor, crossWidth, false);
+
+        drawLine(new Vec3d(x1, y2, z1), new Vec3d(x2, y2, z2), crossColor, crossWidth, false);
+        drawLine(new Vec3d(x2, y2, z1), new Vec3d(x1, y2, z2), crossColor, crossWidth, false);
+
+        drawLine(new Vec3d(x1, y1, z1), new Vec3d(x2, y2, z1), crossColor, crossWidth, false);
+        drawLine(new Vec3d(x2, y1, z1), new Vec3d(x1, y2, z1), crossColor, crossWidth, false);
+
+        drawLine(new Vec3d(x1, y1, z2), new Vec3d(x2, y2, z2), crossColor, crossWidth, false);
+        drawLine(new Vec3d(x2, y1, z2), new Vec3d(x1, y2, z2), crossColor, crossWidth, false);
+
+        drawLine(new Vec3d(x1, y1, z1), new Vec3d(x1, y2, z2), crossColor, crossWidth, false);
+        drawLine(new Vec3d(x1, y1, z2), new Vec3d(x1, y2, z1), crossColor, crossWidth, false);
+
+        drawLine(new Vec3d(x2, y1, z1), new Vec3d(x2, y2, z2), crossColor, crossWidth, false);
+        drawLine(new Vec3d(x2, y1, z2), new Vec3d(x2, y2, z1), crossColor, crossWidth, false);
+    }
+
+    public void drawBoxWithCrossFull(Box box, int lineColor, int fillColor, float lineWidth) {
+        double x1 = box.minX;
+        double y1 = box.minY;
+        double z1 = box.minZ;
+        double x2 = box.maxX;
+        double y2 = box.maxY;
+        double z2 = box.maxZ;
+
+        drawQuad(new Vec3d(x1, y1, z1), new Vec3d(x2, y1, z1), new Vec3d(x2, y1, z2), new Vec3d(x1, y1, z2), fillColor, false);
+        drawQuad(new Vec3d(x1, y1, z1), new Vec3d(x1, y2, z1), new Vec3d(x2, y2, z1), new Vec3d(x2, y1, z1), fillColor, false);
+        drawQuad(new Vec3d(x2, y1, z1), new Vec3d(x2, y2, z1), new Vec3d(x2, y2, z2), new Vec3d(x2, y1, z2), fillColor, false);
+        drawQuad(new Vec3d(x1, y1, z2), new Vec3d(x2, y1, z2), new Vec3d(x2, y2, z2), new Vec3d(x1, y2, z2), fillColor, false);
+        drawQuad(new Vec3d(x1, y1, z1), new Vec3d(x1, y1, z2), new Vec3d(x1, y2, z2), new Vec3d(x1, y2, z1), fillColor, false);
+        drawQuad(new Vec3d(x1, y2, z1), new Vec3d(x1, y2, z2), new Vec3d(x2, y2, z2), new Vec3d(x2, y2, z1), fillColor, false);
+
+        drawQuad(new Vec3d(x1, y1, z2), new Vec3d(x2, y1, z2), new Vec3d(x2, y1, z1), new Vec3d(x1, y1, z1), fillColor, false);
+        drawQuad(new Vec3d(x2, y1, z1), new Vec3d(x2, y2, z1), new Vec3d(x1, y2, z1), new Vec3d(x1, y1, z1), fillColor, false);
+        drawQuad(new Vec3d(x2, y1, z2), new Vec3d(x2, y2, z2), new Vec3d(x2, y2, z1), new Vec3d(x2, y1, z1), fillColor, false);
+        drawQuad(new Vec3d(x1, y2, z2), new Vec3d(x2, y2, z2), new Vec3d(x2, y1, z2), new Vec3d(x1, y1, z2), fillColor, false);
+        drawQuad(new Vec3d(x1, y2, z1), new Vec3d(x1, y2, z2), new Vec3d(x1, y1, z2), new Vec3d(x1, y1, z1), fillColor, false);
+        drawQuad(new Vec3d(x2, y2, z1), new Vec3d(x2, y2, z2), new Vec3d(x1, y2, z2), new Vec3d(x1, y2, z1), fillColor, false);
+
+        drawLine(new Vec3d(x1, y1, z1), new Vec3d(x2, y1, z1), lineColor, lineWidth, false);
+        drawLine(new Vec3d(x2, y1, z1), new Vec3d(x2, y1, z2), lineColor, lineWidth, false);
+        drawLine(new Vec3d(x2, y1, z2), new Vec3d(x1, y1, z2), lineColor, lineWidth, false);
+        drawLine(new Vec3d(x1, y1, z2), new Vec3d(x1, y1, z1), lineColor, lineWidth, false);
+        drawLine(new Vec3d(x1, y1, z2), new Vec3d(x1, y2, z2), lineColor, lineWidth, false);
+        drawLine(new Vec3d(x1, y1, z1), new Vec3d(x1, y2, z1), lineColor, lineWidth, false);
+        drawLine(new Vec3d(x2, y1, z2), new Vec3d(x2, y2, z2), lineColor, lineWidth, false);
+        drawLine(new Vec3d(x2, y1, z1), new Vec3d(x2, y2, z1), lineColor, lineWidth, false);
+        drawLine(new Vec3d(x1, y2, z1), new Vec3d(x2, y2, z1), lineColor, lineWidth, false);
+        drawLine(new Vec3d(x2, y2, z1), new Vec3d(x2, y2, z2), lineColor, lineWidth, false);
+        drawLine(new Vec3d(x2, y2, z2), new Vec3d(x1, y2, z2), lineColor, lineWidth, false);
+        drawLine(new Vec3d(x1, y2, z2), new Vec3d(x1, y2, z1), lineColor, lineWidth, false);
+
+        int crossColor = ColorUtil.multAlpha(lineColor, 0.6f);
+        float crossWidth = lineWidth * 0.8f;
+
+        drawLine(new Vec3d(x1, y1, z1), new Vec3d(x2, y1, z2), crossColor, crossWidth, false);
+        drawLine(new Vec3d(x2, y1, z1), new Vec3d(x1, y1, z2), crossColor, crossWidth, false);
+
+        drawLine(new Vec3d(x1, y2, z1), new Vec3d(x2, y2, z2), crossColor, crossWidth, false);
+        drawLine(new Vec3d(x2, y2, z1), new Vec3d(x1, y2, z2), crossColor, crossWidth, false);
+
+        drawLine(new Vec3d(x1, y1, z1), new Vec3d(x2, y2, z1), crossColor, crossWidth, false);
+        drawLine(new Vec3d(x2, y1, z1), new Vec3d(x1, y2, z1), crossColor, crossWidth, false);
+
+        drawLine(new Vec3d(x1, y1, z2), new Vec3d(x2, y2, z2), crossColor, crossWidth, false);
+        drawLine(new Vec3d(x2, y1, z2), new Vec3d(x1, y2, z2), crossColor, crossWidth, false);
+
+        drawLine(new Vec3d(x1, y1, z1), new Vec3d(x1, y2, z2), crossColor, crossWidth, false);
+        drawLine(new Vec3d(x1, y1, z2), new Vec3d(x1, y2, z1), crossColor, crossWidth, false);
+
+        drawLine(new Vec3d(x2, y1, z1), new Vec3d(x2, y2, z2), crossColor, crossWidth, false);
+        drawLine(new Vec3d(x2, y1, z2), new Vec3d(x2, y2, z1), crossColor, crossWidth, false);
+    }
+
+    public void drawPlastShape(BlockPos playerPos, Vec3d smooth, int lineColor, int fillColor) {
+        if (mc.player == null) return;
+
+        float yaw = MathHelper.wrapDegrees(mc.player.getYaw());
+
+        if (Math.abs(mc.player.getPitch()) > 60) {
+            BlockPos blockPos = playerPos.up().offset(mc.player.getFacing(), 3);
+            Vec3d pos1 = Vec3d.of(blockPos.east(3).south(3).down()).add(smooth);
+            Vec3d pos2 = Vec3d.of(blockPos.west(2).north(2).up()).add(smooth);
+            drawBoxWithCrossFull(new Box(pos1, pos2), lineColor, fillColor, 3);
+        } else if (yaw <= -157.5F || yaw >= 157.5F) {
+            BlockPos blockPos = playerPos.north(3).up();
+            Vec3d pos1 = Vec3d.of(blockPos.down(2).east(3)).add(smooth);
+            Vec3d pos2 = Vec3d.of(blockPos.up(3).west(2).south(2)).add(smooth);
+            drawBoxWithCrossFull(new Box(pos1, pos2), lineColor, fillColor, 3);
+        } else if (yaw <= -112.5F) {
+            drawSidePlast(playerPos.east(5).south().down(), smooth, lineColor, fillColor, -1, true);
+        } else if (yaw <= -67.5F) {
+            BlockPos blockPos = playerPos.east(2).up();
+            Vec3d pos1 = Vec3d.of(blockPos.down(2).south(3)).add(smooth);
+            Vec3d pos2 = Vec3d.of(blockPos.up(3).north(2).east(2)).add(smooth);
+            drawBoxWithCrossFull(new Box(pos1, pos2), lineColor, fillColor, 3);
+        } else if (yaw <= -22.5F) {
+            drawSidePlast(playerPos.east(5).down(), smooth, lineColor, fillColor, 1, false);
+        } else if (yaw >= -22.5 && yaw <= 22.5) {
+            BlockPos blockPos = playerPos.south(2).up();
+            Vec3d pos1 = Vec3d.of(blockPos.down(2).east(3)).add(smooth);
+            Vec3d pos2 = Vec3d.of(blockPos.up(3).west(2).south(2)).add(smooth);
+            drawBoxWithCrossFull(new Box(pos1, pos2), lineColor, fillColor, 3);
+        } else if (yaw <= 67.5F) {
+            drawSidePlast(playerPos.west(4).down(), smooth, lineColor, fillColor, 1, true);
+        } else if (yaw <= 112.5F) {
+            BlockPos blockPos = playerPos.west(3).up();
+            Vec3d pos1 = Vec3d.of(blockPos.down(2).south(3)).add(smooth);
+            Vec3d pos2 = Vec3d.of(blockPos.up(3).north(2).east(2)).add(smooth);
+            drawBoxWithCrossFull(new Box(pos1, pos2), lineColor, fillColor, 3);
+        } else if (yaw <= 157.5F) {
+            drawSidePlast(playerPos.west(4).south().down(), smooth, lineColor, fillColor, -1, false);
+        }
+    }
+
+    private void drawSidePlast(BlockPos blockPos, Vec3d smooth, int lineColor, int fillColor, int i, boolean ff) {
+        Vec3d vec3d = Vec3d.of(blockPos).add(smooth);
+        int crossColor = ColorUtil.multAlpha(lineColor, 0.6f);
+
+        List<Vec3d> horizontalPoints = new ArrayList<>();
+
+        float x = ff ? i : -i;
+        Vec3d current = vec3d;
+
+        horizontalPoints.add(current);
+        current = current.add(x, 0, 0);
+        horizontalPoints.add(current);
+
+        for (int f = 0; f < 4; f++) {
+            current = current.add(0, 0, i);
+            horizontalPoints.add(current);
+            current = current.add(x, 0, 0);
+            horizontalPoints.add(current);
+        }
+
+        current = current.add(0, 0, i);
+        horizontalPoints.add(current);
+        current = current.add(x * -2, 0, 0);
+        horizontalPoints.add(current);
+
+        for (int f = 0; f < 3; f++) {
+            current = current.add(0, 0, i * -1);
+            horizontalPoints.add(current);
+            current = current.add(x * -1, 0, 0);
+            horizontalPoints.add(current);
+        }
+
+        current = current.add(0, 0, i * -2);
+        horizontalPoints.add(current);
+
+        for (int p = 0; p < horizontalPoints.size() - 1; p++) {
+            Vec3d p1 = horizontalPoints.get(p);
+            Vec3d p2 = horizontalPoints.get(p + 1);
+            drawLine(p1, p2, lineColor, 2f, false);
+            drawLine(p1.add(0, 5, 0), p2.add(0, 5, 0), lineColor, 2f, false);
+        }
+
+        for (Vec3d point : horizontalPoints) {
+            drawLine(point, point.add(0, 5, 0), lineColor, 2f, false);
+        }
+
+        for (int p = 0; p < horizontalPoints.size() - 1; p++) {
+            Vec3d p1 = horizontalPoints.get(p);
+            Vec3d p2 = horizontalPoints.get(p + 1);
+            Vec3d p1Top = p1.add(0, 5, 0);
+            Vec3d p2Top = p2.add(0, 5, 0);
+
+            drawQuad(p1, p2, p2Top, p1Top, fillColor, false);
+            drawQuad(p1Top, p2Top, p2, p1, fillColor, false);
+
+            drawLine(p1, p2Top, crossColor, 1.6f, false);
+            drawLine(p2, p1Top, crossColor, 1.6f, false);
+        }
+
+        current = vec3d;
+        drawQuad(current, current.add(x, 0, 0), current.add(x, 0, i * 2), current.add(0, 0, i * 2), fillColor, false);
+        drawQuad(current.add(0, 0, i * 2), current.add(x, 0, i * 2), current.add(x, 0, 0), current, fillColor, false);
+        drawLine(current, current.add(x, 0, i * 2), crossColor, 1.6f, false);
+        drawLine(current.add(x, 0, 0), current.add(0, 0, i * 2), crossColor, 1.6f, false);
+
+        for (int f = 0; f < 3; f++) {
+            current = current.add(x, 0, i);
+            drawQuad(current, current.add(x, 0, 0), current.add(x, 0, i * 2), current.add(0, 0, i * 2), fillColor, false);
+            drawQuad(current.add(0, 0, i * 2), current.add(x, 0, i * 2), current.add(x, 0, 0), current, fillColor, false);
+            drawLine(current, current.add(x, 0, i * 2), crossColor, 1.6f, false);
+            drawLine(current.add(x, 0, 0), current.add(0, 0, i * 2), crossColor, 1.6f, false);
+        }
+        current = current.add(x, 0, i);
+        drawQuad(current, current.add(x, 0, 0), current.add(x, 0, i), current.add(0, 0, i), fillColor, false);
+        drawQuad(current.add(0, 0, i), current.add(x, 0, i), current.add(x, 0, 0), current, fillColor, false);
+        drawLine(current, current.add(x, 0, i), crossColor, 1.6f, false);
+        drawLine(current.add(x, 0, 0), current.add(0, 0, i), crossColor, 1.6f, false);
+
+        current = vec3d.add(0, 5, 0);
+        drawQuad(current, current.add(0, 0, i * 2), current.add(x, 0, i * 2), current.add(x, 0, 0), fillColor, false);
+        drawQuad(current.add(x, 0, 0), current.add(x, 0, i * 2), current.add(0, 0, i * 2), current, fillColor, false);
+        drawLine(current, current.add(x, 0, i * 2), crossColor, 1.6f, false);
+        drawLine(current.add(x, 0, 0), current.add(0, 0, i * 2), crossColor, 1.6f, false);
+
+        for (int f = 0; f < 3; f++) {
+            current = current.add(x, 0, i);
+            drawQuad(current, current.add(0, 0, i * 2), current.add(x, 0, i * 2), current.add(x, 0, 0), fillColor, false);
+            drawQuad(current.add(x, 0, 0), current.add(x, 0, i * 2), current.add(0, 0, i * 2), current, fillColor, false);
+            drawLine(current, current.add(x, 0, i * 2), crossColor, 1.6f, false);
+            drawLine(current.add(x, 0, 0), current.add(0, 0, i * 2), crossColor, 1.6f, false);
+        }
+        current = current.add(x, 0, i);
+        drawQuad(current, current.add(0, 0, i), current.add(x, 0, i), current.add(x, 0, 0), fillColor, false);
+        drawQuad(current.add(x, 0, 0), current.add(x, 0, i), current.add(0, 0, i), current, fillColor, false);
+        drawLine(current, current.add(x, 0, i), crossColor, 1.6f, false);
+        drawLine(current.add(x, 0, 0), current.add(0, 0, i), crossColor, 1.6f, false);
     }
 
     private double lerp(double start, double end, double delta) {

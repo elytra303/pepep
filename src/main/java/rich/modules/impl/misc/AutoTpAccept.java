@@ -10,7 +10,7 @@ import rich.modules.module.ModuleStructure;
 import rich.modules.module.category.ModuleCategory;
 import rich.modules.module.setting.implement.BooleanSetting;
 import rich.util.network.Network;
-import rich.util.repository.FriendUtils;
+import rich.util.repository.friend.FriendUtils;
 
 
 import java.util.Arrays;

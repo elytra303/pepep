@@ -8,6 +8,7 @@ import rich.events.api.EventManager;
 import rich.events.api.EventHandler;
 import rich.events.impl.ChatEvent;
 import rich.events.impl.TabCompleteEvent;
+import rich.util.config.impl.prefix.PrefixConfig;
 import rich.util.string.chat.ChatMessage;
 
 import java.util.*;
@@ -22,7 +23,7 @@ public class CommandManager {
     public CommandManager() {
         instance = this;
         this.commands = new CopyOnWriteArrayList<>();
-        this.prefix = ".";
+        this.prefix = PrefixConfig.getInstance().getPrefix();
     }
 
     public static CommandManager getInstance() {
@@ -33,6 +34,13 @@ public class CommandManager {
         registerCommand(new HelpCommand());
         registerCommand(new ConfigCommand());
         registerCommand(new AutoBuyCommand());
+        registerCommand(new FriendCommand());
+        registerCommand(new MacroCommand());
+        registerCommand(new BindCommand());
+        registerCommand(new PrefixCommand());
+        registerCommand(new WayCommand());
+        registerCommand(new StaffCommand());
+        registerCommand(new BlockESPCommand());
 
         EventManager.register(this);
     }

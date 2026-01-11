@@ -11,6 +11,7 @@ import net.minecraft.client.gui.widget.TextFieldWidget;
 import net.minecraft.client.input.KeyInput;
 import net.minecraft.text.Text;
 import org.apache.commons.lang3.StringUtils;
+import rich.util.config.impl.proxy.ProxyConfig;
 
 public class GuiProxy extends Screen {
     private boolean isSocks4 = false;
@@ -105,40 +106,45 @@ public class GuiProxy extends Screen {
         int buttonLength = 160;
         centerButtons(10, buttonLength, 26);
 
-        isSocks4 = ProxyServer.proxy.type == Proxy.ProxyType.SOCKS4;
+        ProxyConfig config = ProxyConfig.getInstance();
+        Proxy currentProxy = config.getDefaultProxy();
+
+        isSocks4 = currentProxy.type == Proxy.ProxyType.SOCKS4;
 
         this.ipPort = new TextFieldWidget(this.textRenderer, positionX, positionY[3] + 10, buttonLength, 20, Text.literal(""));
-        this.ipPort.setText(ProxyServer.proxy.ipPort);
+        this.ipPort.setText(currentProxy.ipPort);
         this.ipPort.setMaxLength(1024);
         this.ipPort.setFocused(true);
         this.addSelectableChild(this.ipPort);
 
         this.username = new TextFieldWidget(this.textRenderer, positionX, positionY[4] + 10, buttonLength, 20, Text.literal(""));
         this.username.setMaxLength(255);
-        this.username.setText(ProxyServer.proxy.username);
+        this.username.setText(currentProxy.username);
         this.addSelectableChild(this.username);
 
         this.password = new TextFieldWidget(this.textRenderer, positionX, positionY[5] + 10, buttonLength, 20, Text.literal(""));
         this.password.setMaxLength(255);
-        this.password.setText(ProxyServer.proxy.password);
+        this.password.setText(currentProxy.password);
         this.addSelectableChild(this.password);
 
         int posXButtons = (this.width / 2) - (((buttonLength / 2) * 3) / 2);
 
         ButtonWidget apply = ButtonWidget.builder(Text.translatable("Применить"), button -> {
+            ProxyConfig cfg = ProxyConfig.getInstance();
+
             if (enabledCheck.isChecked()) {
                 if (checkProxy()) {
-                    ProxyServer.proxy = new Proxy(isSocks4, ipPort.getText(), username.getText(), password.getText());
-                    ProxyServer.proxyEnabled = true;
-                    Config.setDefaultProxy(ProxyServer.proxy);
-                    Config.saveConfig();
+                    Proxy newProxy = new Proxy(isSocks4, ipPort.getText(), username.getText(), password.getText());
+                    cfg.setDefaultProxy(newProxy);
+                    cfg.setProxyEnabled(true);
+                    cfg.save();
                     MinecraftClient.getInstance().setScreen(new MultiplayerScreen(new TitleScreen()));
                 }
             } else {
-                ProxyServer.proxy = new Proxy(isSocks4, ipPort.getText(), username.getText(), password.getText());
-                ProxyServer.proxyEnabled = false;
-                Config.setDefaultProxy(ProxyServer.proxy);
-                Config.saveConfig();
+                Proxy newProxy = new Proxy(isSocks4, ipPort.getText(), username.getText(), password.getText());
+                cfg.setDefaultProxy(newProxy);
+                cfg.setProxyEnabled(false);
+                cfg.save();
                 MinecraftClient.getInstance().setScreen(new MultiplayerScreen(new TitleScreen()));
             }
         }).dimensions(posXButtons + (buttonLength / 2 - 62) * 2, positionY[7] - 10, buttonLength / 2 + 3, 20).build();
@@ -146,8 +152,8 @@ public class GuiProxy extends Screen {
 
         CheckboxWidget.Builder checkboxBuilder = CheckboxWidget.builder(Text.translatable("Включить прокси"), this.textRenderer);
         checkboxBuilder.pos((this.width / 2 - 34) - (13 + textRenderer.getWidth(Text.translatable("Включить прокси"))) / 2, positionY[7] + 15);
-        if (ProxyServer.proxyEnabled) {
-            checkboxBuilder.checked(ProxyServer.proxyEnabled);
+        if (config.isProxyEnabled()) {
+            checkboxBuilder.checked(true);
         }
         this.enabledCheck = checkboxBuilder.build();
         this.addDrawableChild(this.enabledCheck);

@@ -6,7 +6,7 @@ import rich.events.api.EventHandler;
 import rich.events.impl.InteractEntityEvent;
 import rich.modules.module.ModuleStructure;
 import rich.modules.module.category.ModuleCategory;
-import rich.util.repository.FriendUtils;
+import rich.util.repository.friend.FriendUtils;
 
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class NoFriendDamage extends ModuleStructure {

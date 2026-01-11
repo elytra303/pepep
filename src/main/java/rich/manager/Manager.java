@@ -7,11 +7,19 @@ import rich.modules.impl.combat.aura.attack.StrikerConstructor;
 import rich.modules.module.*;
 import rich.screens.clickgui.ClickGui;
 import rich.util.config.ConfigSystem;
+import rich.util.config.impl.bind.BindConfig;
+import rich.util.config.impl.blockesp.BlockESPConfig;
+import rich.util.config.impl.friend.FriendConfig;
+import rich.util.config.impl.prefix.PrefixConfig;
+import rich.util.config.impl.proxy.ProxyConfig;
+import rich.util.config.impl.staff.StaffConfig;
 import rich.util.modules.ModuleProvider;
 import rich.util.modules.ModuleSwitcher;
 import rich.util.render.RenderCore;
 import rich.util.render.Scissor;
-import rich.screens.hud.drags.DraggableRepository;
+import rich.client.draggables.DraggableRepository;
+import rich.util.repository.macro.MacroRepository;
+import rich.util.repository.way.WayRepository;
 
 /**
  *  © 2026 Copyright Rich Client 2.0
@@ -33,6 +41,15 @@ public class Manager {
     private CommandManager commandManager;
 
     public void init() {
+        MacroRepository.getInstance().init();
+        WayRepository.getInstance().init();
+        BlockESPConfig.getInstance().load();
+        FriendConfig.getInstance().load();
+        PrefixConfig.getInstance().load();
+        StaffConfig.getInstance().load();
+        ProxyConfig.getInstance().load();
+        BindConfig.getInstance();
+
         clickgui = new ClickGui();
         eventManager = new EventManager();
         renderCore = new RenderCore();

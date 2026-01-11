@@ -1,14 +1,20 @@
 package rich.util.inventory;
 
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.component.DataComponentTypes;
+import net.minecraft.component.type.EquippableComponent;
 import net.minecraft.entity.EquipmentSlot;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
 import net.minecraft.network.packet.c2s.play.CloseHandledScreenC2SPacket;
+import net.minecraft.network.packet.c2s.play.PlayerInteractItemC2SPacket;
 import net.minecraft.network.packet.c2s.play.UpdateSelectedSlotC2SPacket;
 import net.minecraft.screen.slot.Slot;
 import net.minecraft.screen.slot.SlotActionType;
 import net.minecraft.util.Hand;
+import net.minecraft.client.network.PendingUpdateManager;
+import rich.mixin.ClientWorldAccessor;
 
 import java.util.Arrays;
 import java.util.Comparator;
@@ -21,8 +27,37 @@ public final class InventoryUtils {
             EquipmentSlot.FEET, EquipmentSlot.LEGS, EquipmentSlot.CHEST, EquipmentSlot.HEAD
     };
     private static int savedSlot = -1;
+    private static int silentSlot = -1;
 
     private InventoryUtils() {}
+
+    public static int findItemInHotbar(Item item) {
+        if (mc.player == null) return -1;
+        for (int i = 0; i < 9; i++) {
+            ItemStack stack = mc.player.getInventory().getStack(i);
+            if (!stack.isEmpty() && stack.getItem() == item) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    public static int findItemInInventory(Item item) {
+        if (mc.player == null) return -1;
+        for (int i = 9; i < 36; i++) {
+            ItemStack stack = mc.player.getInventory().getStack(i);
+            if (!stack.isEmpty() && stack.getItem() == item) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    public static int findItemAnywhere(Item item) {
+        int hotbar = findItemInHotbar(item);
+        if (hotbar != -1) return hotbar;
+        return findItemInInventory(item);
+    }
 
     public static InventoryResult find(Item item) {
         return find(stack -> stack.getItem() == item);
@@ -34,6 +69,46 @@ public final class InventoryUtils {
 
     public static InventoryResult find(List<Item> items) {
         return find(stack -> items.contains(stack.getItem()));
+    }
+
+    public static boolean hasElytra() {
+        if (mc.player == null) return false;
+        return mc.player.getEquippedStack(EquipmentSlot.CHEST).get(DataComponentTypes.GLIDER) != null;
+    }
+
+    public static int findHotbarItem(Item item) {
+        if (mc.player == null) return -1;
+
+        for (int i = 0; i < 9; i++) {
+            if (mc.player.getInventory().getStack(i).getItem() == item) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    public static int findElytraSlot() {
+        if (mc.player == null) return -1;
+
+        for (int i = 0; i < 46; i++) {
+            if (mc.player.getInventory().getStack(i).getItem() == Items.ELYTRA) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    public static int findChestArmorSlot() {
+        if (mc.player == null) return -1;
+
+        for (int i = 0; i < 46; i++) {
+            ItemStack stack = mc.player.getInventory().getStack(i);
+            EquippableComponent component = stack.get(DataComponentTypes.EQUIPPABLE);
+            if (component != null && component.slot() == EquipmentSlot.CHEST && stack.getItem() != Items.ELYTRA) {
+                return i;
+            }
+        }
+        return -1;
     }
 
     public static InventoryResult find(ItemSearcher searcher) {
@@ -149,6 +224,77 @@ public final class InventoryUtils {
         if (savedSlot != -1) {
             selectSlotSilent(savedSlot);
             savedSlot = -1;
+        }
+    }
+
+    public static void silentUseHotbarItem(int hotbarSlot) {
+        if (mc.player == null || mc.getNetworkHandler() == null) return;
+
+        int currentSlot = mc.player.getInventory().getSelectedSlot();
+
+        if (hotbarSlot != currentSlot) {
+            mc.getNetworkHandler().sendPacket(new UpdateSelectedSlotC2SPacket(hotbarSlot));
+        }
+
+        sendUsePacket(Hand.MAIN_HAND);
+
+        if (hotbarSlot != currentSlot) {
+            mc.getNetworkHandler().sendPacket(new UpdateSelectedSlotC2SPacket(currentSlot));
+        }
+    }
+
+    public static void silentSwapUseAndReturn(int inventorySlot) {
+        if (mc.player == null || mc.getNetworkHandler() == null) return;
+
+        int currentHotbarSlot = mc.player.getInventory().getSelectedSlot();
+
+        click(inventorySlot, currentHotbarSlot, SlotActionType.SWAP);
+
+        sendUsePacket(Hand.MAIN_HAND);
+
+        click(inventorySlot, currentHotbarSlot, SlotActionType.SWAP);
+    }
+
+    public static void silentUseItem(Item item) {
+        if (mc.player == null) return;
+
+        int hotbarSlot = findItemInHotbar(item);
+        if (hotbarSlot != -1) {
+            silentUseHotbarItem(hotbarSlot);
+            return;
+        }
+
+        int invSlot = findItemInInventory(item);
+        if (invSlot != -1) {
+            int wrappedSlot = wrapSlot(invSlot);
+            silentSwapUseAndReturn(wrappedSlot);
+            closeScreen();
+        }
+    }
+
+    public static void sendUsePacket(Hand hand) {
+        if (mc.player == null || mc.getNetworkHandler() == null || mc.world == null) return;
+
+        try {
+            ClientWorldAccessor worldAccessor = (ClientWorldAccessor) mc.world;
+            PendingUpdateManager pendingUpdateManager = worldAccessor.getPendingUpdateManager().incrementSequence();
+
+            int sequence = pendingUpdateManager.getSequence();
+            mc.getNetworkHandler().sendPacket(new PlayerInteractItemC2SPacket(
+                    hand,
+                    sequence,
+                    mc.player.getYaw(),
+                    mc.player.getPitch()
+            ));
+
+            pendingUpdateManager.close();
+        } catch (Exception e) {
+            mc.getNetworkHandler().sendPacket(new PlayerInteractItemC2SPacket(
+                    hand,
+                    0,
+                    mc.player.getYaw(),
+                    mc.player.getPitch()
+            ));
         }
     }
 

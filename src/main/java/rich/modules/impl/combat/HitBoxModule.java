@@ -9,7 +9,7 @@ import rich.events.impl.BoundingBoxControlEvent;
 import rich.modules.module.ModuleStructure;
 import rich.modules.module.category.ModuleCategory;
 import rich.modules.module.setting.implement.SliderSettings;
-import rich.util.repository.FriendUtils;
+import rich.util.repository.friend.FriendUtils;
 
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class HitBoxModule extends ModuleStructure {

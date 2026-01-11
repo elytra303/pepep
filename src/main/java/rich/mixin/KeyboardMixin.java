@@ -14,6 +14,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import rich.events.api.EventManager;
 import rich.events.impl.KeyEvent;
 import rich.screens.clickgui.ClickGui;
+import rich.util.config.impl.bind.BindConfig;
 
 @Mixin(Keyboard.class)
 public class KeyboardMixin {
@@ -26,7 +27,7 @@ public class KeyboardMixin {
     private void onKey(long window, int action, KeyInput input, CallbackInfo ci) {
         if (input.key() != GLFW.GLFW_KEY_UNKNOWN && window == client.getWindow().getHandle()) {
 
-            if (action == 0 && input.key() == GLFW.GLFW_KEY_RIGHT_SHIFT && client.currentScreen == null) {
+            if (action == 0 && input.key() == BindConfig.getInstance().getBindKey() && client.currentScreen == null) {
                 ClickGui.INSTANCE.openGui();
             }
 

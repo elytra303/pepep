@@ -3,7 +3,7 @@ package rich.util;
 import lombok.experimental.UtilityClass;
 import rich.Initialization;
 import rich.modules.module.ModuleStructure;
-import rich.screens.hud.drags.AbstractDraggable;
+import rich.client.draggables.AbstractDraggable;
 
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;

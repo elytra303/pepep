@@ -30,7 +30,7 @@ import rich.modules.module.setting.implement.SliderSettings;
 import rich.util.inventory.InventoryUtils;
 import rich.util.inventory.SwapExecutor;
 import rich.util.inventory.SwapSettings;
-import rich.util.repository.FriendUtils;
+import rich.util.repository.friend.FriendUtils;
 import rich.util.string.PlayerInteractionHelper;
 
 import java.util.List;

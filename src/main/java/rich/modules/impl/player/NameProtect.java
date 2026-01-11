@@ -8,7 +8,7 @@ import rich.modules.module.ModuleStructure;
 import rich.modules.module.category.ModuleCategory;
 import rich.modules.module.setting.implement.BooleanSetting;
 import rich.modules.module.setting.implement.TextSetting;
-import rich.util.repository.FriendUtils;
+import rich.util.repository.friend.FriendUtils;
 
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class NameProtect extends ModuleStructure {

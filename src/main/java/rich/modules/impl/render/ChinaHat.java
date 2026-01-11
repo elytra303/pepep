@@ -4,9 +4,7 @@ import lombok.AccessLevel;
 import lombok.experimental.FieldDefaults;
 import rich.modules.module.ModuleStructure;
 import rich.modules.module.category.ModuleCategory;
-import rich.modules.module.setting.implement.BooleanSetting;
 import rich.modules.module.setting.implement.ColorSetting;
-import rich.modules.module.setting.implement.SliderSettings;
 import rich.util.ColorUtil;
 
 @FieldDefaults(level = AccessLevel.PRIVATE)

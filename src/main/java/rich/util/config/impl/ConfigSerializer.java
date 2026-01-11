@@ -13,11 +13,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-/**
- *  © 2026 Copyright Rich Client 2.0
- *        All Rights Reserved ®
- */
-
 public class ConfigSerializer {
 
     private static final Gson GSON = new GsonBuilder()

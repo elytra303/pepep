@@ -11,18 +11,21 @@ import net.minecraft.client.gui.screen.ingame.StructureBlockScreen;
 import net.minecraft.client.util.InputUtil;
 import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.c2s.play.ClickSlotC2SPacket;
+import net.minecraft.network.packet.c2s.play.CloseHandledScreenC2SPacket;
 import net.minecraft.network.packet.s2c.play.CloseScreenS2CPacket;
 import net.minecraft.screen.slot.SlotActionType;
 import net.minecraft.util.PlayerInput;
 import rich.events.api.EventHandler;
 import rich.events.impl.ClickSlotEvent;
 import rich.events.impl.CloseScreenEvent;
+import rich.events.impl.InputEvent;
 import rich.events.impl.PacketEvent;
 import rich.events.impl.TickEvent;
 import rich.modules.module.ModuleStructure;
 import rich.modules.module.category.ModuleCategory;
+import rich.modules.module.setting.implement.BooleanSetting;
 import rich.modules.module.setting.implement.SelectSetting;
-import rich.util.inventory.InventoryUtils;
+import rich.util.inventory.MovementController;
 import rich.util.move.MoveUtil;
 import rich.util.string.PlayerInteractionHelper;
 
@@ -34,27 +37,56 @@ import java.util.List;
 public class InventoryMove extends ModuleStructure {
 
     private final List<Packet<?>> packets = new ArrayList<>();
+
     private final SelectSetting mode = new SelectSetting("Режим", "Выберите режим передвижения в инвентаре")
             .value("Normal", "Legit")
             .selected("Legit");
 
-    enum MovePhase { READY, SLOWING_DOWN, ALLOW_MOVEMENT, SPEEDING_UP, SEND_PACKETS, FINISHED }
+    private final BooleanSetting grimBypass = new BooleanSetting("Grim Bypass", "Остановка движения при закрытии инвентаря")
+            .setValue(true);
+
+    enum MovePhase {
+        READY,
+        ALLOW_MOVEMENT,
+        STOPPING,
+        WAIT_STOP,
+        SLOWING_DOWN,
+        SEND_PACKETS,
+        SPEEDING_UP,
+        RESUMING,
+        CLOSE_INVENTORY,
+        FINISHED
+    }
+
+    final MovementController movement = new MovementController();
 
     MovePhase movePhase = MovePhase.READY;
     long actionStartTime = 0L;
+    int currentDelay = 0;
     boolean wasForwardPressed, wasBackPressed, wasLeftPressed, wasRightPressed, wasJumpPressed;
     boolean keysOverridden = false;
     boolean inventoryOpened = false;
     boolean packetsHeld = false;
+    boolean pendingClose = false;
+    int closeScreenSyncId = -1;
 
     public InventoryMove() {
         super("InventoryMove", "Inventory Move", ModuleCategory.MOVEMENT);
-        setup(mode);
+        setup(mode, grimBypass);
     }
 
     @Override
     public void deactivate() {
         resetState();
+    }
+
+    @EventHandler
+    public void onInput(InputEvent e) {
+        if (mc.player == null) return;
+        if (movement.isBlocked()) {
+            e.setDirectionalLow(false, false, false, false);
+            e.setJumping(false);
+        }
     }
 
     @EventHandler
@@ -95,14 +127,16 @@ public class InventoryMove extends ModuleStructure {
             inventoryOpened = true;
         }
 
-        if (!hasOpenScreen && inventoryOpened) {
-            if (packetsHeld && movePhase == MovePhase.ALLOW_MOVEMENT) {
-                movePhase = MovePhase.SLOWING_DOWN;
-                actionStartTime = System.currentTimeMillis();
-            } else if (!packetsHeld) {
+        if (pendingClose) {
+            handlePendingClose();
+            return;
+        }
+
+        if (!hasOpenScreen && inventoryOpened && movePhase != MovePhase.READY) {
+            inventoryOpened = false;
+            if (movePhase == MovePhase.ALLOW_MOVEMENT) {
                 resetState();
             }
-            inventoryOpened = false;
             return;
         }
 
@@ -111,111 +145,162 @@ public class InventoryMove extends ModuleStructure {
         }
     }
 
+    private void handlePendingClose() {
+        long elapsed = System.currentTimeMillis() - actionStartTime;
+
+        switch (movePhase) {
+            case STOPPING -> {
+                movement.block();
+                movement.stopSprint();
+                movePhase = MovePhase.WAIT_STOP;
+                actionStartTime = System.currentTimeMillis();
+            }
+            case WAIT_STOP -> {
+                movement.block();
+                boolean stopped = isPlayerStopped();
+                if (stopped || elapsed >= 100) {
+                    if (packetsHeld) {
+                        movePhase = MovePhase.SEND_PACKETS;
+                    } else {
+                        movePhase = MovePhase.CLOSE_INVENTORY;
+                    }
+                    actionStartTime = System.currentTimeMillis();
+                }
+            }
+            case SLOWING_DOWN -> {
+                blockMovementInput();
+                if (elapsed > 1) {
+                    movePhase = MovePhase.SEND_PACKETS;
+                    actionStartTime = System.currentTimeMillis();
+                }
+            }
+            case SEND_PACKETS -> {
+                sendHeldPackets();
+                movePhase = MovePhase.CLOSE_INVENTORY;
+                actionStartTime = System.currentTimeMillis();
+            }
+            case CLOSE_INVENTORY -> {
+                closeInventoryNow();
+                movePhase = MovePhase.RESUMING;
+                currentDelay = 20 + (int)(Math.random() * 30);
+                actionStartTime = System.currentTimeMillis();
+            }
+            case RESUMING -> {
+                if (elapsed >= currentDelay) {
+                    if (movement.isBlocked()) {
+                        movement.restoreFromCurrent();
+                    }
+                    if (keysOverridden) {
+                        restoreKeyStates();
+                    }
+                    movePhase = MovePhase.FINISHED;
+                }
+            }
+            case FINISHED -> resetState();
+        }
+    }
+
+    private boolean isPlayerStopped() {
+        if (mc.player == null) return true;
+        double vx = Math.abs(mc.player.getVelocity().x);
+        double vz = Math.abs(mc.player.getVelocity().z);
+        return vx < 0.03 && vz < 0.03;
+    }
+
+    private void blockMovementInput() {
+        if (mc.player != null && mc.player.input != null) {
+            mc.player.input.playerInput = new PlayerInput(false, false, false, false,
+                    mc.player.input.playerInput.jump(), mc.player.input.playerInput.sneak(), mc.player.input.playerInput.sprint());
+        }
+        if (!keysOverridden) {
+            mc.options.forwardKey.setPressed(false);
+            mc.options.backKey.setPressed(false);
+            mc.options.leftKey.setPressed(false);
+            mc.options.rightKey.setPressed(false);
+            mc.options.jumpKey.setPressed(false);
+            keysOverridden = true;
+        }
+    }
+
+    private void sendHeldPackets() {
+        if (!packets.isEmpty()) {
+            packets.forEach(PlayerInteractionHelper::sendPacketWithOutEvent);
+            packets.clear();
+            updateSlots();
+        }
+        packetsHeld = false;
+    }
+
+    private void closeInventoryNow() {
+        if (mc.player == null || mc.getNetworkHandler() == null) return;
+
+        if (closeScreenSyncId != -1) {
+            mc.getNetworkHandler().sendPacket(new CloseHandledScreenC2SPacket(closeScreenSyncId));
+        }
+
+        if (mc.currentScreen != null) {
+            mc.currentScreen.close();
+        }
+
+        pendingClose = false;
+        inventoryOpened = false;
+        closeScreenSyncId = -1;
+    }
+
     private void startLegitMovement() {
         wasForwardPressed = isKeyPressed(mc.options.forwardKey.getDefaultKey().getCode());
         wasBackPressed = isKeyPressed(mc.options.backKey.getDefaultKey().getCode());
         wasLeftPressed = isKeyPressed(mc.options.leftKey.getDefaultKey().getCode());
         wasRightPressed = isKeyPressed(mc.options.rightKey.getDefaultKey().getCode());
         wasJumpPressed = isKeyPressed(mc.options.jumpKey.getDefaultKey().getCode());
-
         movePhase = MovePhase.ALLOW_MOVEMENT;
         keysOverridden = false;
         packetsHeld = false;
+        pendingClose = false;
+        closeScreenSyncId = -1;
     }
 
     private void handleMovementStates() {
         long elapsed = System.currentTimeMillis() - actionStartTime;
 
         switch (movePhase) {
-            case SLOWING_DOWN -> {
-                if (mc.player != null && mc.player.input != null) {
-                    mc.player.input.playerInput = new PlayerInput(
-                            false, false, false, false,
-                            mc.player.input.playerInput.jump(),
-                            mc.player.input.playerInput.sneak(),
-                            mc.player.input.playerInput.sprint()
-                    );
-                }
-
-                if (!keysOverridden) {
-                    mc.options.forwardKey.setPressed(false);
-                    mc.options.backKey.setPressed(false);
-                    mc.options.leftKey.setPressed(false);
-                    mc.options.rightKey.setPressed(false);
-                    mc.options.jumpKey.setPressed(false);
-                    keysOverridden = true;
-                }
-
-                if (elapsed > 1) {
-                    movePhase = MovePhase.SEND_PACKETS;
-                    actionStartTime = System.currentTimeMillis();
-                }
-            }
-
             case ALLOW_MOVEMENT -> {
-                if (!isServerScreen() && shouldSkipExecution()) {
-                    updateMoveKeys();
-                }
+                if (!isServerScreen() && shouldSkipExecution()) updateMoveKeys();
             }
-
-            case SEND_PACKETS -> {
-                if (!packets.isEmpty()) {
-                    packets.forEach(PlayerInteractionHelper::sendPacketWithOutEvent);
-                    packets.clear();
-                    updateSlots();
-                }
-                packetsHeld = false;
-                movePhase = MovePhase.SPEEDING_UP;
-                actionStartTime = System.currentTimeMillis();
-            }
-
             case SPEEDING_UP -> {
-                long speedupElapsed = System.currentTimeMillis() - actionStartTime;
-                float speedupProgress = Math.min(1.0f, speedupElapsed / 1.0f);
-
-                if (keysOverridden) {
-                    restoreKeyStates();
+                if (keysOverridden) restoreKeyStates();
+                if (mc.player != null && elapsed > 1 && isKeyPressed(mc.options.forwardKey.getDefaultKey().getCode()) && !mc.player.isSprinting()) {
+                    mc.player.setSprinting(true);
                 }
-
-                if (mc.player != null && mc.player.input != null) {
-                    boolean forward = isKeyPressed(mc.options.forwardKey.getDefaultKey().getCode());
-
-                    if (speedupProgress > 0.5f && forward && !mc.player.isSprinting()) {
-                        mc.player.setSprinting(true);
-                    }
-                }
-
-                if (speedupElapsed > 1) {
+                if (elapsed > 1) movePhase = MovePhase.FINISHED;
+            }
+            case RESUMING -> {
+                if (elapsed >= currentDelay) {
+                    movement.restoreFromCurrent();
                     movePhase = MovePhase.FINISHED;
                 }
             }
-
             case FINISHED -> resetState();
         }
     }
 
     private void restoreKeyStates() {
-        boolean currentForward = isKeyPressed(mc.options.forwardKey.getDefaultKey().getCode());
-        boolean currentBack = isKeyPressed(mc.options.backKey.getDefaultKey().getCode());
-        boolean currentLeft = isKeyPressed(mc.options.leftKey.getDefaultKey().getCode());
-        boolean currentRight = isKeyPressed(mc.options.rightKey.getDefaultKey().getCode());
-        boolean currentJump = isKeyPressed(mc.options.jumpKey.getDefaultKey().getCode());
-
-        mc.options.forwardKey.setPressed(wasForwardPressed && currentForward);
-        mc.options.backKey.setPressed(wasBackPressed && currentBack);
-        mc.options.leftKey.setPressed(wasLeftPressed && currentLeft);
-        mc.options.rightKey.setPressed(wasRightPressed && currentRight);
-        mc.options.jumpKey.setPressed(wasJumpPressed && currentJump);
+        mc.options.forwardKey.setPressed(wasForwardPressed && isKeyPressed(mc.options.forwardKey.getDefaultKey().getCode()));
+        mc.options.backKey.setPressed(wasBackPressed && isKeyPressed(mc.options.backKey.getDefaultKey().getCode()));
+        mc.options.leftKey.setPressed(wasLeftPressed && isKeyPressed(mc.options.leftKey.getDefaultKey().getCode()));
+        mc.options.rightKey.setPressed(wasRightPressed && isKeyPressed(mc.options.rightKey.getDefaultKey().getCode()));
+        mc.options.jumpKey.setPressed(wasJumpPressed && isKeyPressed(mc.options.jumpKey.getDefaultKey().getCode()));
         keysOverridden = false;
     }
 
     private void resetState() {
-        if (keysOverridden) {
-            restoreKeyStates();
-        }
+        if (movement.isBlocked()) movement.restoreFromCurrent();
+        if (keysOverridden) restoreKeyStates();
         movePhase = MovePhase.READY;
         inventoryOpened = false;
         packetsHeld = false;
+        pendingClose = false;
+        closeScreenSyncId = -1;
         packets.clear();
     }
 
@@ -233,8 +318,24 @@ public class InventoryMove extends ModuleStructure {
 
     @EventHandler
     public void onCloseScreen(CloseScreenEvent e) {
-        if (mode.isSelected("Legit") && packetsHeld && movePhase == MovePhase.ALLOW_MOVEMENT) {
-            movePhase = MovePhase.SLOWING_DOWN;
+        if (!mode.isSelected("Legit")) return;
+        if (movePhase != MovePhase.ALLOW_MOVEMENT) return;
+        if (!shouldSkipExecution()) return;
+
+        boolean needsStop = grimBypass.isValue() && MoveUtil.hasPlayerMovement();
+        boolean hasPackets = packetsHeld;
+
+        if (needsStop || hasPackets) {
+            e.cancel();
+
+            pendingClose = true;
+            closeScreenSyncId = mc.player != null ? mc.player.currentScreenHandler.syncId : 0;
+
+            if (needsStop) {
+                movePhase = MovePhase.STOPPING;
+            } else {
+                movePhase = MovePhase.SLOWING_DOWN;
+            }
             actionStartTime = System.currentTimeMillis();
         }
     }
@@ -252,26 +353,16 @@ public class InventoryMove extends ModuleStructure {
     }
 
     private boolean shouldSkipExecution() {
-        return mc.currentScreen != null
-                && !(mc.currentScreen instanceof ChatScreen)
-                && !(mc.currentScreen instanceof SignEditScreen)
-                && !(mc.currentScreen instanceof AnvilScreen)
-                && !(mc.currentScreen instanceof AbstractCommandBlockScreen)
-                && !(mc.currentScreen instanceof StructureBlockScreen);
+        return mc.currentScreen != null && !(mc.currentScreen instanceof ChatScreen) && !(mc.currentScreen instanceof SignEditScreen)
+                && !(mc.currentScreen instanceof AnvilScreen) && !(mc.currentScreen instanceof AbstractCommandBlockScreen) && !(mc.currentScreen instanceof StructureBlockScreen);
     }
 
     private boolean isServerScreen() {
-        if (mc.player == null) return false;
-        return mc.player.currentScreenHandler.slots.size() != 46;
+        return mc.player != null && mc.player.currentScreenHandler.slots.size() != 46;
     }
 
     private void updateSlots() {
         if (mc.player == null || mc.interactionManager == null) return;
-        mc.interactionManager.clickSlot(
-                mc.player.currentScreenHandler.syncId,
-                0, 0,
-                SlotActionType.PICKUP_ALL,
-                mc.player
-        );
+        mc.interactionManager.clickSlot(mc.player.currentScreenHandler.syncId, 0, 0, SlotActionType.PICKUP_ALL, mc.player);
     }
 }

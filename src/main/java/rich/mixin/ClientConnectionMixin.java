@@ -14,8 +14,8 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import rich.events.api.EventManager;
 import rich.events.impl.PacketEvent;
+import rich.util.config.impl.proxy.ProxyConfig;
 import rich.util.proxy.Proxy;
-import rich.util.proxy.ProxyServer;
 
 import java.net.InetSocketAddress;
 
@@ -42,15 +42,19 @@ public class ClientConnectionMixin {
 
     @Inject(method = "addHandlers", at = @At("RETURN"))
     private static void addHandlersHook(ChannelPipeline pipeline, NetworkSide side, boolean local, PacketSizeLogger packetSizeLogger, CallbackInfo ci) {
-        Proxy proxy = ProxyServer.proxy;
-        if (proxy != null && ProxyServer.proxyEnabled && side == NetworkSide.CLIENTBOUND && !local) {
+        ProxyConfig config = ProxyConfig.getInstance();
+        Proxy proxy = config.getDefaultProxy();
+
+        if (proxy != null && config.isProxyEnabled() && !proxy.isEmpty() && side == NetworkSide.CLIENTBOUND && !local) {
             InetSocketAddress proxyAddress = new InetSocketAddress(proxy.getIp(), proxy.getPort());
 
             if (proxy.type == Proxy.ProxyType.SOCKS4) {
-                pipeline.addFirst(new Socks4ProxyHandler(proxyAddress, proxy.username));
+                pipeline.addFirst("rich_socks4_proxy", new Socks4ProxyHandler(proxyAddress, proxy.username));
             } else {
-                pipeline.addFirst(new Socks5ProxyHandler(proxyAddress, proxy.username, proxy.password));
+                pipeline.addFirst("rich_socks5_proxy", new Socks5ProxyHandler(proxyAddress, proxy.username, proxy.password));
             }
+
+            config.setLastUsedProxy(new Proxy(proxy));
         }
     }
 }

@@ -9,12 +9,9 @@ import net.minecraft.client.render.entity.feature.FeatureRendererContext;
 import net.minecraft.client.render.entity.model.PlayerEntityModel;
 import net.minecraft.client.render.entity.state.PlayerEntityRenderState;
 import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.util.Identifier;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.RotationAxis;
 import org.joml.Matrix4f;
-import org.joml.Quaternionf;
-import org.joml.Vector3f;
 import rich.modules.impl.render.ChinaHat;
 import rich.util.ColorUtil;
 import rich.util.render.pipeline.ClientPipelines;
@@ -36,12 +33,14 @@ public class ChinaHatFeatureRenderer extends FeatureRenderer<PlayerEntityRenderS
         ChinaHat chinaHat = ChinaHat.getInstance();
         if (chinaHat == null || !chinaHat.isState()) return;
 
-        if (mc.player != null && mc.options.getPerspective().isFirstPerson()) {
-            if (state.playerName != null && mc.player.getName() != null) {
-                if (state.playerName.getString().equals(mc.player.getName().getString())) {
-                    return;
-                }
-            }
+        if (mc.player == null) return;
+
+        if (mc.options.getPerspective().isFirstPerson()) {
+            return;
+        }
+
+        if (!isLocalPlayer(state, mc)) {
+            return;
         }
 
         matrixStack.push();
@@ -50,13 +49,29 @@ public class ChinaHatFeatureRenderer extends FeatureRenderer<PlayerEntityRenderS
 
         matrixStack.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(180f));
         matrixStack.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(90f));
-        matrixStack.translate(0, 0.41f, 0);
+        matrixStack.translate(0, 0.42f, 0);
         VertexConsumerProvider.Immediate immediate = mc.getBufferBuilders().getEntityVertexConsumers();
         renderFlatHat(matrixStack, immediate, chinaHat);
         renderOutline(matrixStack, immediate, chinaHat);
         immediate.draw();
 
         matrixStack.pop();
+    }
+
+    private boolean isLocalPlayer(PlayerEntityRenderState state, MinecraftClient mc) {
+        try {
+            if (state.id == mc.player.getId()) {
+                return true;
+            }
+        } catch (Exception ignored) {}
+
+        try {
+            if (state.playerName != null && mc.player.getName() != null) {
+                return state.playerName.getString().equals(mc.player.getName().getString());
+            }
+        } catch (Exception ignored) {}
+
+        return false;
     }
 
     private void renderFlatHat(MatrixStack stack, VertexConsumerProvider provider, ChinaHat chinaHat) {
@@ -137,5 +152,4 @@ public class ChinaHatFeatureRenderer extends FeatureRenderer<PlayerEntityRenderS
             return ColorUtil.interpolateColor(color2, color1, (progress - 0.5f) * 2f);
         }
     }
-
 }

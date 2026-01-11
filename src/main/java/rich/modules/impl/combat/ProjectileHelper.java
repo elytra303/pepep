@@ -25,7 +25,7 @@ import rich.modules.module.setting.implement.MultiSelectSetting;
 import rich.modules.module.setting.implement.SliderSettings;
 import rich.util.math.MathUtils;
 import rich.util.math.TaskPriority;
-import rich.util.repository.FriendUtils;
+import rich.util.repository.friend.FriendUtils;
 
 import java.util.List;
 import java.util.stream.Collectors;

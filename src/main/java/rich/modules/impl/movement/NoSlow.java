@@ -12,7 +12,7 @@ import rich.modules.module.ModuleStructure;
 import rich.modules.module.category.ModuleCategory;
 import rich.modules.module.setting.implement.SelectSetting;
 import rich.util.Instance;
-import rich.util.inventory.script.script.Script;
+import rich.util.inventory.script.Script;
 import rich.util.string.PlayerInteractionHelper;
 import rich.util.timer.StopWatch;
 

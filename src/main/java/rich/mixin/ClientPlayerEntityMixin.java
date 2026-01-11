@@ -35,8 +35,6 @@ public abstract class ClientPlayerEntityMixin extends AbstractClientPlayerEntity
     @Shadow
     public abstract boolean isUsingItem();
 
-    public abstract boolean hasVehicle();
-
     @Final
     @Shadow
     protected MinecraftClient client;
