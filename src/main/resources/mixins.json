@@ -22,6 +22,7 @@
     "IClientWorld",
     "InGameHudMixin",
     "InGameOverlayRendererMixin",
+    "InventoryScreenMixin",
     "IScreen",
     "KeyboardInputMixin",
     "KeyboardMixin",

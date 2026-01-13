@@ -11,6 +11,9 @@ public class Fonts {
     public static final Font ICONS = register("icons", "icons");
     public static final Font GUI_ICONS = register("guiicons", "guiicons");
     public static final Font CATEGORY_ICONS = register("categoryicons", "categoryicons");
+    public static final Font DEFAULT = register("default", "default");
+    public static final Font REGULAR = register("regular", "regular");
+    public static final Font TEST = register("test", "test");
 
     private static Font register(String name, String path) {
         FONT_REGISTRY.put(name, path);

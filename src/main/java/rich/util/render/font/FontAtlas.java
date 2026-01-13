@@ -99,10 +99,25 @@ public class FontAtlas {
     }
 
     private void parseMsdfGlyph(JsonObject g, float emSize) {
-        int unicode = getInt(g, "unicode", -1);
+        int unicode = -1;
+
+        if (g.has("unicode")) {
+            unicode = g.get("unicode").getAsInt();
+        } else if (g.has("char")) {
+            String charStr = g.get("char").getAsString();
+            if (!charStr.isEmpty()) {
+                unicode = charStr.codePointAt(0);
+            }
+        } else if (g.has("id")) {
+            unicode = g.get("id").getAsInt();
+        }
+
         if (unicode < 0) return;
 
         float advance = getFloat(g, "advance", 0) * fontSize;
+        if (advance == 0) {
+            advance = getFloat(g, "xadvance", 0);
+        }
 
         float x = 0, y = 0, w = 0, h = 0;
         float xOffset = 0, yOffset = 0;
@@ -123,6 +138,11 @@ public class FontAtlas {
             } else {
                 y = bottom;
             }
+        } else if (g.has("x") && g.has("y") && g.has("width") && g.has("height")) {
+            x = getFloat(g, "x", 0);
+            y = getFloat(g, "y", 0);
+            w = getFloat(g, "width", 0);
+            h = getFloat(g, "height", 0);
         }
 
         if (g.has("planeBounds")) {
@@ -136,6 +156,9 @@ public class FontAtlas {
 
             float ascender = 0.95f;
             yOffset = (ascender - pTop) * fontSize;
+        } else if (g.has("xoffset") && g.has("yoffset")) {
+            xOffset = getFloat(g, "xoffset", 0);
+            yOffset = getFloat(g, "yoffset", 0);
         }
 
         glyphs.put(unicode, new Glyph(unicode, x, y, w, h, xOffset, yOffset, advance, atlasWidth, atlasHeight));

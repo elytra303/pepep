@@ -65,7 +65,7 @@ SettingsPanelRenderer {
         float bottomInset = CORNER_INSET + 3;
 
         float clipY = y + 31;
-        float clipH = height - 31 - bottomInset;
+        float clipH = height - 26 - bottomInset;
 
         float clipX = x + sideInset;
         float clipW = width - sideInset * 2;

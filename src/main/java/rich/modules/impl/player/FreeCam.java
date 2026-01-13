@@ -12,7 +12,9 @@ import rich.events.impl.*;
 import rich.modules.module.ModuleStructure;
 import rich.modules.module.category.ModuleCategory;
 import rich.modules.module.setting.implement.BooleanSetting;
+import rich.modules.module.setting.implement.ColorSetting;
 import rich.modules.module.setting.implement.SliderSettings;
+import rich.util.ColorUtil;
 import rich.util.Instance;
 import rich.util.math.MathUtils;
 import rich.util.move.MoveUtil;
@@ -27,6 +29,11 @@ public class FreeCam extends ModuleStructure {
     private final BooleanSetting freezeSetting = new BooleanSetting("Заморозка", "Вы замораживаетесь на месте").setValue(false);
     private final BooleanSetting reloadChunksSetting = new BooleanSetting("Reload Chunks", "Отключает cave culling").setValue(true);
     private final BooleanSetting toggleOnLogSetting = new BooleanSetting("Toggle On Log", "Выключает при дисконнекте").setValue(true);
+
+
+    public final ColorSetting fakeplayer = new ColorSetting("Color 1", "First gradient color")
+            .value(ColorUtil.getColor(255, 50, 100, 255));
+
 
     public Vec3d pos, prevPos;
 

@@ -1,7 +1,7 @@
 package rich.modules.impl.combat.macetarget.state;
 
 public class MaceState {
-    
+
     public enum Stage {
         PREPARE,
         FLYING_UP,

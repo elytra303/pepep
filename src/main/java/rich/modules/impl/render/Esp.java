@@ -76,14 +76,11 @@ public class Esp extends ModuleStructure {
     public SliderSettings skeletonWidth = new SliderSettings("Толщина линий", "Толщина линий скелета")
             .setValue(2.5f).range(2.5f, 4.0f).visible(() -> boxType.isSelected("Skeleton"));
 
-    public SliderSettings fontSize = new SliderSettings("Размер шрифта", "Размер текста")
-            .setValue(8.0f).range(1.0f, 14.0f);
-
     private static final float DISTANCE = 128.0f;
 
     public Esp() {
         super("Esp", "Esp", ModuleCategory.RENDER);
-        setup(entityType, playerSetting, boxType, flatBoxOutline, boxAlpha, skeletonWidth, fontSize);
+        setup(entityType, playerSetting, boxType, flatBoxOutline, boxAlpha, skeletonWidth);
     }
 
     @EventHandler
@@ -140,7 +137,7 @@ public class Esp extends ModuleStructure {
     public void onDraw(DrawEvent e) {
         DrawContext context = e.getDrawContext();
         float tickDelta = e.getPartialTicks();
-        float size = fontSize.getValue();
+        float size = 5.5f;
 
         if (entityType.isSelected("Player")) {
             for (PlayerEntity player : players) {
@@ -391,13 +388,13 @@ public class Esp extends ModuleStructure {
     }
 
     private void drawText(String text, double startX, double startY, float size) {
-        float width = Fonts.BOLD.getWidth(text, size);
-        float height = Fonts.BOLD.getHeight(size);
+        float width = Fonts.TEST.getWidth(text, size);
+        float height = Fonts.TEST.getHeight(size);
         float posX = (float) (startX - width / 2);
         float posY = (float) startY - height;
 
-         Render2D.rect(posX - 4, posY - 1, width + 8, height + 2, 0x80000000, 2.5f);
-        Fonts.BOLD.draw(text, posX, posY, size, 0xFFFFFFFF);
+         Render2D.rect(posX - 4, posY - 1, width + 8, height + 2, 0x80000000,  0f);
+        Fonts.TEST.draw(text, posX, posY, size, 0xFFFFFFFF);
     }
 
     private String getTextPlayer(PlayerEntity player, boolean friend) {
@@ -434,7 +431,7 @@ public class Esp extends ModuleStructure {
             int tslevel = compound.getInt("tslevel").orElse(0);
             if (tslevel != 0) {
                 String donItem = compound.getString("don-item").orElse("");
-                return " [§6" + donItem.replace("sphere-", "").toUpperCase() + "§r]";
+                return " [" + donItem.replace("sphere-", "").toUpperCase() + "]";
             }
         }
         return "";

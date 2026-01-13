@@ -1,11 +1,77 @@
 package rich.util.render;
 
+import com.mojang.blaze3d.opengl.GlStateManager;
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.texture.Sprite;
 import net.minecraft.util.Identifier;
+import org.lwjgl.opengl.GL11;
+import org.lwjgl.opengl.GL14;
 import rich.Initialization;
 import rich.util.ColorUtil;
 
 public class Render2D {
+
+    private static boolean inOverlayMode = false;
+    private static boolean savedDepthTest = false;
+    private static boolean savedDepthMask = false;
+    private static boolean savedBlend = false;
+
+    public static void beginOverlay() {
+        inOverlayMode = true;
+
+        savedDepthTest = GL11.glIsEnabled(GL11.GL_DEPTH_TEST);
+        savedDepthMask = GL11.glGetBoolean(GL11.GL_DEPTH_WRITEMASK);
+        savedBlend = GL11.glIsEnabled(GL11.GL_BLEND);
+
+        GL11.glDisable(GL11.GL_DEPTH_TEST);
+        GL11.glDepthMask(false);
+        GL11.glEnable(GL11.GL_BLEND);
+        GL14.glBlendFuncSeparate(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA, GL11.GL_ONE, GL11.GL_ONE_MINUS_SRC_ALPHA);
+    }
+
+    public static void endOverlay() {
+        if (savedDepthMask) {
+            GL11.glDepthMask(true);
+        }
+        if (savedDepthTest) {
+            GL11.glEnable(GL11.GL_DEPTH_TEST);
+        } else {
+            GL11.glDisable(GL11.GL_DEPTH_TEST);
+        }
+        if (!savedBlend) {
+            GL11.glDisable(GL11.GL_BLEND);
+        }
+
+        inOverlayMode = false;
+    }
+
+    public static void clearDepth() {
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client.getFramebuffer() != null) {
+            GL11.glClear(GL11.GL_DEPTH_BUFFER_BIT);
+        }
+    }
+
+    public static void enableBlend() {
+        GL11.glEnable(GL11.GL_BLEND);
+        GL14.glBlendFuncSeparate(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA, GL11.GL_ONE, GL11.GL_ONE_MINUS_SRC_ALPHA);
+    }
+
+    public static void disableBlend() {
+        GL11.glDisable(GL11.GL_BLEND);
+    }
+
+    public static void enableDepthTest() {
+        GL11.glEnable(GL11.GL_DEPTH_TEST);
+    }
+
+    public static void disableDepthTest() {
+        GL11.glDisable(GL11.GL_DEPTH_TEST);
+    }
+
+    public static void depthMask(boolean mask) {
+        GL11.glDepthMask(mask);
+    }
 
     public static void rect(float x, float y, float width, float height, int color) {
         int[] colors = ColorUtil.solid(color);
@@ -192,5 +258,9 @@ public class Render2D {
 
         Initialization.getInstance().getManager().getRenderCore().getTexturePipeline()
                 .drawFramebufferTexture(textureId, x, y, width, height, colors, radii, a);
+    }
+
+    public static boolean isInOverlayMode() {
+        return inOverlayMode;
     }
 }

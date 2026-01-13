@@ -43,6 +43,7 @@ import java.util.stream.Stream;
 @Setter
 @Getter
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
+@SuppressWarnings("deprecation")
 public class Spider extends ModuleStructure {
     StopWatch stopWatch = new StopWatch();
 
@@ -84,7 +85,7 @@ public class Spider extends ModuleStructure {
                 box = new Box(playerBox.minX - 0.3, playerBox.minY + 1, playerBox.minZ - 0.3, playerBox.maxX, playerBox.maxY, playerBox.maxZ);
                 if (PlayerInteractionHelper.isBox(box, this::hasCollision)) {
                     mc.player.setOnGround(true);
-                    mc.player.getVelocity().y = 0.6;
+                    mc.player.setVelocity(mc.player.getVelocity().x, 0.6, mc.player.getVelocity().z);
                 } else {
                     mc.player.setOnGround(true);
                     mc.player.jump();

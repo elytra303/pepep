@@ -34,8 +34,6 @@ import java.util.OptionalInt;
 
 public class FontPipeline {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("minecraft/FontPipeline");
-
     private static final Identifier PIPELINE_ID = Identifier.of("minecraft", "pipeline/msdf");
     private static final Identifier VERTEX_SHADER = Identifier.of("minecraft", "core/msdf");
     private static final Identifier FRAGMENT_SHADER = Identifier.of("minecraft", "core/msdf");
@@ -52,12 +50,25 @@ public class FontPipeline {
                     .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
                     .withDepthWrite(false)
                     .withCull(false)
-                    .build()
-    );
+                    .build());
 
     private static final Vector4f COLOR_MODULATOR = new Vector4f(1f, 1f, 1f, 1f);
     private static final Vector3f MODEL_OFFSET = new Vector3f(0, 0, 0);
     private static final Matrix4f TEXTURE_MATRIX = new Matrix4f();
+    private static final int[] LEGACY_COLORS = new int[32];
+
+    static {
+        for (int i = 0; i < 16; ++i) {
+            int j = (i >> 3 & 1) * 85;
+            int r = (i >> 2 & 1) * 170 + j;
+            int g = (i >> 1 & 1) * 170 + j;
+            int b = (i & 1) * 170 + j;
+            if (i == 6)
+                r += 85;
+            LEGACY_COLORS[i] = (255 << 24) | (r << 16) | (g << 8) | b;
+            LEGACY_COLORS[i + 16] = ((r & 0xFCFCFC) >> 2 << 24) | (r << 16) | (g << 8) | b;
+        }
+    }
 
     private static final int MAX_CHARS = 256;
     private static final int BUFFER_SIZE = 64 + MAX_CHARS * 64;
@@ -68,6 +79,9 @@ public class FontPipeline {
     private boolean initialized = false;
 
     private final List<CharData> charBatch = new ArrayList<>();
+    private FontAtlas currentAtlas = null;
+    private float currentOutlineWidth = 0;
+    private int currentOutlineColor = 0;
 
     private static class CharData {
         float x, y, width, height;
@@ -96,7 +110,8 @@ public class FontPipeline {
     }
 
     private void ensureInitialized() {
-        if (initialized) return;
+        if (initialized)
+            return;
 
         this.dataBuffer = MemoryUtil.memAlloc(BUFFER_SIZE);
 
@@ -106,8 +121,7 @@ public class FontPipeline {
         this.dummyVertexBuffer = RenderSystem.getDevice().createBuffer(
                 () -> "minecraft:font_dummy_vertex",
                 GpuBuffer.USAGE_VERTEX,
-                dummyData
-        );
+                dummyData);
         MemoryUtil.memFree(dummyData);
 
         initialized = true;
@@ -121,17 +135,25 @@ public class FontPipeline {
                          float outlineWidth, int outlineColor, float rotation) {
 
         MinecraftClient client = MinecraftClient.getInstance();
-        if (client.getFramebuffer() == null) return;
-        if (text == null || text.isEmpty()) return;
+        if (client.getFramebuffer() == null)
+            return;
+        if (text == null || text.isEmpty())
+            return;
 
         atlas.ensureLoaded();
-        if (atlas.getGlyphCount() == 0) {
-            LOGGER.warn("Font atlas has no glyphs: {}", atlas.getTextureId());
+        if (atlas.getGlyphCount() == 0)
             return;
-        }
 
         ensureInitialized();
-        charBatch.clear();
+
+        if (currentAtlas != null && (currentAtlas != atlas || currentOutlineWidth != outlineWidth
+                || currentOutlineColor != outlineColor)) {
+            flush();
+        }
+
+        currentAtlas = atlas;
+        currentOutlineWidth = outlineWidth;
+        currentOutlineColor = outlineColor;
 
         float scale = size / atlas.getFontSize();
         float cursorX = x;
@@ -144,27 +166,52 @@ public class FontPipeline {
 
         float rotationRad = (float) Math.toRadians(rotation);
 
-        for (int i = 0; i < text.length(); i++) {
-            char c = text.charAt(i);
+        int currentColor = color;
 
-            if (c == '\n') {
+        int i = 0;
+        while (i < text.length()) {
+            int codePoint = text.codePointAt(i);
+            int charCount = Character.charCount(codePoint);
+
+            if ((codePoint == '§' || codePoint == '&') && i + charCount < text.length()) {
+                int nextCodePoint = text.codePointAt(i + charCount);
+                if (nextCodePoint == '#' && i + charCount + 6 < text.length()) {
+                    try {
+                        String hex = text.substring(i + charCount + 1, i + charCount + 7);
+                        currentColor = (0xFF << 24) | Integer.parseInt(hex, 16);
+                        i += charCount + 7;
+                        continue;
+                    } catch (Exception ignored) {
+                    }
+                }
+                int code = "0123456789abcdefklmnor".indexOf(Character.toLowerCase((char) nextCodePoint));
+                if (code >= 0) {
+                    if (code < 16) {
+                        currentColor = LEGACY_COLORS[code];
+                    } else if (code == 21) {
+                        currentColor = color;
+                    }
+                    i += charCount + Character.charCount(nextCodePoint);
+                    continue;
+                }
+            }
+
+            if (codePoint == '\n') {
                 cursorX = x;
                 cursorY += atlas.getLineHeight() * scale;
+                i += charCount;
                 continue;
             }
 
-            if (c == ' ') {
-                Glyph spaceGlyph = atlas.getGlyph(' ');
-                if (spaceGlyph != null) {
-                    cursorX += spaceGlyph.xAdvance * scale;
-                } else {
-                    cursorX += size * 0.25f;
-                }
-                continue;
-            }
-
-            Glyph glyph = atlas.getGlyph(c);
+            Glyph glyph = atlas.getGlyph(codePoint);
             if (glyph == null) {
+                Glyph fallback = atlas.getGlyph('?');
+                if (fallback != null) {
+                    cursorX += fallback.xAdvance * scale;
+                } else {
+                    cursorX += size * 0.5f;
+                }
+                i += charCount;
                 continue;
             }
 
@@ -173,25 +220,26 @@ public class FontPipeline {
             float glyphW = glyph.width * scale;
             float glyphH = glyph.height * scale;
 
-            if (glyphW > 0.1f && glyphH > 0.1f) {
-                float glyphScale = glyphH / glyph.height;
+            if (glyph.width > 0 && glyph.height > 0) {
+                float glyphScale = scale;
 
                 charBatch.add(new CharData(
                         glyphX, glyphY, glyphW, glyphH,
                         glyph.u0, glyph.v0, glyph.u1, glyph.v1,
-                        color, rotationRad, pivotX, pivotY, glyphScale
-                ));
+                        currentColor, rotationRad, pivotX, pivotY, glyphScale));
             }
 
             cursorX += glyph.xAdvance * scale;
 
             if (charBatch.size() >= MAX_CHARS) {
-                flush(client, atlas, outlineWidth, outlineColor);
+                flush();
             }
+
+            i += charCount;
         }
 
-        if (!charBatch.isEmpty()) {
-            flush(client, atlas, outlineWidth, outlineColor);
+        if (!charBatch.isEmpty() && currentAtlas != null) {
+            flush();
         }
     }
 
@@ -199,14 +247,25 @@ public class FontPipeline {
                                            float outlineWidth, int outlineColor, float rotation, float pivotX, float pivotY) {
 
         MinecraftClient client = MinecraftClient.getInstance();
-        if (client.getFramebuffer() == null) return;
-        if (text == null || text.isEmpty()) return;
+        if (client.getFramebuffer() == null)
+            return;
+        if (text == null || text.isEmpty())
+            return;
 
         atlas.ensureLoaded();
-        if (atlas.getGlyphCount() == 0) return;
+        if (atlas.getGlyphCount() == 0)
+            return;
 
         ensureInitialized();
-        charBatch.clear();
+
+        if (currentAtlas != null && (currentAtlas != atlas || currentOutlineWidth != outlineWidth
+                || currentOutlineColor != outlineColor)) {
+            flush();
+        }
+
+        currentAtlas = atlas;
+        currentOutlineWidth = outlineWidth;
+        currentOutlineColor = outlineColor;
 
         float scale = size / atlas.getFontSize();
         float cursorX = x;
@@ -214,62 +273,101 @@ public class FontPipeline {
 
         float rotationRad = (float) Math.toRadians(rotation);
 
-        for (int i = 0; i < text.length(); i++) {
-            char c = text.charAt(i);
+        int currentColor = color;
 
-            if (c == '\n') {
+        int i = 0;
+        while (i < text.length()) {
+            int codePoint = text.codePointAt(i);
+            int charCount = Character.charCount(codePoint);
+
+            if ((codePoint == '§' || codePoint == '&') && i + charCount < text.length()) {
+                int nextCodePoint = text.codePointAt(i + charCount);
+                if (nextCodePoint == '#' && i + charCount + 6 < text.length()) {
+                    try {
+                        String hex = text.substring(i + charCount + 1, i + charCount + 7);
+                        currentColor = (0xFF << 24) | Integer.parseInt(hex, 16);
+                        i += charCount + 7;
+                        continue;
+                    } catch (Exception ignored) {
+                    }
+                }
+                int code = "0123456789abcdefklmnor".indexOf(Character.toLowerCase((char) nextCodePoint));
+                if (code >= 0) {
+                    if (code < 16) {
+                        currentColor = LEGACY_COLORS[code];
+                    } else if (code == 21) {
+                        currentColor = color;
+                    }
+                    i += charCount + Character.charCount(nextCodePoint);
+                    continue;
+                }
+            }
+
+            if (codePoint == '\n') {
                 cursorX = x;
                 cursorY += atlas.getLineHeight() * scale;
+                i += charCount;
                 continue;
             }
 
-            if (c == ' ') {
-                Glyph spaceGlyph = atlas.getGlyph(' ');
-                if (spaceGlyph != null) {
-                    cursorX += spaceGlyph.xAdvance * scale;
+            Glyph glyph = atlas.getGlyph(codePoint);
+            if (glyph == null) {
+                Glyph fallback = atlas.getGlyph('?');
+                if (fallback != null) {
+                    cursorX += fallback.xAdvance * scale;
                 } else {
-                    cursorX += size * 0.25f;
+                    cursorX += size * 0.5f;
                 }
+                i += charCount;
                 continue;
             }
-
-            Glyph glyph = atlas.getGlyph(c);
-            if (glyph == null) continue;
 
             float glyphX = cursorX + glyph.xOffset * scale;
             float glyphY = cursorY + glyph.yOffset * scale;
             float glyphW = glyph.width * scale;
             float glyphH = glyph.height * scale;
 
-            if (glyphW > 0.1f && glyphH > 0.1f) {
-                float glyphScale = glyphH / glyph.height;
+            if (glyph.width > 0 && glyph.height > 0) {
+                float glyphScale = scale;
 
                 charBatch.add(new CharData(
                         glyphX, glyphY, glyphW, glyphH,
                         glyph.u0, glyph.v0, glyph.u1, glyph.v1,
-                        color, rotationRad, pivotX, pivotY, glyphScale
-                ));
+                        currentColor, rotationRad, pivotX, pivotY, glyphScale));
             }
 
             cursorX += glyph.xAdvance * scale;
 
             if (charBatch.size() >= MAX_CHARS) {
-                flush(client, atlas, outlineWidth, outlineColor);
+                flush();
             }
+
+            i += charCount;
         }
 
-        if (!charBatch.isEmpty()) {
-            flush(client, atlas, outlineWidth, outlineColor);
+        if (!charBatch.isEmpty() && currentAtlas != null) {
+            flush();
         }
     }
 
-    private void flush(MinecraftClient client, FontAtlas atlas, float outlineWidth, int outlineColor) {
-        if (charBatch.isEmpty()) return;
-
-        AbstractTexture texture = client.getTextureManager().getTexture(atlas.getTextureId());
-        if (texture == null) {
-            LOGGER.warn("Font texture not found: {}", atlas.getTextureId());
+    public void flush() {
+        if (charBatch.isEmpty() || currentAtlas == null) {
             charBatch.clear();
+            currentAtlas = null;
+            return;
+        }
+
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client.getFramebuffer() == null) {
+            charBatch.clear();
+            currentAtlas = null;
+            return;
+        }
+
+        AbstractTexture texture = client.getTextureManager().getTexture(currentAtlas.getTextureId());
+        if (texture == null) {
+            charBatch.clear();
+            currentAtlas = null;
             return;
         }
 
@@ -277,12 +375,12 @@ public class FontPipeline {
         try {
             gpuTexture = texture.getGlTexture();
         } catch (Exception e) {
-            LOGGER.warn("Failed to get GPU texture for font: {}", atlas.getTextureId());
             charBatch.clear();
+            currentAtlas = null;
             return;
         }
 
-        prepareUniformData(client, atlas, outlineWidth, outlineColor);
+        prepareUniformData(client, currentAtlas, currentOutlineWidth, currentOutlineColor);
 
         int size = dataBuffer.remaining();
         if (uniformBuffer == null || uniformBuffer.size() < size) {
@@ -292,8 +390,7 @@ public class FontPipeline {
             uniformBuffer = RenderSystem.getDevice().createBuffer(
                     () -> "minecraft:font_uniform",
                     GpuBuffer.USAGE_UNIFORM | GpuBuffer.USAGE_COPY_DST,
-                    size
-            );
+                    size);
         }
 
         CommandEncoder encoder = RenderSystem.getDevice().createCommandEncoder();
@@ -328,6 +425,7 @@ public class FontPipeline {
 
         textureView.close();
         charBatch.clear();
+        currentAtlas = null;
     }
 
     private void prepareUniformData(MinecraftClient client, FontAtlas atlas, float outlineWidth, int outlineColor) {
@@ -396,26 +494,44 @@ public class FontPipeline {
         float width = 0;
         float maxWidth = 0;
 
-        for (int i = 0; i < text.length(); i++) {
-            char c = text.charAt(i);
-            if (c == '\n') {
+        int i = 0;
+        while (i < text.length()) {
+            int codePoint = text.codePointAt(i);
+            int charCount = Character.charCount(codePoint);
+
+            if ((codePoint == '§' || codePoint == '&') && i + charCount < text.length()) {
+                int nextCodePoint = text.codePointAt(i + charCount);
+                if (nextCodePoint == '#' && i + charCount + 6 < text.length()) {
+                    i += charCount + 7;
+                    continue;
+                }
+                int code = "0123456789abcdefklmnor".indexOf(Character.toLowerCase((char) nextCodePoint));
+                if (code >= 0) {
+                    i += charCount + Character.charCount(nextCodePoint);
+                    continue;
+                }
+            }
+
+            if (codePoint == '\n') {
                 maxWidth = Math.max(maxWidth, width);
                 width = 0;
+                i += charCount;
                 continue;
             }
-            if (c == ' ') {
-                Glyph spaceGlyph = atlas.getGlyph(' ');
-                if (spaceGlyph != null) {
-                    width += spaceGlyph.xAdvance * scale;
-                } else {
-                    width += size * 0.25f;
-                }
-                continue;
-            }
-            Glyph glyph = atlas.getGlyph(c);
+
+            Glyph glyph = atlas.getGlyph(codePoint);
             if (glyph != null) {
                 width += glyph.xAdvance * scale;
+            } else {
+                Glyph fallback = atlas.getGlyph('?');
+                if (fallback != null) {
+                    width += fallback.xAdvance * scale;
+                } else {
+                    width += size * 0.5f;
+                }
             }
+
+            i += charCount;
         }
 
         return Math.max(maxWidth, width);
@@ -426,7 +542,8 @@ public class FontPipeline {
         float scale = size / atlas.getFontSize();
         int lines = 1;
         for (int i = 0; i < text.length(); i++) {
-            if (text.charAt(i) == '\n') lines++;
+            if (text.charAt(i) == '\n')
+                lines++;
         }
         return lines * atlas.getLineHeight() * scale;
     }

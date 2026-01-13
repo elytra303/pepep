@@ -1,6 +1,7 @@
 package rich.util.inventory;
 
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.screen.ChatScreen;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.EquippableComponent;
 import net.minecraft.entity.EquipmentSlot;
@@ -166,6 +167,129 @@ public final class InventoryUtils {
         return findSlot(combined, comparator);
     }
 
+    public static Slot findSlotInHotbar(Item item) {
+        if (mc.player == null) return null;
+        for (int i = 36; i <= 44; i++) {
+            Slot slot = mc.player.playerScreenHandler.getSlot(i);
+            if (slot != null && !slot.getStack().isEmpty() && slot.getStack().getItem() == item) {
+                return slot;
+            }
+        }
+        return null;
+    }
+
+    public static Slot findSlotInInventory(Item item) {
+        if (mc.player == null) return null;
+        for (int i = 9; i <= 35; i++) {
+            Slot slot = mc.player.playerScreenHandler.getSlot(i);
+            if (slot != null && !slot.getStack().isEmpty() && slot.getStack().getItem() == item) {
+                return slot;
+            }
+        }
+        return null;
+    }
+
+    public static Slot findSlotAnywhere(Item item) {
+        Slot hotbar = findSlotInHotbar(item);
+        if (hotbar != null) return hotbar;
+        return findSlotInInventory(item);
+    }
+
+    public static Slot findRegularTotemSlot() {
+        if (mc.player == null) return null;
+
+        for (int i = 36; i <= 44; i++) {
+            Slot slot = mc.player.playerScreenHandler.getSlot(i);
+            if (slot != null && !slot.getStack().isEmpty()
+                    && slot.getStack().getItem() == Items.TOTEM_OF_UNDYING
+                    && !slot.getStack().hasEnchantments()) {
+                return slot;
+            }
+        }
+
+        for (int i = 9; i <= 35; i++) {
+            Slot slot = mc.player.playerScreenHandler.getSlot(i);
+            if (slot != null && !slot.getStack().isEmpty()
+                    && slot.getStack().getItem() == Items.TOTEM_OF_UNDYING
+                    && !slot.getStack().hasEnchantments()) {
+                return slot;
+            }
+        }
+
+        return null;
+    }
+
+    public static Slot findEnchantedTotemSlot() {
+        if (mc.player == null) return null;
+
+        for (int i = 36; i <= 44; i++) {
+            Slot slot = mc.player.playerScreenHandler.getSlot(i);
+            if (slot != null && !slot.getStack().isEmpty()
+                    && slot.getStack().getItem() == Items.TOTEM_OF_UNDYING
+                    && slot.getStack().hasEnchantments()) {
+                return slot;
+            }
+        }
+
+        for (int i = 9; i <= 35; i++) {
+            Slot slot = mc.player.playerScreenHandler.getSlot(i);
+            if (slot != null && !slot.getStack().isEmpty()
+                    && slot.getStack().getItem() == Items.TOTEM_OF_UNDYING
+                    && slot.getStack().hasEnchantments()) {
+                return slot;
+            }
+        }
+
+        return null;
+    }
+
+    public static Slot findTotemSlot(boolean preferNonEnchanted) {
+        if (mc.player == null) return null;
+
+        Slot regularTotem = null;
+        Slot enchantedTotem = null;
+
+        for (int i = 36; i <= 44; i++) {
+            Slot slot = mc.player.playerScreenHandler.getSlot(i);
+            if (slot != null && !slot.getStack().isEmpty() && slot.getStack().getItem() == Items.TOTEM_OF_UNDYING) {
+                if (!slot.getStack().hasEnchantments()) {
+                    if (regularTotem == null) regularTotem = slot;
+                } else {
+                    if (enchantedTotem == null) enchantedTotem = slot;
+                }
+            }
+        }
+
+        for (int i = 9; i <= 35; i++) {
+            Slot slot = mc.player.playerScreenHandler.getSlot(i);
+            if (slot != null && !slot.getStack().isEmpty() && slot.getStack().getItem() == Items.TOTEM_OF_UNDYING) {
+                if (!slot.getStack().hasEnchantments()) {
+                    if (regularTotem == null) regularTotem = slot;
+                } else {
+                    if (enchantedTotem == null) enchantedTotem = slot;
+                }
+            }
+        }
+
+        if (preferNonEnchanted) {
+            return regularTotem != null ? regularTotem : enchantedTotem;
+        } else {
+            return regularTotem != null ? regularTotem : enchantedTotem;
+        }
+    }
+
+    public static boolean hasEnchantedTotemInOffhand() {
+        if (mc.player == null) return false;
+        ItemStack offhand = mc.player.getOffHandStack();
+        return offhand.getItem() == Items.TOTEM_OF_UNDYING && offhand.hasEnchantments();
+    }
+
+    public static boolean hasRegularTotemInOffhand() {
+        if (mc.player == null) return false;
+        ItemStack offhand = mc.player.getOffHandStack();
+        return offhand.getItem() == Items.TOTEM_OF_UNDYING && !offhand.hasEnchantments();
+    }
+
     public static void swap(int from, int to) {
         click(from, 0, SlotActionType.PICKUP);
         click(to, 0, SlotActionType.PICKUP);
@@ -184,6 +308,12 @@ public final class InventoryUtils {
         if (slot != null) {
             click(slot.id, 40, SlotActionType.SWAP);
         }
+    }
+
+    public static void swapOffhandWithSlot(int slotId) {
+        if (mc.player == null || mc.interactionManager == null) return;
+        int syncId = mc.player.playerScreenHandler.syncId;
+        mc.interactionManager.clickSlot(syncId, slotId, 40, SlotActionType.SWAP, mc.player);
     }
 
     public static void moveToSlot(int from, int to) {
@@ -308,6 +438,10 @@ public final class InventoryUtils {
         mc.getNetworkHandler().sendPacket(new CloseHandledScreenC2SPacket(mc.player.currentScreenHandler.syncId));
     }
 
+    public static boolean isScreenOpen() {
+        return mc.currentScreen != null && !(mc.currentScreen instanceof ChatScreen);
+    }
+
     public static int wrapSlot(int slot) {
         return slot < 9 ? slot + 36 : slot;
     }
@@ -322,6 +456,14 @@ public final class InventoryUtils {
 
     public static ItemStack mainhandStack() {
         return mc.player != null ? mc.player.getMainHandStack() : ItemStack.EMPTY;
+    }
+
+    public static boolean hasTotemInOffhand() {
+        return mc.player != null && mc.player.getOffHandStack().getItem() == Items.TOTEM_OF_UNDYING;
+    }
+
+    public static Item getOffhandItem() {
+        return mc.player != null ? mc.player.getOffHandStack().getItem() : Items.AIR;
     }
 
     private static boolean isValid(ItemStack stack) {

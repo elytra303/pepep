@@ -27,7 +27,6 @@ mutable field net/minecraft/util/math/Vec3d z D
 
 accessible method net/minecraft/entity/Entity movementInputToVelocity (Lnet/minecraft/util/math/Vec3d;FF)Lnet/minecraft/util/math/Vec3d;
 accessible class net/minecraft/client/gui/hud/InGameHud$BarType
-accessible field net/minecraft/client/render/entity/EntityRenderer state Lnet/minecraft/client/render/entity/state/EntityRenderState;
 accessible field net/minecraft/client/render/entity/LivingEntityRenderer features Ljava/util/List;
 accessible method net/minecraft/client/network/ClientPlayerEntity sendSprintingPacket ()V
 accessible field net/minecraft/entity/Entity dimensions Lnet/minecraft/entity/EntityDimensions;
@@ -44,16 +43,17 @@ accessible class net/minecraft/entity/player/ItemCooldownManager$Entry
 accessible field net/minecraft/entity/player/ItemCooldownManager$Entry endTick I
 accessible field net/minecraft/entity/player/ItemCooldownManager entries Ljava/util/Map;
 accessible field net/minecraft/entity/player/ItemCooldownManager tick I
-accessible field net/minecraft/client/render/WorldRenderer frustum Lnet/minecraft/client/render/Frustum;
 accessible field net/minecraft/entity/Entity velocity Lnet/minecraft/util/math/Vec3d;
-accessible   method  com/mojang/blaze3d/pipeline/RenderPipeline$Builder <init> ()V
-accessible   method   com/mojang/blaze3d/pipeline/RenderPipeline$Builder withSnippet (Lcom/mojang/blaze3d/pipeline/RenderPipeline$Snippet;)V
-accessible   class   net/minecraft/client/resource/ResourceReloadLogger$ReloadState
-accessible   class   net/minecraft/client/world/ClientChunkManager$ClientChunkMap
+accessible method com/mojang/blaze3d/pipeline/RenderPipeline$Builder <init> ()V
+accessible method com/mojang/blaze3d/pipeline/RenderPipeline$Builder withSnippet (Lcom/mojang/blaze3d/pipeline/RenderPipeline$Snippet;)V
+accessible class net/minecraft/client/resource/ResourceReloadLogger$ReloadState
+accessible class net/minecraft/client/world/ClientChunkManager$ClientChunkMap
 
 accessible method net/minecraft/client/render/GameRenderer getProjectionMatrix (F)Lorg/joml/Matrix4f;
 
 accessible method net/minecraft/client/MinecraftClient doAttack ()Z
 accessible method net/minecraft/client/MinecraftClient doItemUse ()V
+
+accessible method net/minecraft/client/gui/screen/Screen addDrawableChild (Lnet/minecraft/client/gui/Element;)Lnet/minecraft/client/gui/Element;
 
 accessible method net/minecraft/client/render/entity/LivingEntityRenderer addFeature (Lnet/minecraft/client/render/entity/feature/FeatureRenderer;)Z

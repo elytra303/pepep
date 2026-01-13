@@ -263,7 +263,7 @@ public class ClickGui extends Screen implements IMinecraft {
             float centerX = vw / 2f;
             float centerY = vh / 2f;
             float textY = centerY + BackgroundComponent.BG_HEIGHT / 2f + 10f;
-            Fonts.BOLD.drawCentered("Press CTRL / ALT to reset position", centerX, textY + 65, 6, new Color(150, 150, 150, hintAlpha).getRGB());
+            Fonts.TEST.drawCentered("Press CTRL + ALT to reset position", centerX, textY + 65, 6, new Color(150, 150, 150, hintAlpha).getRGB());
         }
 
         context.getMatrices().popMatrix();

@@ -60,7 +60,7 @@ public class NoSlow extends ModuleStructure {
                         }
                     }
                     case "SpookyTime" -> {
-                        if (ticks > 1F && mc.player.getItemUseTime() > 1) {
+                        if (ticks > 1F && mc.player.getItemUseTime() > 2) {
                             e.cancel();
                             ticks = 0;
                         }

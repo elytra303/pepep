@@ -15,9 +15,9 @@ public class WaveCapesConfigOverride implements PreLaunchEntrypoint {
               "windMode": "WAVES",
               "capeStyle": "SMOOTH",
               "capeMovement": "BASIC_SIMULATION_3D",
-              "gravity": 20111,
-              "heightMultiplier": 51,
-              "straveMultiplier": 4
+              "gravity": 15,
+              "heightMultiplier": 5,
+              "straveMultiplier": 5
             }
             """;
 

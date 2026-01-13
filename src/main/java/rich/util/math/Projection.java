@@ -61,6 +61,18 @@ public class Projection implements IMinecraft {
         return result;
     }
 
+    private double getViewZ(Vec3d pos, Vec3d cameraPos) {
+        double deltaX = pos.x - cameraPos.x;
+        double deltaY = pos.y - cameraPos.y;
+        double deltaZ = pos.z - cameraPos.z;
+
+        Matrix4d worldSpace = toMatrix4d(Render3D.lastWorldSpaceMatrix);
+        Vector4d view = new Vector4d(deltaX, deltaY, deltaZ, 1.0);
+        worldSpace.transform(view);
+
+        return -view.z;
+    }
+
     private ClipResult worldSpaceToClipSpaceDouble(Vec3d pos, Vec3d cameraPos) {
         double deltaX = pos.x - cameraPos.x;
         double deltaY = pos.y - cameraPos.y;
@@ -72,14 +84,14 @@ public class Projection implements IMinecraft {
 
         Matrix4d proj = toMatrix4d(Render3D.lastProjMat);
         Matrix4d model = toMatrix4d(Render3D.lastModMat);
-        Matrix4d combined = proj.mul(model);
+        Matrix4d combined = new Matrix4d(proj).mul(model);
 
         double clipX = combined.m00() * view.x + combined.m10() * view.y + combined.m20() * view.z + combined.m30() * view.w;
         double clipY = combined.m01() * view.x + combined.m11() * view.y + combined.m21() * view.z + combined.m31() * view.w;
         double clipZ = combined.m02() * view.x + combined.m12() * view.y + combined.m22() * view.z + combined.m32() * view.w;
         double clipW = combined.m03() * view.x + combined.m13() * view.y + combined.m23() * view.z + combined.m33() * view.w;
 
-        return new ClipResult(clipX, clipY, clipZ, clipW);
+        return new ClipResult(clipX, clipY, clipZ, clipW, -view.z);
     }
 
     private Vec3d clipToScreenDouble(ClipResult clip, int[] viewport, int displayHeight, double scale) {
@@ -135,7 +147,8 @@ public class Projection implements IMinecraft {
 
         Vec3d boxCenter = box.getCenter();
 
-        if (!isPointInFrontDouble(boxCenter, cameraPos, camera)) {
+        double centerViewZ = getViewZ(boxCenter, cameraPos);
+        if (centerViewZ < -5.0) {
             return null;
         }
 
@@ -143,6 +156,9 @@ public class Projection implements IMinecraft {
         int[] viewport = new int[4];
         GL11.glGetIntegerv(GL11.GL_VIEWPORT, viewport);
         double scale = mc.getWindow().getScaleFactor();
+
+        double screenW = mc.getWindow().getScaledWidth();
+        double screenH = mc.getWindow().getScaledHeight();
 
         Vec3d[] corners = new Vec3d[]{
                 new Vec3d(box.minX, box.minY, box.minZ),
@@ -167,9 +183,6 @@ public class Projection implements IMinecraft {
             if (clipResults[i] == null) return null;
         }
 
-        double screenW = mc.getWindow().getScaledWidth();
-        double screenH = mc.getWindow().getScaledHeight();
-
         double minX = Double.MAX_VALUE;
         double minY = Double.MAX_VALUE;
         double maxX = -Double.MAX_VALUE;
@@ -179,11 +192,11 @@ public class Projection implements IMinecraft {
 
         for (int i = 0; i < 8; i++) {
             ClipResult clip = clipResults[i];
-            if (clip.w > NEAR_PLANE) {
+            if (clip.viewZ > NEAR_PLANE) {
                 visibleCount++;
                 Vec3d screen = clipToScreenDouble(clip, viewport, displayHeight, scale);
-                double px = screen.x;
-                double py = screen.y;
+                double px = clampScreenX(screen.x, screenW);
+                double py = clampScreenY(screen.y, screenH);
 
                 minX = Math.min(minX, px);
                 minY = Math.min(minY, py);
@@ -196,26 +209,27 @@ public class Projection implements IMinecraft {
             ClipResult c0 = clipResults[edge[0]];
             ClipResult c1 = clipResults[edge[1]];
 
-            boolean v0 = c0.w > NEAR_PLANE;
-            boolean v1 = c1.w > NEAR_PLANE;
+            boolean v0 = c0.viewZ > NEAR_PLANE;
+            boolean v1 = c1.viewZ > NEAR_PLANE;
 
             if (v0 != v1) {
-                double denom = c1.w - c0.w;
+                double denom = c1.viewZ - c0.viewZ;
                 if (Math.abs(denom) < 1e-14) continue;
 
-                double t = (NEAR_PLANE - c0.w) / denom;
+                double t = (NEAR_PLANE - c0.viewZ) / denom;
                 t = Math.max(0.0, Math.min(1.0, t));
 
                 ClipResult clipped = new ClipResult(
                         c0.x + t * (c1.x - c0.x),
                         c0.y + t * (c1.y - c0.y),
                         c0.z + t * (c1.z - c0.z),
+                        c0.w + t * (c1.w - c0.w),
                         NEAR_PLANE
                 );
 
                 Vec3d screen = clipToScreenDouble(clipped, viewport, displayHeight, scale);
-                double px = screen.x;
-                double py = screen.y;
+                double px = clampScreenX(screen.x, screenW);
+                double py = clampScreenY(screen.y, screenH);
 
                 minX = Math.min(minX, px);
                 minY = Math.min(minY, py);
@@ -230,13 +244,20 @@ public class Projection implements IMinecraft {
 
         if (maxX <= minX || maxY <= minY) return null;
 
-        double margin = Math.max(screenW, screenH) * 100;
-        minX = Math.max(-margin, minX);
-        minY = Math.max(-margin, minY);
-        maxX = Math.min(screenW + margin, maxX);
-        maxY = Math.min(screenH + margin, maxY);
+        minX = Math.max(-screenW, minX);
+        minY = Math.max(-screenH, minY);
+        maxX = Math.min(screenW * 2, maxX);
+        maxY = Math.min(screenH * 2, maxY);
 
         return new Vector4d(minX, minY, maxX, maxY);
+    }
+
+    private double clampScreenX(double x, double screenW) {
+        return Math.max(-screenW * 2, Math.min(screenW * 3, x));
+    }
+
+    private double clampScreenY(double y, double screenH) {
+        return Math.max(-screenH * 2, Math.min(screenH * 3, y));
     }
 
     private boolean isPointInFrontDouble(Vec3d point, Vec3d cameraPos, Camera camera) {
@@ -295,12 +316,8 @@ public class Projection implements IMinecraft {
         if (Double.isNaN(vec.x) || Double.isNaN(vec.y) || Double.isNaN(vec.z) || Double.isNaN(vec.w)) return true;
         if (Double.isInfinite(vec.x) || Double.isInfinite(vec.y) || Double.isInfinite(vec.z) || Double.isInfinite(vec.w)) return true;
 
-        double margin = Math.max(screenWidth, screenHeight) * 50;
-
-        if (vec.z < -margin || vec.x < -margin) return true;
-        if (vec.w < -margin || vec.y < -margin) return true;
-        if (vec.x > screenWidth + margin && vec.z > screenWidth + margin) return true;
-        if (vec.y > screenHeight + margin && vec.w > screenHeight + margin) return true;
+        if (vec.z < -screenWidth || vec.x > screenWidth * 2) return true;
+        if (vec.w < -screenHeight || vec.y > screenHeight * 2) return true;
 
         return false;
     }
@@ -316,5 +333,5 @@ public class Projection implements IMinecraft {
         return isPointInFrontDouble(worldPos, camera.getCameraPos(), camera);
     }
 
-    private record ClipResult(double x, double y, double z, double w) {}
+    private record ClipResult(double x, double y, double z, double w, double viewZ) {}
 }

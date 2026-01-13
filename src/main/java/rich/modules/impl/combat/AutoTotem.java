@@ -9,20 +9,28 @@ import net.minecraft.entity.TntEntity;
 import net.minecraft.entity.decoration.EndCrystalEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.entity.vehicle.TntMinecartEntity;
+import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.screen.slot.Slot;
 import net.minecraft.screen.slot.SlotActionType;
+import net.minecraft.util.math.Box;
+import net.minecraft.util.math.Vec3d;
 import rich.events.api.EventHandler;
 import rich.events.impl.InputEvent;
 import rich.events.impl.TickEvent;
+import rich.events.impl.WorldRenderEvent;
 import rich.modules.module.ModuleStructure;
 import rich.modules.module.category.ModuleCategory;
-import rich.modules.module.setting.implement.BooleanSetting;
+import rich.modules.module.setting.implement.MultiSelectSetting;
 import rich.modules.module.setting.implement.SelectSetting;
 import rich.modules.module.setting.implement.SliderSettings;
 import rich.util.inventory.SwapExecutor;
 import rich.util.inventory.SwapSettings;
-import rich.util.timer.StopWatch;
+import rich.util.render.render3D.Render3D;
+
+import java.awt.*;
+import java.util.HashMap;
+import java.util.Map;
 
 @Getter
 @FieldDefaults(level = AccessLevel.PRIVATE)
@@ -35,104 +43,48 @@ public class AutoTotem extends ModuleStructure {
     final SliderSettings healthThreshold = new SliderSettings("Порог здоровья", "Минимальное здоровье для взятия тотема")
             .range(1, 20).setValue(6);
 
-    final SliderSettings anticipation = new SliderSettings("Упреждение", "Дополнительное здоровье для легит режима")
-            .range(0, 10).setValue(2)
-            .visible(() -> swapMode.isSelected("Legit"));
+    final MultiSelectSetting triggers = new MultiSelectSetting("Триггеры", "Условия для взятия тотема")
+            .value("Кристалл", "Падение", "Анти ваншот", "Динамит", "Вагонетка", "Элитра")
+            .selected("Кристалл", "Падение", "Анти ваншот");
 
-    final BooleanSetting elytraCheck = new BooleanSetting("Здоровье на элитре", "Отдельный порог здоровья при полёте на элитре")
-            .setValue(false);
-
-    final SliderSettings elytraHealth = new SliderSettings("Здоровье элитры", "Порог здоровья при полёте на элитре")
-            .range(1, 20).setValue(10)
-            .visible(() -> elytraCheck.isValue());
-
-    final BooleanSetting crystalCheck = new BooleanSetting("Кристалл", "Брать тотем при наличии кристалла рядом")
-            .setValue(true);
+    final MultiSelectSetting options = new MultiSelectSetting("Опции", "Дополнительные настройки")
+            .value("Не брать если шар", "Возврат предмета", "Сохранять талисманы")
+            .selected("Не брать если шар", "Возврат предмета", "Сохранять талисманы");
 
     final SliderSettings crystalDistance = new SliderSettings("Дистанция кристалла", "Максимальное расстояние до кристалла")
             .range(1, 12).setValue(6)
-            .visible(() -> crystalCheck.isValue());
-
-    final BooleanSetting noTakeIfHead = new BooleanSetting("Не брать если шар", "Не брать тотем на кристалл если в offhand голова")
-            .setValue(false)
-            .visible(() -> crystalCheck.isValue());
-
-    final BooleanSetting takeIfLowHp = new BooleanSetting("Брать если мало ХП", "Брать тотем игнорируя голову при низком здоровье")
-            .setValue(false)
-            .visible(() -> crystalCheck.isValue() && noTakeIfHead.isValue());
-
-    final SliderSettings takeIfLowHpValue = new SliderSettings("ХП для взятия", "Порог здоровья для игнорирования головы")
-            .range(1, 20).setValue(4)
-            .visible(() -> crystalCheck.isValue() && noTakeIfHead.isValue() && takeIfLowHp.isValue());
-
-    final BooleanSetting fallCheck = new BooleanSetting("Падение", "Брать тотем при падении с высоты")
-            .setValue(true);
+            .visible(() -> triggers.isSelected("Кристалл"));
 
     final SliderSettings fallHeight = new SliderSettings("Высота падения", "Минимальная высота падения")
             .range(5, 50).setValue(15)
-            .visible(() -> fallCheck.isValue());
-
-    final BooleanSetting armorCheck = new BooleanSetting("Не полная броня", "Добавлять здоровье к порогу при неполной броне")
-            .setValue(false);
-
-    final SliderSettings armorHealthAdd = new SliderSettings("Доп. здоровье брони", "Дополнительное здоровье к порогу")
-            .range(1, 10).setValue(4)
-            .visible(() -> armorCheck.isValue());
-
-    final BooleanSetting returnItem = new BooleanSetting("Возвращение предмета", "Возвращать предмет после угрозы")
-            .setValue(true);
-
-    final SliderSettings returnDelay = new SliderSettings("Задержка возврата", "Задержка перед возвратом предмета (мс)")
-            .range(100, 2000).setValue(500)
-            .visible(() -> returnItem.isValue());
-
-    final BooleanSetting saveTalismans = new BooleanSetting("Сохранение талисманов", "Не использовать зачарованные тотемы")
-            .setValue(true);
-
-    final BooleanSetting goldenHearts = new BooleanSetting("Золотые сердца", "Учитывать absorption при расчёте здоровья")
-            .setValue(true);
-
-    final BooleanSetting maceCheck = new BooleanSetting("Булава", "Брать тотем при наличии игрока с булавой рядом")
-            .setValue(false);
-
-    final SliderSettings maceDistance = new SliderSettings("Дистанция булавы", "Максимальное расстояние до игрока с булавой")
-            .range(3, 20).setValue(10)
-            .visible(() -> maceCheck.isValue());
-
-    final BooleanSetting tntCheck = new BooleanSetting("Динамит", "Брать тотем при наличии динамита рядом")
-            .setValue(false);
+            .visible(() -> triggers.isSelected("Падение"));
 
     final SliderSettings tntDistance = new SliderSettings("Дистанция динамита", "Максимальное расстояние до динамита")
-            .range(1, 12).setValue(6)
-            .visible(() -> tntCheck.isValue());
-
-    final BooleanSetting tntMinecartCheck = new BooleanSetting("Вагонетка с динамитом", "Брать тотем при наличии вагонетки с динамитом")
-            .setValue(false);
+            .range(3, 25).setValue(6)
+            .visible(() -> triggers.isSelected("Динамит"));
 
     final SliderSettings tntMinecartDistance = new SliderSettings("Дистанция вагонетки", "Максимальное расстояние до вагонетки")
-            .range(1, 12).setValue(6)
-            .visible(() -> tntMinecartCheck.isValue());
+            .range(3, 15).setValue(6)
+            .visible(() -> triggers.isSelected("Вагонетка"));
+
+    final SliderSettings elytraHealth = new SliderSettings("Здоровье элитры", "Порог здоровья при полёте на элитре")
+            .range(1, 20).setValue(10)
+            .visible(() -> triggers.isSelected("Элитра"));
 
     final SwapExecutor executor = new SwapExecutor();
-    final StopWatch safeTimer = new StopWatch();
+    final Map<Integer, Double> playerLastY = new HashMap<>();
+    final Map<Integer, Double> playerFallStartY = new HashMap<>();
 
     int savedSlotId = -1;
     float fallStartY = 0;
     boolean wasFalling = false;
 
+    PlayerEntity dangerousFallingPlayer = null;
+    PlayerEntity dangerousElytraPlayer = null;
+
     public AutoTotem() {
         super("AutoTotem", "Auto Totem", ModuleCategory.COMBAT);
-        setup(
-                swapMode, healthThreshold, anticipation,
-                elytraCheck, elytraHealth,
-                crystalCheck, crystalDistance, noTakeIfHead, takeIfLowHp, takeIfLowHpValue,
-                fallCheck, fallHeight,
-                armorCheck, armorHealthAdd,
-                returnItem, returnDelay, saveTalismans, goldenHearts,
-                maceCheck, maceDistance,
-                tntCheck, tntDistance,
-                tntMinecartCheck, tntMinecartDistance
-        );
+        setup(swapMode, healthThreshold, triggers, options, crystalDistance, fallHeight, tntDistance, tntMinecartDistance, elytraHealth);
     }
 
     @Override
@@ -140,13 +92,20 @@ public class AutoTotem extends ModuleStructure {
         savedSlotId = -1;
         fallStartY = 0;
         wasFalling = false;
-        safeTimer.reset();
+        playerLastY.clear();
+        playerFallStartY.clear();
+        dangerousFallingPlayer = null;
+        dangerousElytraPlayer = null;
     }
 
     @Override
     public void deactivate() {
         executor.cancel();
         savedSlotId = -1;
+        playerLastY.clear();
+        playerFallStartY.clear();
+        dangerousFallingPlayer = null;
+        dangerousElytraPlayer = null;
     }
 
     @EventHandler
@@ -158,21 +117,30 @@ public class AutoTotem extends ModuleStructure {
         if (executor.isRunning()) return;
 
         updateFallTracking();
+        updatePlayerFallTracking();
 
         boolean needTotem = shouldEquipTotem();
         boolean hasTotemInOffhand = mc.player.getOffHandStack().getItem() == Items.TOTEM_OF_UNDYING;
+        boolean hasEnchantedTotemInOffhand = hasTotemInOffhand && mc.player.getOffHandStack().hasEnchantments();
+
+        float currentHealth = mc.player.getHealth();
+        float threshold = healthThreshold.getValue();
 
         if (needTotem) {
-            safeTimer.reset();
-
             if (!hasTotemInOffhand) {
                 equipTotem();
+            } else if (options.isSelected("Сохранять талисманы") && hasEnchantedTotemInOffhand) {
+                Slot regularTotemSlot = findRegularTotemSlot();
+                if (regularTotemSlot != null) {
+                    swapToRegularTotem(regularTotemSlot);
+                }
             }
         } else {
-            if (savedSlotId != -1 && hasTotemInOffhand && returnItem.isValue()) {
-                if (safeTimer.finished(returnDelay.getValue())) {
-                    returnSavedItem();
-                }
+            dangerousFallingPlayer = null;
+            dangerousElytraPlayer = null;
+
+            if (savedSlotId != -1 && hasTotemInOffhand && options.isSelected("Возврат предмета") && currentHealth > threshold) {
+                returnSavedItem();
             } else if (!hasTotemInOffhand) {
                 savedSlotId = -1;
             }
@@ -206,88 +174,95 @@ public class AutoTotem extends ModuleStructure {
         wasFalling = isFalling;
     }
 
+    private void updatePlayerFallTracking() {
+        if (mc.world == null) return;
+
+        for (PlayerEntity player : mc.world.getPlayers()) {
+            if (player == mc.player) continue;
+
+            int id = player.getId();
+            double currentY = player.getY();
+            Double lastY = playerLastY.get(id);
+
+            boolean isGoingDown = lastY != null && currentY < lastY - 0.01;
+            boolean isOnGroundOrWater = player.isOnGround() || player.isTouchingWater() || player.isClimbing();
+
+            if (isGoingDown && !isOnGroundOrWater && !player.isGliding()) {
+                if (!playerFallStartY.containsKey(id)) {
+                    playerFallStartY.put(id, lastY);
+                }
+            } else if (isOnGroundOrWater) {
+                playerFallStartY.remove(id);
+            }
+
+            playerLastY.put(id, currentY);
+        }
+
+        playerLastY.entrySet().removeIf(entry -> {
+            for (PlayerEntity player : mc.world.getPlayers()) {
+                if (player.getId() == entry.getKey()) return false;
+            }
+            return true;
+        });
+
+        playerFallStartY.entrySet().removeIf(entry -> {
+            for (PlayerEntity player : mc.world.getPlayers()) {
+                if (player.getId() == entry.getKey()) return false;
+            }
+            return true;
+        });
+    }
+
     private boolean shouldEquipTotem() {
-        float health = getEffectiveHealth();
-        float threshold = getEffectiveThreshold();
+        float health = mc.player.getHealth();
+        float threshold = healthThreshold.getValue();
 
         if (health <= threshold) {
             return true;
         }
 
-        if (elytraCheck.isValue() && mc.player.isGliding()) {
-            float elytraThreshold = elytraHealth.getValue();
-            if (swapMode.isSelected("Legit")) {
-                elytraThreshold += anticipation.getValue();
-            }
-            if (health <= elytraThreshold) {
+        if (triggers.isSelected("Элитра") && mc.player.isGliding()) {
+            if (health <= elytraHealth.getValue()) {
                 return true;
             }
         }
 
-        if (fallCheck.isValue()) {
+        if (triggers.isSelected("Падение")) {
             float fallDistance = fallStartY - (float) mc.player.getY();
             if (fallDistance >= fallHeight.getValue() && mc.player.getVelocity().y < -0.1) {
                 return true;
             }
         }
 
-        if (crystalCheck.isValue() && checkCrystalDanger()) {
+        if (triggers.isSelected("Анти ваншот") && checkOneshotDanger()) {
             return true;
         }
 
-        if (maceCheck.isValue() && checkMaceDanger()) {
+        if (triggers.isSelected("Кристалл") && checkCrystalDanger()) {
             return true;
         }
 
-        if (tntCheck.isValue() && checkTntDanger()) {
+        if (triggers.isSelected("Динамит") && checkTntDanger()) {
             return true;
         }
 
-        if (tntMinecartCheck.isValue() && checkTntMinecartDanger()) {
+        if (triggers.isSelected("Вагонетка") && checkTntMinecartDanger()) {
             return true;
         }
 
         return false;
     }
 
-    private float getEffectiveHealth() {
-        float health = mc.player.getHealth();
-        if (goldenHearts.isValue()) {
-            health += mc.player.getAbsorptionAmount();
-        }
-        return health;
-    }
-
-    private float getEffectiveThreshold() {
-        float threshold = healthThreshold.getValue();
-
-        if (swapMode.isSelected("Legit")) {
-            threshold += anticipation.getValue();
-        }
-
-        if (armorCheck.isValue()) {
-            int armor = mc.player.getArmor();
-            if (armor < 20) {
-                threshold += armorHealthAdd.getValue();
-            }
-        }
-
-        return threshold;
-    }
-
-    private boolean isBall() {
-        if (fallCheck.isValue() && (fallStartY - (float) mc.player.getY()) > 5.0F) {
-            return false;
-        }
-        return noTakeIfHead.isValue() && mc.player.getOffHandStack().getItem() == Items.PLAYER_HEAD;
+    private boolean hasHeadInOffhand() {
+        return mc.player.getOffHandStack().getItem() == Items.PLAYER_HEAD;
     }
 
     private boolean checkCrystalDanger() {
-        if (isBall()) {
-            if (takeIfLowHp.isValue() && getEffectiveHealth() <= takeIfLowHpValue.getValue()) {
-                return true;
+        if (options.isSelected("Не брать если шар") && hasHeadInOffhand()) {
+            float health = mc.player.getHealth();
+            if (health > healthThreshold.getValue()) {
+                return false;
             }
-            return false;
         }
 
         double distance = crystalDistance.getValue();
@@ -302,27 +277,97 @@ public class AutoTotem extends ModuleStructure {
         return false;
     }
 
-    private boolean checkMaceDanger() {
-        double distance = maceDistance.getValue();
+    private boolean checkOneshotDanger() {
+        dangerousFallingPlayer = null;
+        dangerousElytraPlayer = null;
 
         for (PlayerEntity player : mc.world.getPlayers()) {
             if (player == mc.player) continue;
-            if (mc.player.distanceTo(player) > distance) continue;
 
-            boolean hasMace = player.getMainHandStack().getItem() == Items.MACE
-                    || player.getOffHandStack().getItem() == Items.MACE;
-            if (!hasMace) continue;
-
-            if (player.getVelocity().y < -0.3 && !player.isOnGround()) {
-                double dx = mc.player.getX() - player.getX();
-                double dz = mc.player.getZ() - player.getZ();
-                double horizontalDist = Math.sqrt(dx * dx + dz * dz);
-
-                double predictedY = player.getY() + player.getVelocity().y * 10;
-                if (predictedY <= mc.player.getY() + 2 && horizontalDist < 5) {
-                    return true;
-                }
+            if (isFallingPlayerDangerous(player)) {
+                dangerousFallingPlayer = player;
+                return true;
             }
+
+            if (checkElytraPlayer(player)) {
+                dangerousElytraPlayer = player;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean isFallingPlayerDangerous(PlayerEntity player) {
+        if (player == mc.player) return false;
+        if (player.isGliding()) return false;
+
+        Vec3d playerPos = mc.player.getEntityPos();
+        double radius = 7;
+        double height = 50;
+
+        Box checkZone = new Box(
+                playerPos.x - radius, playerPos.y, playerPos.z - radius,
+                playerPos.x + radius, playerPos.y + height, playerPos.z + radius
+        );
+
+        if (!checkZone.intersects(player.getBoundingBox())) {
+            return false;
+        }
+
+        if (player.getY() < mc.player.getY()) {
+            return false;
+        }
+
+        int id = player.getId();
+        Double fallStart = playerFallStartY.get(id);
+
+        if (fallStart == null) {
+            return false;
+        }
+
+        double fallDistance = fallStart - player.getY();
+
+        return fallDistance >= 3;
+    }
+
+    private boolean checkElytraPlayer(PlayerEntity player) {
+        if (!player.isGliding()) return false;
+
+        double distance = mc.player.distanceTo(player);
+        if (distance > 20) return false;
+
+        Vec3d velocity = player.getVelocity();
+        double speed = velocity.length();
+
+        if (speed < 0.8) return false;
+
+        Vec3d toMe = new Vec3d(
+                mc.player.getX() - player.getX(),
+                mc.player.getY() - player.getY(),
+                mc.player.getZ() - player.getZ()
+        ).normalize();
+
+        Vec3d velocityNorm = velocity.normalize();
+        double dot = velocityNorm.x * toMe.x + velocityNorm.y * toMe.y + velocityNorm.z * toMe.z;
+
+        if (dot > 0.25) {
+            double timeToReach = distance / speed;
+
+            if (timeToReach < 2.5) {
+                return true;
+            }
+
+            double predictedX = player.getX() + velocity.x * timeToReach;
+            double predictedY = player.getY() + velocity.y * timeToReach;
+            double predictedZ = player.getZ() + velocity.z * timeToReach;
+
+            double predictedDist = Math.sqrt(
+                    Math.pow(predictedX - mc.player.getX(), 2) +
+                            Math.pow(predictedY - mc.player.getY(), 2) +
+                            Math.pow(predictedZ - mc.player.getZ(), 2)
+            );
+
+            return predictedDist < 6;
         }
         return false;
     }
@@ -355,9 +400,7 @@ public class AutoTotem extends ModuleStructure {
 
     private void swapSlots(int slot) {
         if (mc.player == null || mc.interactionManager == null) return;
-
         int syncId = mc.player.playerScreenHandler.syncId;
-
         mc.interactionManager.clickSlot(syncId, slot, 40, SlotActionType.SWAP, mc.player);
     }
 
@@ -385,6 +428,18 @@ public class AutoTotem extends ModuleStructure {
         }
     }
 
+    private void swapToRegularTotem(Slot regularTotemSlot) {
+        if (regularTotemSlot == null) return;
+
+        final int slotId = regularTotemSlot.id;
+
+        if (swapMode.isSelected("Instant") || isScreenOpen()) {
+            swapSlots(slotId);
+        } else {
+            executor.execute(() -> swapSlots(slotId), SwapSettings.legit());
+        }
+    }
+
     private void returnSavedItem() {
         if (savedSlotId == -1) return;
 
@@ -404,16 +459,27 @@ public class AutoTotem extends ModuleStructure {
     private Slot findTotemSlot() {
         if (mc.player == null) return null;
 
+        Slot regularTotem = findRegularTotemSlot();
+        if (regularTotem != null) {
+            return regularTotem;
+        }
+
+        return findAnyTotemSlot();
+    }
+
+    private Slot findRegularTotemSlot() {
+        if (mc.player == null) return null;
+
         for (int i = 36; i <= 44; i++) {
             Slot slot = mc.player.playerScreenHandler.getSlot(i);
-            if (slot != null && isValidTotem(slot.getStack())) {
+            if (slot != null && isRegularTotem(slot.getStack())) {
                 return slot;
             }
         }
 
         for (int i = 9; i <= 35; i++) {
             Slot slot = mc.player.playerScreenHandler.getSlot(i);
-            if (slot != null && isValidTotem(slot.getStack())) {
+            if (slot != null && isRegularTotem(slot.getStack())) {
                 return slot;
             }
         }
@@ -421,14 +487,35 @@ public class AutoTotem extends ModuleStructure {
         return null;
     }
 
-    private boolean isValidTotem(net.minecraft.item.ItemStack stack) {
-        if (stack.isEmpty()) return false;
-        if (stack.getItem() != Items.TOTEM_OF_UNDYING) return false;
+    private Slot findAnyTotemSlot() {
+        if (mc.player == null) return null;
 
-        if (saveTalismans.isValue() && stack.hasEnchantments()) {
-            return false;
+        for (int i = 36; i <= 44; i++) {
+            Slot slot = mc.player.playerScreenHandler.getSlot(i);
+            if (slot != null && isTotem(slot.getStack())) {
+                return slot;
+            }
         }
 
+        for (int i = 9; i <= 35; i++) {
+            Slot slot = mc.player.playerScreenHandler.getSlot(i);
+            if (slot != null && isTotem(slot.getStack())) {
+                return slot;
+            }
+        }
+
+        return null;
+    }
+
+    private boolean isTotem(ItemStack stack) {
+        return !stack.isEmpty() && stack.getItem() == Items.TOTEM_OF_UNDYING;
+    }
+
+    private boolean isRegularTotem(ItemStack stack) {
+        if (!isTotem(stack)) return false;
+        if (options.isSelected("Сохранять талисманы")) {
+            return !stack.hasEnchantments();
+        }
         return true;
     }
 }

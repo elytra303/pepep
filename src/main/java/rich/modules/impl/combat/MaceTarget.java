@@ -12,15 +12,18 @@ import rich.events.impl.TickEvent;
 import rich.modules.impl.combat.aura.Angle;
 import rich.modules.impl.combat.aura.AngleConfig;
 import rich.modules.impl.combat.aura.AngleConnection;
-import rich.modules.impl.combat.aura.MathAngle;
 import rich.modules.impl.combat.aura.impl.LinearConstructor;
 import rich.modules.impl.combat.aura.target.TargetFinder;
-import rich.modules.impl.combat.macetarget.*;
-import rich.modules.impl.combat.macetarget.state.MaceState.Stage;
 import rich.modules.impl.combat.macetarget.armor.ArmorSwapHandler;
 import rich.modules.impl.combat.macetarget.armor.FireworkHandler;
+import rich.modules.impl.combat.macetarget.attack.AttackHandler;
+import rich.modules.impl.combat.macetarget.flight.FlightController;
+import rich.modules.impl.combat.macetarget.prediction.TargetPredictor;
+import rich.modules.impl.combat.macetarget.stage.StageHandler;
+import rich.modules.impl.combat.macetarget.state.MaceState.Stage;
 import rich.modules.module.ModuleStructure;
 import rich.modules.module.category.ModuleCategory;
+import rich.modules.module.setting.implement.BooleanSetting;
 import rich.modules.module.setting.implement.MultiSelectSetting;
 import rich.modules.module.setting.implement.SelectSetting;
 import rich.modules.module.setting.implement.SliderSettings;
@@ -38,6 +41,10 @@ public class MaceTarget extends ModuleStructure {
         return Instance.get(MaceTarget.class);
     }
 
+    final SelectSetting serverMode = new SelectSetting("Сервер", "Режим работы под сервер")
+            .value("Default", "ReallyWorld")
+            .selected("Default");
+
     final SelectSetting modeSetting = new SelectSetting("Режим", "Способ свапа")
             .value("Silent", "Legit")
             .selected("Silent");
@@ -50,50 +57,89 @@ public class MaceTarget extends ModuleStructure {
             .value("Игроки", "Мобы", "Животные")
             .selected("Игроки");
 
+    final BooleanSetting autoEquipChest = new BooleanSetting("Авто-нагрудник", "Одевать нагрудник при выключении")
+            .setValue(true);
+
+    final BooleanSetting predictMovement = new BooleanSetting("Предугадывание", "Предугадывать позицию убегающей цели")
+            .setValue(true);
+
+    final TargetPredictor predictor = new TargetPredictor();
+    final FlightController flightController;
     final ArmorSwapHandler armorSwapHandler;
     final FireworkHandler fireworkHandler;
+    final AttackHandler attackHandler = new AttackHandler();
+    final StageHandler stageHandler;
     final TargetFinder targetFinder = new TargetFinder();
     final StopWatch fireworkTimer = new StopWatch();
 
     LivingEntity target;
-    Stage stage = Stage.PREPARE;
-    boolean pendingAttack = false;
 
     public MaceTarget() {
         super("MaceTarget", "Mace Target", ModuleCategory.COMBAT);
-        setup(modeSetting, height, targetType);
+        setup(serverMode, modeSetting, height, targetType, autoEquipChest, predictMovement);
 
+        flightController = new FlightController(predictor);
         armorSwapHandler = new ArmorSwapHandler(this::buildSettings);
         fireworkHandler = new FireworkHandler(this::buildSettings);
+        stageHandler = new StageHandler(armorSwapHandler, fireworkHandler, attackHandler, fireworkTimer);
     }
 
     private boolean isSilentMode() {
         return modeSetting.getSelected().equals("Silent");
     }
 
+    private boolean isReallyWorldMode() {
+        return serverMode.getSelected().equals("ReallyWorld");
+    }
+
     private SwapSettings buildSettings() {
         return isSilentMode() ? SwapSettings.instant() : SwapSettings.legit();
     }
 
+    private void updateHandlers() {
+        stageHandler.setSilentMode(isSilentMode());
+        stageHandler.setReallyWorldMode(isReallyWorldMode());
+        stageHandler.setHeight(height.getValue());
+        flightController.setPredictionEnabled(predictMovement.isValue());
+        flightController.setHeight(height.getValue());
+    }
+
     @Override
     public void activate() {
-        stage = Stage.PREPARE;
+        stageHandler.reset();
         target = null;
-        pendingAttack = false;
+        attackHandler.reset();
         armorSwapHandler.reset();
         fireworkHandler.reset();
+        predictor.reset();
         fireworkTimer.reset();
     }
 
     @Override
     public void deactivate() {
+        if (autoEquipChest.isValue() && mc.player != null) {
+            equipChestplateOnDisable();
+        }
+
         armorSwapHandler.forceRestore();
         fireworkHandler.forceRestore();
         target = null;
         targetFinder.releaseTarget();
         armorSwapHandler.reset();
         fireworkHandler.reset();
+        predictor.reset();
         AngleConnection.INSTANCE.startReturning();
+    }
+
+    private void equipChestplateOnDisable() {
+        if (InventoryUtils.hasElytra()) {
+            int slot = InventoryUtils.findChestArmorSlot();
+            if (slot != -1) {
+                int wrappedSlot = InventoryUtils.wrapSlot(slot);
+                InventoryUtils.swap(wrappedSlot, 6);
+                InventoryUtils.closeScreen();
+            }
+        }
     }
 
     @EventHandler
@@ -101,32 +147,41 @@ public class MaceTarget extends ModuleStructure {
         if (mc.player == null || mc.world == null) return;
 
         if (event.getType() == EventType.PRE) {
+            updateHandlers();
+
             if (target == null || !target.isAlive()) {
                 findTarget();
             }
 
             if (target == null) return;
 
-            switch (stage) {
+            predictor.update(target);
+
+            Stage currentStage = stageHandler.getStage();
+
+            switch (currentStage) {
                 case FLYING_UP -> {
                     if (InventoryUtils.hasElytra() && mc.player.isGliding()) {
-                        Angle targetAngle = MathAngle.fromVec3d(
-                                target.getEntityPos().add(0, height.getValue(), 0).subtract(mc.player.getEyePos())
-                        );
+                        Angle targetAngle = flightController.calculateAngle(target, currentStage);
                         rotateTo(targetAngle);
                     }
                 }
                 case TARGETTING, ATTACKING -> {
-                    Angle targetAngle = MathAngle.fromVec3d(target.getEntityPos().subtract(mc.player.getEyePos()));
+                    Angle targetAngle = flightController.calculateAngle(target, currentStage);
                     rotateTo(targetAngle);
                 }
             }
         }
 
         if (event.getType() == EventType.POST) {
-            if (pendingAttack) {
-                performAttack();
-                pendingAttack = false;
+            if (attackHandler.isPendingAttack()) {
+                attackHandler.performAttack(target);
+                attackHandler.setPendingAttack(false);
+
+                if (attackHandler.isShouldDisableAfterAttack()) {
+                    attackHandler.setShouldDisableAfterAttack(false);
+                    setState(false);
+                }
             }
         }
     }
@@ -152,98 +207,14 @@ public class MaceTarget extends ModuleStructure {
         }
 
         boolean hasElytra = InventoryUtils.hasElytra();
+        Stage currentStage = stageHandler.getStage();
 
-        switch (stage) {
-            case PREPARE -> handlePrepare(hasElytra);
-            case FLYING_UP -> handleFlyingUp(hasElytra);
-            case TARGETTING -> handleTargetting();
-            case ATTACKING -> handleAttacking(hasElytra);
+        switch (currentStage) {
+            case PREPARE -> stageHandler.handlePrepare(hasElytra);
+            case FLYING_UP -> stageHandler.handleFlyingUp(target, hasElytra);
+            case TARGETTING -> stageHandler.handleTargetting(target);
+            case ATTACKING -> stageHandler.handleAttacking(target, hasElytra);
         }
-    }
-
-    private void handlePrepare(boolean hasElytra) {
-        if (!hasElytra) {
-            int slot = InventoryUtils.findElytraSlot();
-            if (slot != -1) {
-                armorSwapHandler.startSwap(slot, isSilentMode());
-            }
-            return;
-        }
-        stage = Stage.FLYING_UP;
-        fireworkTimer.reset();
-    }
-
-    private void handleFlyingUp(boolean hasElytra) {
-        if (!hasElytra) {
-            stage = Stage.PREPARE;
-            return;
-        }
-
-        if (mc.player.isGliding() && fireworkTimer.finished(300)) {
-            fireworkHandler.useFirework(isSilentMode());
-            fireworkTimer.reset();
-        }
-
-        if (mc.player.getY() - target.getY() >= height.getValue()) {
-            stage = Stage.TARGETTING;
-        }
-    }
-
-    private void handleTargetting() {
-        float swapDistance = 12.0f;
-
-        if (InventoryUtils.hasElytra() && mc.player.distanceTo(target) < swapDistance
-                && !armorSwapHandler.isActive()) {
-            int slot = InventoryUtils.findChestArmorSlot();
-            if (slot != -1) {
-                armorSwapHandler.startSwap(slot, isSilentMode());
-            }
-        }
-
-        if (mc.player.distanceTo(target) < 16.0f) {
-            stage = Stage.ATTACKING;
-        }
-    }
-
-    private void handleAttacking(boolean hasElytra) {
-        if (hasElytra && !armorSwapHandler.isActive()) {
-            int slot = InventoryUtils.findChestArmorSlot();
-            if (slot != -1) {
-                armorSwapHandler.startSwap(slot, isSilentMode());
-            }
-            return;
-        }
-
-        if (!hasElytra && !armorSwapHandler.isActive() && mc.player.distanceTo(target) < 5) {
-            pendingAttack = true;
-            stage = Stage.FLYING_UP;
-            fireworkTimer.reset();
-        }
-    }
-
-    private void performAttack() {
-        if (mc.player == null || target == null) return;
-
-        int maceSlot = InventoryUtils.findHotbarItem(net.minecraft.item.Items.MACE);
-        int prevSlot = mc.player.getInventory().getSelectedSlot();
-
-        if (maceSlot != -1 && maceSlot != prevSlot) {
-            mc.getNetworkHandler().sendPacket(
-                    new net.minecraft.network.packet.c2s.play.UpdateSelectedSlotC2SPacket(maceSlot)
-            );
-        }
-
-        mc.interactionManager.attackEntity(mc.player, target);
-        mc.player.swingHand(net.minecraft.util.Hand.MAIN_HAND);
-
-        if (maceSlot != -1 && maceSlot != prevSlot) {
-            mc.getNetworkHandler().sendPacket(
-                    new net.minecraft.network.packet.c2s.play.UpdateSelectedSlotC2SPacket(prevSlot)
-            );
-        }
-
-        stage = Stage.FLYING_UP;
-        fireworkTimer.reset();
     }
 
     @EventHandler
@@ -255,7 +226,7 @@ public class MaceTarget extends ModuleStructure {
             event.setJumping(false);
         }
 
-        if (target != null && InventoryUtils.hasElytra() && stage == Stage.FLYING_UP) {
+        if (target != null && InventoryUtils.hasElytra() && stageHandler.getStage() == Stage.FLYING_UP) {
             if (mc.player.isOnGround()) {
                 event.setJumping(true);
             } else if (!mc.player.isGliding() && !mc.player.getAbilities().flying) {
@@ -280,8 +251,9 @@ public class MaceTarget extends ModuleStructure {
     private void resetAllStates() {
         armorSwapHandler.reset();
         fireworkHandler.reset();
+        attackHandler.reset();
+        predictor.reset();
         target = null;
-        stage = Stage.PREPARE;
-        pendingAttack = false;
+        stageHandler.reset();
     }
 }
