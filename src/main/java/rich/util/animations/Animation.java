@@ -16,6 +16,9 @@ public class Animation implements AnimationCalculation {
         counter.resetCounter();
     }
 
+    public void update() {
+    }
+
     public boolean isDone() {
         return counter.isReached(ms);
     }

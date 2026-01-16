@@ -10,7 +10,8 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
-import rich.client.draggables.DraggableHandler;
+import rich.Initialization;
+import rich.client.draggables.Drag;
 
 @Mixin(ChatScreen.class)
 public abstract class ChatScreenMixin extends Screen {
@@ -20,22 +21,33 @@ public abstract class ChatScreenMixin extends Screen {
     }
 
     @Inject(method = "render", at = @At("TAIL"))
-    private void onRender(DrawContext context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
-        DraggableHandler.getInstance().render(context, mouseX, mouseY, delta);
+    private void onRender(DrawContext context, int mouseX, int mouseY, float deltaTicks, CallbackInfo ci) {
+        Drag.onDraw(context, mouseX, mouseY, deltaTicks);
     }
 
     @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
     private void onMouseClicked(Click click, boolean doubled, CallbackInfoReturnable<Boolean> cir) {
-        if (DraggableHandler.getInstance().mouseClicked(click.x(), click.y(), click.button())) {
+        int mouseX = (int) click.x();
+        int mouseY = (int) click.y();
+        int button = click.button();
+
+        if (Initialization.getInstance() != null && Initialization.getInstance().getManager() != null
+                && Initialization.getInstance().getManager().getHudManager() != null) {
+            if (Initialization.getInstance().getManager().getHudManager().mouseClicked(mouseX, mouseY, button)) {
+                cir.setReturnValue(true);
+                return;
+            }
+        }
+
+        Drag.onMouseClick(click);
+        if (Drag.isDragging()) {
             cir.setReturnValue(true);
         }
     }
 
     @Override
     public boolean mouseReleased(Click click) {
-        if (DraggableHandler.getInstance().mouseReleased(click.x(), click.y(), click.button())) {
-            return true;
-        }
+        Drag.onMouseRelease(click);
         return super.mouseReleased(click);
     }
 

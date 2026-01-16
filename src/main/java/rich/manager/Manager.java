@@ -1,6 +1,7 @@
 package rich.manager;
 
 import lombok.Getter;
+import rich.client.draggables.HudManager;
 import rich.command.CommandManager;
 import rich.events.api.EventManager;
 import rich.modules.impl.combat.aura.attack.StrikerConstructor;
@@ -17,9 +18,10 @@ import rich.util.modules.ModuleProvider;
 import rich.util.modules.ModuleSwitcher;
 import rich.util.render.RenderCore;
 import rich.util.render.Scissor;
-import rich.client.draggables.DraggableRepository;
+import rich.util.render.font.FontInitializer;
 import rich.util.repository.macro.MacroRepository;
 import rich.util.repository.way.WayRepository;
+import rich.util.tps.TPSCalculate;
 
 /**
  *  © 2026 Copyright Rich Client 2.0
@@ -32,13 +34,14 @@ public class Manager {
     private EventManager eventManager;
     private RenderCore renderCore;
     private Scissor scissor;
-    private DraggableRepository draggableRepository;
     private ModuleProvider moduleProvider;
     private ModuleRepository moduleRepository;
     private ModuleSwitcher moduleSwitcher;
     private ClickGui clickgui;
     private ConfigSystem configSystem;
     private CommandManager commandManager;
+    private TPSCalculate tpsCalculate;
+    private HudManager hudManager = new HudManager();
 
     public void init() {
         MacroRepository.getInstance().init();
@@ -50,12 +53,16 @@ public class Manager {
         ProxyConfig.getInstance().load();
         BindConfig.getInstance();
 
+        FontInitializer.register();
+
+        tpsCalculate = new TPSCalculate();
+
         clickgui = new ClickGui();
         eventManager = new EventManager();
         renderCore = new RenderCore();
         scissor = new Scissor();
-        draggableRepository = new DraggableRepository();
-        draggableRepository.setup();
+        hudManager = new HudManager();
+        hudManager.initElements();
         moduleRepository = new ModuleRepository();
         moduleRepository.setup();
         moduleProvider = new ModuleProvider(moduleRepository.modules());

@@ -8,7 +8,6 @@ in vec4 cornerRadii;
 in vec4 fragColors[4];
 in float fragSmoothness;
 in float guiScale;
-in float isPixelPerfect;
 
 out vec4 fragColor;
 
@@ -17,7 +16,6 @@ uniform sampler2D Sampler0;
 float roundedBoxSDF(vec2 p, vec2 b, vec4 r) {
     r.xy = (p.x > 0.0) ? r.yz : r.xw;
     r.x = (p.y > 0.0) ? r.y : r.x;
-
     vec2 q = abs(p) - b + r.x;
     return min(max(q.x, q.y), 0.0) + length(max(q, 0.0)) - r.x;
 }
@@ -28,43 +26,27 @@ vec4 sampleGradient(vec2 uv) {
     return mix(top, bottom, uv.y);
 }
 
-vec4 sampleTexturePixelPerfect(sampler2D tex, vec2 uv) {
-    ivec2 texSize = textureSize(tex, 0);
-    vec2 texelCoord = uv * vec2(texSize);
-    vec2 snappedCoord = floor(texelCoord) + 0.5;
-    vec2 snappedUV = snappedCoord / vec2(texSize);
-    return texture(tex, snappedUV);
-}
-
 void main() {
     vec2 halfSize = rectSize * 0.5;
     vec2 center = pixelCoord - halfSize;
 
-    float maxRadius = min(halfSize.x, halfSize.y);
-    vec4 radii = min(cornerRadii, vec4(maxRadius));
-
+    vec4 radii = min(cornerRadii, vec4(min(halfSize.x, halfSize.y)));
     float dist = roundedBoxSDF(center, halfSize, radii);
 
-    float pixelWidth = fwidth(dist);
-    float smoothing = max(pixelWidth * fragSmoothness, 0.5 / guiScale);
+    float edgeSmoothing = fwidth(dist);
+    float alpha = clamp(0.5 - dist / max(edgeSmoothing, 0.0001), 0.0, 1.0);
 
-    float alpha = 1.0 - smoothstep(-smoothing, smoothing, dist);
-
-    if (alpha < 0.001) {
+    if (alpha <= 0.0) {
         discard;
     }
-
-    vec4 texColor;
-    if (isPixelPerfect > 0.5) {
-        texColor = sampleTexturePixelPerfect(Sampler0, texCoord);
-    } else {
-        texColor = texture(Sampler0, texCoord);
-    }
+    vec2 texSize = vec2(textureSize(Sampler0, 0));
+    vec2 sharpTexCoord = (floor(texCoord * texSize) + 0.5) / texSize;
+    vec4 texColor = mix(texture(Sampler0, sharpTexCoord), texture(Sampler0, texCoord), clamp(fragSmoothness, 0.0, 1.0));
 
     vec4 tintColor = sampleGradient(fragCoord);
 
     vec3 finalColor = texColor.rgb * tintColor.rgb;
     float finalAlpha = texColor.a * tintColor.a * alpha;
 
-    fragColor = vec4(finalColor * finalAlpha, finalAlpha);
+    fragColor = vec4(finalColor, finalAlpha);
 }

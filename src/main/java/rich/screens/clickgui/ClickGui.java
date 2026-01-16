@@ -5,6 +5,7 @@ import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.input.CharInput;
 import net.minecraft.client.input.KeyInput;
+import net.minecraft.client.render.RenderTickCounter;
 import net.minecraft.text.Text;
 import org.lwjgl.glfw.GLFW;
 import rich.IMinecraft;
@@ -51,6 +52,10 @@ public class ClickGui extends Screen implements IMinecraft {
     private long lastHintUpdateTime = System.currentTimeMillis();
     private static final float HINT_ANIM_SPEED = 6f;
     private static final float OFFSET_THRESHOLD = 5f;
+
+    private int lastMouseX;
+    private int lastMouseY;
+    private float lastDelta;
 
     public ClickGui() {
         super(Text.of("MenuScreen"));
@@ -148,13 +153,16 @@ public class ClickGui extends Screen implements IMinecraft {
     }
 
     private boolean isModuleCategory(ModuleCategory category) {
-        return category != ModuleCategory.AUTOBUY && category != ModuleCategory.CONFIGS;
+        return category != ModuleCategory.AUTOBUY ;
     }
 
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
+        lastMouseX = mouseX;
+        lastMouseY = mouseY;
+        lastDelta = delta;
+
         FrameRateCounter.INSTANCE.recordFrame();
-        float scrollSpeed = Math.min(1f, 60f / Math.max(FrameRateCounter.INSTANCE.getFps(), 1));
 
         if (waitingForSlide && selectedCategory == ModuleCategory.AUTOBUY) {
             if (!slideTriggered) {
@@ -169,8 +177,6 @@ public class ClickGui extends Screen implements IMinecraft {
             }
         }
 
-        float animValue = openAnimation.getOutput().floatValue();
-
         if (closing && !waitingForSlide && openAnimation.isFinished(Direction.BACKWARDS)) {
             closing = false;
             TextComponent.typing = false;
@@ -178,11 +184,23 @@ public class ClickGui extends Screen implements IMinecraft {
             dragHandler.stopDrag();
             autoBuyRenderer.resetForClose();
             mc.currentScreen = null;
-            return;
         }
+    }
+
+    public void renderOverlay(DrawContext context, RenderTickCounter tickCounter) {
+        if (mc.getWindow() == null) return;
+
+        float delta = lastDelta;
+        int mouseX = lastMouseX;
+        int mouseY = lastMouseY;
+
+        float scrollSpeed = Math.min(1f, 60f / Math.max(FrameRateCounter.INSTANCE.getFps(), 1));
+        float animValue = openAnimation.getOutput().floatValue();
 
         int screenWidth = mc.getWindow().getScaledWidth();
         int screenHeight = mc.getWindow().getScaledHeight();
+
+        context.createNewRootLayer();
 
         int dimAlpha = (int) (125 * animValue);
         if (dimAlpha > 0) {
@@ -263,7 +281,7 @@ public class ClickGui extends Screen implements IMinecraft {
             float centerX = vw / 2f;
             float centerY = vh / 2f;
             float textY = centerY + BackgroundComponent.BG_HEIGHT / 2f + 10f;
-            Fonts.TEST.drawCentered("Press CTRL + ALT to reset position", centerX, textY + 65, 6, new Color(150, 150, 150, hintAlpha).getRGB());
+//            Fonts.TEST.drawCentered("Press CTRL + ALT to reset position", centerX, textY + 65, 6, new Color(150, 150, 150, hintAlpha).getRGB());
         }
 
         context.getMatrices().popMatrix();
@@ -324,11 +342,11 @@ public class ClickGui extends Screen implements IMinecraft {
             }
         }
 
-        if (selectedCategory == ModuleCategory.CONFIGS) {
-            if (configsRenderer.mouseClicked(mx, my, click.button(), bgX, bgY, selectedCategory)) {
-                return true;
-            }
-        }
+//        if (selectedCategory == ModuleCategory.CONFIGS) {
+//            if (configsRenderer.mouseClicked(mx, my, click.button(), bgX, bgY, selectedCategory)) {
+//                return true;
+//            }
+//        }
 
         float mlX = bgX + 92f, mlY = bgY + 38f, mlW = 120f, mlH = BackgroundComponent.BG_HEIGHT - 48f;
 
@@ -397,9 +415,9 @@ public class ClickGui extends Screen implements IMinecraft {
             autoBuyRenderer.mouseReleased(click.x(), click.y(), click.button());
         }
 
-        if (selectedCategory == ModuleCategory.CONFIGS) {
-            configsRenderer.mouseReleased(click.x(), click.y(), click.button());
-        }
+//        if (selectedCategory == ModuleCategory.CONFIGS) {
+//            configsRenderer.mouseReleased(click.x(), click.y(), click.button());
+//        }
 
         for (AbstractSettingComponent c : moduleComponent.getSettingComponents()) {
             if (c.getSetting().isVisible() && c.mouseReleased(click.x(), click.y(), click.button())) {
@@ -452,11 +470,11 @@ public class ClickGui extends Screen implements IMinecraft {
             }
         }
 
-        if (selectedCategory == ModuleCategory.CONFIGS) {
-            if (configsRenderer.mouseScrolled(mx, my, vertical, bgX, bgY, selectedCategory)) {
-                return true;
-            }
-        }
+//        if (selectedCategory == ModuleCategory.CONFIGS) {
+//            if (configsRenderer.mouseScrolled(mx, my, vertical, bgX, bgY, selectedCategory)) {
+//                return true;
+//            }
+//        }
 
         float mlX = bgX + 92f, mlY = bgY + 38f, mlW = 120f, mlH = BackgroundComponent.BG_HEIGHT - 48f;
         if (mx >= mlX && mx <= mlX + mlW && my >= mlY && my <= mlY + mlH) {
@@ -497,11 +515,11 @@ public class ClickGui extends Screen implements IMinecraft {
             }
         }
 
-        if (selectedCategory == ModuleCategory.CONFIGS) {
-            if (configsRenderer.keyPressed(input.key(), input.scancode(), input.modifiers())) {
-                return true;
-            }
-        }
+//        if (selectedCategory == ModuleCategory.CONFIGS) {
+//            if (configsRenderer.keyPressed(input.key(), input.scancode(), input.modifiers())) {
+//                return true;
+//            }
+//        }
 
         if (background.isSearchActive()) {
             if (background.handleSearchKey(input.key())) {
@@ -538,11 +556,11 @@ public class ClickGui extends Screen implements IMinecraft {
             }
         }
 
-        if (selectedCategory == ModuleCategory.CONFIGS) {
-            if (configsRenderer.charTyped((char) input.codepoint(), input.modifiers())) {
-                return true;
-            }
-        }
+//        if (selectedCategory == ModuleCategory.CONFIGS) {
+//            if (configsRenderer.charTyped((char) input.codepoint(), input.modifiers())) {
+//                return true;
+//            }
+//        }
 
         if (background.isSearchActive()) {
             if (background.handleSearchChar((char) input.codepoint())) {

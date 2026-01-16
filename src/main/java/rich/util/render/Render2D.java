@@ -2,6 +2,7 @@ package rich.util.render;
 
 import com.mojang.blaze3d.opengl.GlStateManager;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.texture.Sprite;
 import net.minecraft.util.Identifier;
 import org.lwjgl.opengl.GL11;
@@ -207,26 +208,59 @@ public class Render2D {
     }
 
     public static void texture(Identifier id, float x, float y, float width, float height, int color) {
-        texture(id, x, y, width, height, 1f, 0f, color);
+        texture(id, x, y, width, height, 0, 0, 1, 1, color, 1f, 0f);
     }
 
     public static void texture(Identifier id, float x, float y, float width, float height, float smoothness, int color) {
-        texture(id, x, y, width, height, smoothness, 0f, color);
+        texture(id, x, y, width, height, 0, 0, 1, 1, color, smoothness, 0f);
     }
 
     public static void texture(Identifier id, float x, float y, float width, float height, float smoothness, float radius, int color) {
-        int[] colors = {color, color, color, color};
-        float[] radii = {radius, radius, radius, radius};
-        Initialization.getInstance().getManager().getRenderCore().getTexturePipeline()
-                .drawTexture(id, x, y, width, height, 0, 0, 1, 1, colors, radii, smoothness);
+        texture(id, x, y, width, height, 0, 0, 1, 1, color, smoothness, radius);
     }
 
     public static void texture(Identifier id, float x, float y, float width, float height,
                                float u0, float v0, float u1, float v1, int color) {
+        texture(id, x, y, width, height, u0, v0, u1, v1, color, 1f, 0f);
+    }
+
+    public static void texture(Identifier id, float x, float y, float width, float height,
+                               float u0, float v0, float u1, float v1, int color, float radius) {
+        texture(id, x, y, width, height, u0, v0, u1, v1, color, 1f, radius);
+    }
+
+    public static void texture(Identifier id, float x, float y, float width, float height,
+                               float u0, float v0, float u1, float v1, int color, float smoothness, float radius) {
         int[] colors = {color, color, color, color};
-        float[] radii = {0, 0, 0, 0};
+        float[] radii = {radius, radius, radius, radius};
         Initialization.getInstance().getManager().getRenderCore().getTexturePipeline()
-                .drawTexture(id, x, y, width, height, u0, v0, u1, v1, colors, radii, 1f);
+                .drawTexture(id, x, y, width, height, u0, v0, u1, v1, colors, radii, smoothness);
+    }
+
+    public static void drawTexture(DrawContext context, Identifier id,
+                                   float x, float y, float width, float height,
+                                   float u, float v, float regionWidth, float regionHeight,
+                                   float textureWidth, float textureHeight,
+                                   int color) {
+        float u0 = u / textureWidth;
+        float v0 = v / textureHeight;
+        float u1 = (u + regionWidth) / textureWidth;
+        float v1 = (v + regionHeight) / textureHeight;
+
+        texture(id, x, y, width, height, u0, v0, u1, v1, color, 1f, 0f);
+    }
+
+    public static void drawTexture(DrawContext context, Identifier id,
+                                   float x, float y, float width, float height,
+                                   float u, float v, float regionWidth, float regionHeight,
+                                   float textureWidth, float textureHeight,
+                                   int color, float radius) {
+        float u0 = u / textureWidth;
+        float v0 = v / textureHeight;
+        float u1 = (u + regionWidth) / textureWidth;
+        float v1 = (v + regionHeight) / textureHeight;
+
+        texture(id, x, y, width, height, u0, v0, u1, v1, color, 1f, radius);
     }
 
     public static void drawSprite(Sprite sprite, float x, float y, float width, float height, int color) {
@@ -236,14 +270,11 @@ public class Render2D {
     public static void drawSprite(Sprite sprite, float x, float y, float width, float height, int color, boolean pixelPerfect) {
         if (sprite == null || width == 0 || height == 0) return;
 
-        int[] colors = {color, color, color, color};
-        float[] radii = {0, 0, 0, 0};
-
-        Initialization.getInstance().getManager().getRenderCore().getTexturePipeline()
-                .drawTexture(sprite.getAtlasId(), x, y, width, height,
-                        sprite.getMinU(), sprite.getMinV(),
-                        sprite.getMaxU(), sprite.getMaxV(),
-                        colors, radii, 0f, pixelPerfect);
+        float smoothness = pixelPerfect ? 1f : 0f;
+        texture(sprite.getAtlasId(), x, y, width, height,
+                sprite.getMinU(), sprite.getMinV(),
+                sprite.getMaxU(), sprite.getMaxV(),
+                color, smoothness, 0f);
     }
 
     public static void drawSpriteSmooth(Sprite sprite, float x, float y, float width, float height, int color) {

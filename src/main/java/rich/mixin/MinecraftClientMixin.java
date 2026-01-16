@@ -23,6 +23,7 @@ import rich.events.impl.SetScreenEvent;
 import rich.modules.impl.combat.NoInteract;
 import rich.screens.clickgui.ClickGui;
 import rich.util.config.ConfigSystem;
+import rich.util.render.font.FontRenderer;
 import rich.util.window.WindowStyle;
 
 import static rich.IMinecraft.mc;
@@ -44,6 +45,8 @@ public abstract class MinecraftClientMixin {
     @Shadow
     public ClientWorld world;
 
+    private static boolean fontsInitialized = false;
+
     @Inject(method = "<init>", at = @At("TAIL"))
     private void onInit(CallbackInfo ci) {
         new Initialization().init();
@@ -54,6 +57,19 @@ public abstract class MinecraftClientMixin {
         ConfigSystem configSystem = ConfigSystem.getInstance();
         if (configSystem != null) {
             configSystem.shutdown();
+        }
+    }
+
+    @Inject(method = "setScreen", at = @At("HEAD"))
+    private void onSetScreen(Screen screen, CallbackInfo ci) {
+        if (!fontsInitialized && screen != null) {
+            try {
+                FontRenderer fontRenderer = Initialization.getInstance().getManager().getRenderCore().getFontRenderer();
+                if (fontRenderer != null && !fontRenderer.isInitialized()) {
+                    fontRenderer.initialize();
+                    fontsInitialized = true;
+                }
+            } catch (Exception ignored) {}
         }
     }
 
@@ -79,9 +95,7 @@ public abstract class MinecraftClientMixin {
         EventManager.callEvent(event);
 
         Initialization instance = Initialization.getInstance();
-        if (instance != null && instance.getManager() != null && instance.getManager().getDraggableRepository() != null) {
-            instance.getManager().getDraggableRepository().draggable().forEach(drag -> drag.setScreen(event));
-        }
+
 
         Screen eventScreen = event.getScreen();
         if (screen != eventScreen) {

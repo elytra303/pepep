@@ -28,9 +28,6 @@ public class EntityRendererMixin<T extends Entity, S extends EntityRenderState> 
             if (state.entityType == EntityType.PLAYER && esp.entityType.isSelected("Player")) {
                 ci.cancel();
             }
-            if (state.entityType == EntityType.TNT && esp.entityType.isSelected("TNT")) {
-                ci.cancel();
-            }
             if (state.entityType == EntityType.ITEM && esp.entityType.isSelected("Item")) {
                 ci.cancel();
             }
@@ -44,9 +41,7 @@ public class EntityRendererMixin<T extends Entity, S extends EntityRenderState> 
             if (entity instanceof PlayerEntity && esp.entityType.isSelected("Player")) {
                 cir.setReturnValue(null);
             }
-            if (entity instanceof TntEntity && esp.entityType.isSelected("TNT")) {
-                cir.setReturnValue(null);
-            }
+
             if (entity instanceof ItemEntity && esp.entityType.isSelected("Item")) {
                 cir.setReturnValue(null);
             }

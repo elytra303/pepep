@@ -13,6 +13,7 @@ public class FontRenderer {
 
     private final FontPipeline pipeline;
     private final Map<String, FontAtlas> fonts;
+    private boolean initialized = false;
 
     public FontRenderer() {
         this.pipeline = new FontPipeline();
@@ -31,6 +32,21 @@ public class FontRenderer {
         for (Map.Entry<String, String> entry : registry.entrySet()) {
             loadFont(entry.getKey(), entry.getValue());
         }
+    }
+
+    public void initialize() {
+        if (initialized) return;
+        LOGGER.info("Initializing {} fonts...", fonts.size());
+        long startTime = System.currentTimeMillis();
+        for (Map.Entry<String, FontAtlas> entry : fonts.entrySet()) {
+            entry.getValue().forceLoad();
+        }
+        initialized = true;
+        LOGGER.info("All fonts initialized in {}ms", System.currentTimeMillis() - startTime);
+    }
+
+    public boolean isInitialized() {
+        return initialized;
     }
 
     public FontAtlas getFont(String name) {
@@ -89,12 +105,12 @@ public class FontRenderer {
     public float getLineHeight(String fontName, float size) {
         FontAtlas atlas = fonts.get(fontName);
         if (atlas == null) return size;
-        atlas.ensureLoaded();
         return (atlas.getLineHeight() / atlas.getFontSize()) * size;
     }
 
     public void close() {
         pipeline.close();
         fonts.clear();
+        initialized = false;
     }
 }

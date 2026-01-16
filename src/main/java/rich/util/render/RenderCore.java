@@ -5,10 +5,7 @@ import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL14;
 import rich.util.render.font.FontRenderer;
 import rich.util.render.font.Fonts;
-import rich.util.render.pipeline.BlurPipeline;
-import rich.util.render.pipeline.OutlinePipeline;
-import rich.util.render.pipeline.RectPipeline;
-import rich.util.render.pipeline.TexturePipeline;
+import rich.util.render.pipeline.*;
 
 public class RenderCore {
 

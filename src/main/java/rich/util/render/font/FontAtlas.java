@@ -16,6 +16,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class FontAtlas {
 
@@ -30,7 +31,7 @@ public class FontAtlas {
     private float lineHeight = 40;
     private float distanceRange = 4;
     private boolean yOriginBottom = false;
-    private boolean loaded = false;
+    private final AtomicBoolean loaded = new AtomicBoolean(false);
 
     public FontAtlas(Identifier jsonId, Identifier textureId) {
         this.jsonId = jsonId;
@@ -38,15 +39,30 @@ public class FontAtlas {
         this.glyphs = new HashMap<>();
     }
 
-    public void ensureLoaded() {
-        if (loaded) return;
+    public void forceLoad() {
+        if (loaded.get()) return;
+        synchronized (this) {
+            if (loaded.get()) return;
+            doLoad();
+        }
+    }
 
+    public void ensureLoaded() {
+        if (loaded.get()) return;
+        synchronized (this) {
+            if (loaded.get()) return;
+            doLoad();
+        }
+    }
+
+    private void doLoad() {
         try {
             Optional<Resource> resourceOpt = MinecraftClient.getInstance()
                     .getResourceManager().getResource(jsonId);
 
             if (resourceOpt.isEmpty()) {
                 LOGGER.warn("Font JSON not found: {}", jsonId);
+                loaded.set(true);
                 return;
             }
 
@@ -55,11 +71,12 @@ public class FontAtlas {
 
                 JsonObject root = JsonParser.parseReader(reader).getAsJsonObject();
                 parseJson(root);
-                loaded = true;
+                loaded.set(true);
                 LOGGER.info("Loaded font: {} with {} glyphs", jsonId, glyphs.size());
             }
         } catch (Exception e) {
             LOGGER.error("Failed to load font: {}", jsonId, e);
+            loaded.set(true);
         }
     }
 
@@ -153,7 +170,6 @@ public class FontAtlas {
             float pTop = getFloat(plane, "top", 0);
 
             xOffset = pLeft * fontSize;
-
             float ascender = 0.95f;
             yOffset = (ascender - pTop) * fontSize;
         } else if (g.has("xoffset") && g.has("yoffset")) {
@@ -168,17 +184,11 @@ public class FontAtlas {
         return obj.has(key) ? obj.get(key).getAsFloat() : def;
     }
 
-    private int getInt(JsonObject obj, String key, int def) {
-        return obj.has(key) ? obj.get(key).getAsInt() : def;
-    }
-
     public Glyph getGlyph(int codePoint) {
-        ensureLoaded();
         return glyphs.get(codePoint);
     }
 
     public boolean hasGlyph(int codePoint) {
-        ensureLoaded();
         return glyphs.containsKey(codePoint);
     }
 
@@ -187,36 +197,30 @@ public class FontAtlas {
     }
 
     public float getFontSize() {
-        ensureLoaded();
         return fontSize;
     }
 
     public float getLineHeight() {
-        ensureLoaded();
         return lineHeight;
     }
 
     public float getAtlasWidth() {
-        ensureLoaded();
         return atlasWidth;
     }
 
     public float getAtlasHeight() {
-        ensureLoaded();
         return atlasHeight;
     }
 
     public float getDistanceRange() {
-        ensureLoaded();
         return distanceRange;
     }
 
     public boolean isLoaded() {
-        return loaded;
+        return loaded.get();
     }
 
     public int getGlyphCount() {
-        ensureLoaded();
         return glyphs.size();
     }
 }

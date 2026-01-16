@@ -1,6 +1,7 @@
 package rich.screens.clickgui.impl.background.render;
 
 import net.minecraft.client.gui.DrawContext;
+import rich.util.ColorUtil;
 import rich.util.render.Render2D;
 import rich.util.render.Scissor;
 import rich.util.render.font.Fonts;
@@ -14,8 +15,9 @@ public class AvatarRenderer {
         int alpha = (int) (255 * alphaMultiplier);
         int alphaFon = (int) (105 * alphaMultiplier);
         int alphaText = (int) (200 * alphaMultiplier);
-
+        Render2D.blur(bgX + 15f, bgY + 15f, 1, 1, 0f, 0, alphaText);
         context.getMatrices().pushMatrix();
+        Render2D.blur(bgX + 15f, bgY + 15f, 1, 1, 0f, 0, alphaText);
         GifRender.drawBackground(bgX + 12.5f, bgY + 12.5f, 70, 30, 7, applyAlpha(-1, alpha));
         Render2D.rect(bgX + 15f, bgY + 15f, 25, 25, new Color(42, 42, 42, alpha).getRGB(), 15);
         GifRender.drawAvatar(bgX + 16f, bgY + 16f, 23, 23, 15, applyAlpha(-1, alpha));
@@ -32,7 +34,10 @@ public class AvatarRenderer {
         Scissor.enable(textX, textY - 2, maxTextWidth, textHeight);
         Fonts.BOLD.draw("Baflllik", textX, textY, 6, new Color(255, 255, 255, alphaText).getRGB());
         Fonts.BOLD.draw("Uid: 1", textX, textY + 7, 5, new Color(255, 255, 255, alphaText).getRGB());
+        Render2D.blur(textX, textY + 7, 1, 1, 0f, 0, alphaText);
         Scissor.disable();
+
+        Render2D.blur(textX, textY + 7, 1, 1, 0f, 0, alphaText);
     }
 
     private int applyAlpha(int color, int alpha) {

@@ -11,7 +11,6 @@ import rich.modules.module.ModuleStructure;
 import rich.modules.module.category.ModuleCategory;
 import rich.modules.module.setting.implement.SliderSettings;
 
-
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class ViewModel extends ModuleStructure {
 
@@ -24,6 +23,9 @@ public class ViewModel extends ModuleStructure {
     SliderSettings mainHandZSetting = new SliderSettings("Основная рука Z", "Настройка значения Z для основной руки")
             .setValue(0.0F).range(-2.5F, 2.5F);
 
+    SliderSettings mainHandScaleSetting = new SliderSettings("Размер основной руки", "Масштаб предмета в основной руке")
+            .setValue(1.0F).range(0.5F, 2.0F);
+
     SliderSettings offHandXSetting = new SliderSettings("Второстепенная рука X", "Настройка значения X для второстепенной руки")
             .setValue(0.0F).range(-1.0F, 1.0F);
 
@@ -33,9 +35,13 @@ public class ViewModel extends ModuleStructure {
     SliderSettings offHandZSetting = new SliderSettings("Второстепенная рука Z", "Настройка значения Z для второстепенной руки")
             .setValue(0.0F).range(-2.5F, 2.5F);
 
+    SliderSettings offHandScaleSetting = new SliderSettings("Размер второстепенной руки", "Масштаб предмета во второстепенной руке")
+            .setValue(1.0F).range(0.5F, 2.0F);
+
     public ViewModel() {
         super("ViewModel", "View Model", ModuleCategory.RENDER);
-        setup(mainHandXSetting, mainHandYSetting, mainHandZSetting, offHandXSetting, offHandYSetting, offHandZSetting);
+        setup(mainHandXSetting, mainHandYSetting, mainHandZSetting, mainHandScaleSetting,
+                offHandXSetting, offHandYSetting, offHandZSetting, offHandScaleSetting);
     }
 
     @EventHandler
@@ -45,12 +51,12 @@ public class ViewModel extends ModuleStructure {
 
         MatrixStack matrix = e.getMatrices();
 
-
-            if (hand.equals(Hand.MAIN_HAND)) {
-                matrix.translate(mainHandXSetting.getValue(), mainHandYSetting.getValue(), mainHandZSetting.getValue());
-            } else {
-                matrix.translate(offHandXSetting.getValue(), offHandYSetting.getValue(), offHandZSetting.getValue());
-            }
-
+        if (hand.equals(Hand.MAIN_HAND)) {
+            matrix.translate(mainHandXSetting.getValue(), mainHandYSetting.getValue(), mainHandZSetting.getValue());
+            e.setScale(mainHandScaleSetting.getValue());
+        } else {
+            matrix.translate(offHandXSetting.getValue(), offHandYSetting.getValue(), offHandZSetting.getValue());
+            e.setScale(offHandScaleSetting.getValue());
+        }
     }
 }

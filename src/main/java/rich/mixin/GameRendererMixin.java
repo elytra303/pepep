@@ -4,9 +4,15 @@ import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.llamalad7.mixinextras.sugar.Local;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.gui.render.GuiRenderer;
+import net.minecraft.client.gui.render.state.GuiRenderState;
+import net.minecraft.client.gui.screen.ChatScreen;
+import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.render.Camera;
 import net.minecraft.client.render.GameRenderer;
 import net.minecraft.client.render.RenderTickCounter;
+import net.minecraft.client.render.fog.FogRenderer;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.entity.Entity;
 import net.minecraft.util.math.RotationAxis;
@@ -21,11 +27,14 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import rich.Initialization;
+import rich.client.draggables.Drag;
 import rich.events.api.EventManager;
 import rich.events.impl.FovEvent;
 import rich.events.impl.WorldRenderEvent;
 import rich.modules.impl.player.NoEntityTrace;
+import rich.modules.impl.render.Hud;
 import rich.modules.impl.render.NoRender;
+import rich.screens.clickgui.ClickGui;
 import rich.util.render.render3D.Render3D;
 
 @Mixin(GameRenderer.class)
@@ -38,6 +47,18 @@ public abstract class GameRendererMixin {
     @Shadow
     @Final
     private Camera camera;
+
+    @Shadow
+    @Final
+    GuiRenderState guiState;
+
+    @Shadow
+    @Final
+    private GuiRenderer guiRenderer;
+
+    @Shadow
+    @Final
+    private FogRenderer fogRenderer;
 
     @Unique
     private final MatrixStack matrices = new MatrixStack();
@@ -124,5 +145,60 @@ public abstract class GameRendererMixin {
         if (noRender != null && noRender.isState() && noRender.modeSetting.isSelected("Damage")) {
             ci.cancel();
         }
+    }
+
+    @Inject(method = "render", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/render/GuiRenderer;render(Lcom/mojang/blaze3d/buffers/GpuBufferSlice;)V", shift = At.Shift.AFTER))
+    private void afterGuiRender(RenderTickCounter tickCounter, boolean tick, CallbackInfo ci) {
+        if (client.world == null || client.player == null) return;
+        if (isLoadingScreen(client.currentScreen)) return;
+        if (client.getOverlay() != null) return;
+        if (!shouldRenderOnTop(client.currentScreen)) return;
+
+        guiState.clear();
+
+        int mouseX = (int) client.mouse.getScaledX(client.getWindow());
+        int mouseY = (int) client.mouse.getScaledY(client.getWindow());
+        float tickDelta = tickCounter.getTickProgress(false);
+
+        DrawContext context = new DrawContext(client, guiState, mouseX, mouseY);
+
+        Hud hud = Hud.getInstance();
+        if (hud != null && hud.isState()) {
+            Drag.tick();
+            Drag.onDraw(context, mouseX, mouseY, tickDelta);
+        }
+
+        if (client.currentScreen instanceof ClickGui clickGui) {
+            clickGui.renderOverlay(context, tickCounter);
+        }
+
+        guiRenderer.render(fogRenderer.getFogBuffer(FogRenderer.FogType.NONE));
+    }
+
+    @Unique
+    private boolean shouldRenderOnTop(Screen screen) {
+        if (screen == null) return true;
+        if (screen instanceof ClickGui) return true;
+        if (screen instanceof ChatScreen) return true;
+        return false;
+    }
+
+    @Unique
+    private boolean isLoadingScreen(Screen screen) {
+        if (screen == null) return false;
+        String className = screen.getClass().getSimpleName().toLowerCase();
+        String fullName = screen.getClass().getName().toLowerCase();
+        if (className.contains("loading")) return true;
+        if (className.contains("progress")) return true;
+        if (className.contains("connecting")) return true;
+        if (className.contains("downloading")) return true;
+        if (className.contains("terrain")) return true;
+        if (className.contains("generating")) return true;
+        if (className.contains("saving")) return true;
+        if (className.contains("reload")) return true;
+        if (className.contains("resource")) return true;
+        if (className.contains("pack")) return true;
+        if (fullName.contains("mojang")) return true;
+        return false;
     }
 }

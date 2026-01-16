@@ -91,6 +91,7 @@ public class ModuleRepository {
                 new NoPush(),
                 new NoSlow(),
                 new Velocity(),
+                new SwingAnimation(),
                 new AutoSprint(),
                 new AutoBuy()
         );

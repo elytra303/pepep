@@ -34,9 +34,11 @@
     "MixinPlayerEntityRenderer",
     "MouseMixin",
     "MultiplayerScreenOpenMixin",
+    "MultiplayerServerListWidgetMixin",
     "PlayerListHudMixin",
     "ScreenMixin",
     "StatusEffectFogModifierMixin",
+    "WindowMixin",
     "WorldRendererMixin"
   ],
   "injectors": {

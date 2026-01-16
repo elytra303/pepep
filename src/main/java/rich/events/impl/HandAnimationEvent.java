@@ -11,7 +11,8 @@ import rich.events.api.events.callables.EventCancellable;
 
 @FieldDefaults(level = AccessLevel.PRIVATE)
 @AllArgsConstructor
-@Getter @Setter
+@Getter
+@Setter
 public class HandAnimationEvent extends EventCancellable {
     MatrixStack matrices;
     Hand hand;

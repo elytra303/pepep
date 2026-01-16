@@ -3,7 +3,6 @@ package rich.util;
 import lombok.experimental.UtilityClass;
 import rich.Initialization;
 import rich.modules.module.ModuleStructure;
-import rich.client.draggables.AbstractDraggable;
 
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -16,7 +15,6 @@ import java.util.concurrent.ConcurrentMap;
 @UtilityClass
 public class Instance {
     private final ConcurrentMap<Class<? extends ModuleStructure>, ModuleStructure> instanceModules = new ConcurrentHashMap<>();
-    private final ConcurrentMap<Class<? extends AbstractDraggable>, AbstractDraggable> instanceDraggables = new ConcurrentHashMap<>();
 
     public <T extends ModuleStructure> T get(Class<T> clazz) {
         return clazz.cast(instanceModules.computeIfAbsent(clazz, instance -> Initialization.getInstance().getManager().getModuleProvider().get(instance)));
@@ -26,11 +24,4 @@ public class Instance {
         return Initialization.getInstance().getManager().getModuleProvider().get(module);
     }
 
-    public <T extends AbstractDraggable> T getDraggable(Class<T> clazz) {
-        return clazz.cast(instanceDraggables.computeIfAbsent(clazz, instance -> Initialization.getInstance().getManager().getDraggableRepository().get(instance)));
-    }
-
-    public <T extends AbstractDraggable> T getDraggable(String draggable) {
-        return Initialization.getInstance().getManager().getDraggableRepository().get(draggable);
-    }
 }

@@ -131,12 +131,8 @@ public abstract class LivingEntityMixin {
         EventManager.callEvent(event);
         if (event.isCancelled()) {
             float animation = event.getAnimation();
-            if (StatusEffectUtil.hasHaste(client.player))
-                animation *= (6 - (1 + StatusEffectUtil.getHasteAmplifier(client.player)));
-            else
-                animation *= (hasStatusEffect(StatusEffects.MINING_FATIGUE)
-                        ? 6 + (1 + getStatusEffect(StatusEffects.MINING_FATIGUE).getAmplifier()) * 2
-                        : 6);
+            if (StatusEffectUtil.hasHaste(client.player)) animation *= (6 - (1 + StatusEffectUtil.getHasteAmplifier(client.player)));
+            else animation *= (hasStatusEffect(StatusEffects.MINING_FATIGUE) ? 6 + (1 + getStatusEffect(StatusEffects.MINING_FATIGUE).getAmplifier()) * 2 : 6);
             cir.setReturnValue((int) animation);
         }
     }

@@ -48,7 +48,7 @@ public class FTAngle extends RotateConstructor {
             lastCount = count;
         }
 
-        if (hitsAfterMiss >= 10 && missEndTime == 0) {
+        if (hitsAfterMiss >= 40 && missEndTime == 0) {
             missEndTime = now + 350;
             hitsAfterMiss = 0;
             swingsDone = 0;
@@ -111,10 +111,10 @@ public class FTAngle extends RotateConstructor {
             return new Angle(newYaw, MathHelper.clamp(newPitch, -90, 90));
 
         } else {
-            float speed = attackTimer.finished(850) ? (random.nextBoolean() ? 0.4F : 0.2F) : -0.2F;
+            float speed = attackTimer.finished(550) ? (random.nextBoolean() ? 0.4F : 0.2F) : -0.2F;
 
-            float yawJitter = !attackTimer.finished(2000) ? currentJitterYaw : 0;
-            float pitchJitter = !attackTimer.finished(2000) ? currentJitterPitch : 0;
+            float yawJitter = !attackTimer.finished(1000) ? currentJitterYaw : 0;
+            float pitchJitter = !attackTimer.finished(1000) ? currentJitterPitch : 0;
 
             float lineYaw = (Math.abs(yawDelta / rotationDifference) * 180);
             float linePitch = (Math.abs(pitchDelta / rotationDifference) * 180);

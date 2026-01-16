@@ -345,6 +345,14 @@ public class ColorUtil {
         return hex >> 16 & 255;
     }
 
+    public static int withAlphahud(int color, int alpha) {
+        return (alpha << 24) | (color & 0x00FFFFFF);
+    }
+
+    public static int withAlpha(int color, float alpha) {
+        return withAlphahud(color, (int) (alpha * 255));
+    }
+
     public static int getGreen(final int hex) {
         return hex >> 8 & 255;
     }

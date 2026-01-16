@@ -27,11 +27,17 @@ public class KeyboardMixin {
     private void onKey(long window, int action, KeyInput input, CallbackInfo ci) {
         if (input.key() != GLFW.GLFW_KEY_UNKNOWN && window == client.getWindow().getHandle()) {
 
-            if (action == 0 && input.key() == BindConfig.getInstance().getBindKey() && client.currentScreen == null) {
+            if (action == 0 && input.key() == BindConfig.getInstance().getBindKey() && canOpenClickGui()) {
                 ClickGui.INSTANCE.openGui();
             }
 
             EventManager.callEvent(new KeyEvent(client.currentScreen, InputUtil.Type.KEYSYM, input.key(), action));
         }
+    }
+
+    private boolean canOpenClickGui() {
+        if (client.world == null || client.player == null) return false;
+        if (client.currentScreen != null) return false;
+        return true;
     }
 }

@@ -8,7 +8,6 @@ import net.minecraft.component.type.ContainerComponent;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EquipmentSlot;
 import net.minecraft.entity.ItemEntity;
-import net.minecraft.entity.TntEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.BlockItem;
 import net.minecraft.item.ItemStack;
@@ -34,6 +33,7 @@ import rich.modules.module.setting.implement.SelectSetting;
 import rich.modules.module.setting.implement.SliderSettings;
 import rich.util.Instance;
 import rich.util.math.Projection;
+import rich.util.modules.esp.RwPrefix;
 import rich.util.network.Network;
 import rich.util.render.Render2D;
 import rich.util.render.font.Fonts;
@@ -57,30 +57,29 @@ public class Esp extends ModuleStructure {
     List<PlayerEntity> players = new ArrayList<>();
 
     public MultiSelectSetting entityType = new MultiSelectSetting("Тип сущности", "Сущности, которые будут отображаться")
-            .value("Player", "Item", "TNT").selected("Player", "Item");
+            .value("Player", "Item").selected("Player", "Item");
 
     MultiSelectSetting playerSetting = new MultiSelectSetting("Настройки игрока", "Настройки для игроков")
             .value("Box", "Armor", "NameTags", "Hand Items").selected("Box", "Armor", "NameTags", "Hand Items")
             .visible(() -> entityType.isSelected("Player"));
 
     public SelectSetting boxType = new SelectSetting("Тип", "Тип")
-            .value("Corner", "Full", "3D Box", "Skeleton").selected("3D Box")
+            .value("Corner", "3D Box").selected("3D Box")
             .visible(() -> playerSetting.isSelected("Box"));
 
     public BooleanSetting flatBoxOutline = new BooleanSetting("Контур", "Контур для плоских боксов")
-            .visible(() -> playerSetting.isSelected("Box") && (boxType.isSelected("Corner") || boxType.isSelected("Full")));
+            .visible(() -> playerSetting.isSelected("Box") && boxType.isSelected("Corner"));
 
     public SliderSettings boxAlpha = new SliderSettings("Прозрачность", "Прозрачность бокса")
             .setValue(1.0F).range(0.1F, 1.0F).visible(() -> boxType.isSelected("3D Box"));
 
-    public SliderSettings skeletonWidth = new SliderSettings("Толщина линий", "Толщина линий скелета")
-            .setValue(2.5f).range(2.5f, 4.0f).visible(() -> boxType.isSelected("Skeleton"));
-
     private static final float DISTANCE = 128.0f;
+    private static final int GRAY_COLOR = 0xFF888888;
+    private static final int WHITE_COLOR = 0xFFFFFFFF;
 
     public Esp() {
         super("Esp", "Esp", ModuleCategory.RENDER);
-        setup(entityType, playerSetting, boxType, flatBoxOutline, boxAlpha, skeletonWidth);
+        setup(entityType, playerSetting, boxType, flatBoxOutline, boxAlpha);
     }
 
     @EventHandler
@@ -122,13 +121,10 @@ public class Esp extends ModuleStructure {
             int fillColor = (baseColor & 0x00FFFFFF) | (alpha << 24);
             int outlineColor = baseColor | 0xFF000000;
 
-            if (boxType.isSelected("3D Box")) {
+            if (boxType.isSelected("3D Box") && playerSetting.isSelected("Box")) {
                 Box interpBox = player.getDimensions(player.getPose()).getBoxAt(interpX, interpY, interpZ);
                 Render3D.drawBox(interpBox, fillColor, 2, true, true, false);
                 Render3D.drawBox(interpBox, outlineColor, 2, true, false, false);
-            } else if (boxType.isSelected("Skeleton") && playerSetting.isSelected("Box")) {
-                if (distance > DISTANCE) continue;
-                renderSkeleton(player, tickDelta, baseColor);
             }
         }
     }
@@ -151,7 +147,7 @@ public class Esp extends ModuleStructure {
                 if (distance < 1) continue;
                 if (Projection.cantSee(vec4d)) continue;
 
-                if (playerSetting.isSelected("Box") && !boxType.isSelected("Skeleton") && !boxType.isSelected("3D Box")) {
+                if (playerSetting.isSelected("Box") && !boxType.isSelected("3D Box")) {
                     drawBox(friend, vec4d, player);
                 }
                 if (playerSetting.isSelected("Armor")) {
@@ -161,8 +157,7 @@ public class Esp extends ModuleStructure {
                     drawHands(context, player, vec4d, size);
                 }
 
-                String text = getTextPlayer(player, friend);
-                drawText(text, Projection.centerX(vec4d), vec4d.y - 2, size);
+                drawPlayerName(context, player, friend, Projection.centerX(vec4d), vec4d.y - 2, size);
             }
         }
 
@@ -181,106 +176,83 @@ public class Esp extends ModuleStructure {
 
                 String text = item.getStack().getName().getString();
 
-
                 if (!list.isEmpty()) {
                     drawShulkerBox(context, stack, list, vec4d);
                 } else {
-                    drawText(text, Projection.centerX(vec4d), vec4d.y, size);
+                    drawText(context, text, Projection.centerX(vec4d), vec4d.y, size);
                 }
-            } else if (entity instanceof TntEntity tnt && entityType.isSelected("TNT")) {
-                Vector4d vec4d = Projection.getVector4D(entity, tickDelta);
-                if (Projection.cantSee(vec4d)) continue;
-                drawText(tnt.getDisplayName().getString(), Projection.centerX(vec4d), vec4d.y, size);
             }
         }
     }
 
-    private void renderSkeleton(PlayerEntity player, float partialTicks, int color) {
-        Vec3d pos = Projection.interpolate(player, partialTicks);
-        float width = skeletonWidth.getValue();
+    private void drawPlayerName(DrawContext context, PlayerEntity player, boolean friend, double centerX, double startY, float size) {
+        StringBuilder extraInfo = new StringBuilder();
+        if (friend) extraInfo.append("[Friend] ");
+        if (AntiBot.getInstance() != null && AntiBot.getInstance().isState() && AntiBot.getInstance().isBot(player)) {
+            extraInfo.append("[BOT] ");
+        }
 
-        float limbSwing = player.limbAnimator.getAnimationProgress(partialTicks);
-        float limbSwingAmount = player.limbAnimator.getAmplitude(partialTicks);
+        String displayName;
+        if (playerSetting.isSelected("NameTags")) {
+            displayName = player.getDisplayName().getString();
+        } else {
+            displayName = player.getName().getString();
+        }
 
-        float bodyYaw = MathHelper.lerpAngleDegrees(partialTicks, player.lastBodyYaw, player.bodyYaw);
-        float bodyYawRad = (float) Math.toRadians(-bodyYaw + 90);
+        RwPrefix.ParsedName parsed = RwPrefix.parseDisplayName(displayName);
 
-        boolean isSwimming = player.isSwimming() || player.isGliding();
-        float sneakOffset = player.isSneaking() ? 0.2f : 0f;
-        float swimOffset = isSwimming ? 0.6f : 0f;
+        String sphere = "";
+        ItemStack offHand = player.getStackInHand(Hand.OFF_HAND);
+        if (offHand.getItem().equals(Items.PLAYER_HEAD) || offHand.getItem().equals(Items.TOTEM_OF_UNDYING)) {
+            sphere = getSphere(offHand);
+        }
 
-        Vec3d head = pos.add(0, 1.62f - sneakOffset - swimOffset, 0);
-        Vec3d neck = pos.add(0, 1.4f - sneakOffset - swimOffset, 0);
-        Vec3d body = pos.add(0, 0.9f - sneakOffset - swimOffset, 0);
-        Vec3d pelvis = pos.add(0, 0.6f - sneakOffset - swimOffset, 0);
+        String prefixPart = "";
+        if (!parsed.prefix.isEmpty()) {
+            prefixPart = parsed.prefix + " ";
+        }
+        String namePart = parsed.name;
+        String clanPart = !parsed.clan.isEmpty() ? " " + parsed.clan : "";
+        String spherePart = sphere;
+        String extraPart = extraInfo.toString();
 
-        Render3D.drawLine(head, neck, color, width, false);
-        Render3D.drawLine(neck, body, color, width, false);
-        Render3D.drawLine(body, pelvis, color, width, false);
+        float extraWidth = extraPart.isEmpty() ? 0 : Fonts.TEST.getWidth(extraPart, size);
+        float prefixWidth = prefixPart.isEmpty() ? 0 : Fonts.TEST.getWidth(prefixPart, size);
+        float nameWidth = Fonts.TEST.getWidth(namePart, size);
+        float clanWidth = clanPart.isEmpty() ? 0 : Fonts.TEST.getWidth(clanPart, size);
+        float sphereWidth = spherePart.isEmpty() ? 0 : Fonts.TEST.getWidth(spherePart, size);
 
-        float rightArmSwing = MathHelper.cos(limbSwing * 0.6662f) * limbSwingAmount * 0.5f;
-        float leftArmSwing = MathHelper.cos(limbSwing * 0.6662f + (float) Math.PI) * limbSwingAmount * 0.5f;
-        float rightLegSwing = MathHelper.cos(limbSwing * 0.6662f + (float) Math.PI) * limbSwingAmount * 0.7f;
-        float leftLegSwing = MathHelper.cos(limbSwing * 0.6662f) * limbSwingAmount * 0.7f;
+        float totalWidth = extraWidth + prefixWidth + nameWidth + clanWidth + sphereWidth;
+        float height = Fonts.TEST.getHeight(size);
 
-        Vec3d rightShoulder = neck.add(Math.sin(bodyYawRad) * 0.3, -0.1, Math.cos(bodyYawRad) * 0.3);
-        Vec3d rightElbow = rightShoulder.add(
-                Math.sin(bodyYawRad) * 0.05 + Math.sin(bodyYawRad + Math.PI / 2) * rightArmSwing * 0.15,
-                -0.25 - Math.abs(rightArmSwing) * 0.1,
-                Math.cos(bodyYawRad) * 0.05 + Math.cos(bodyYawRad + Math.PI / 2) * rightArmSwing * 0.15
-        );
-        Vec3d rightHand = rightElbow.add(
-                Math.sin(bodyYawRad + Math.PI / 2) * rightArmSwing * 0.1,
-                -0.25 - Math.abs(rightArmSwing) * 0.05,
-                Math.cos(bodyYawRad + Math.PI / 2) * rightArmSwing * 0.1
-        );
-        Render3D.drawLine(rightShoulder, rightElbow, color, width, false);
-        Render3D.drawLine(rightElbow, rightHand, color, width, false);
+        float posX = (float) centerX - totalWidth / 2;
+        float posY = (float) startY - height;
 
-        Vec3d leftShoulder = neck.add(-Math.sin(bodyYawRad) * 0.3, -0.1, -Math.cos(bodyYawRad) * 0.3);
-        Vec3d leftElbow = leftShoulder.add(
-                -Math.sin(bodyYawRad) * 0.05 + Math.sin(bodyYawRad + Math.PI / 2) * leftArmSwing * 0.15,
-                -0.25 - Math.abs(leftArmSwing) * 0.1,
-                -Math.cos(bodyYawRad) * 0.05 + Math.cos(bodyYawRad + Math.PI / 2) * leftArmSwing * 0.15
-        );
-        Vec3d leftHand = leftElbow.add(
-                Math.sin(bodyYawRad + Math.PI / 2) * leftArmSwing * 0.1,
-                -0.25 - Math.abs(leftArmSwing) * 0.05,
-                Math.cos(bodyYawRad + Math.PI / 2) * leftArmSwing * 0.1
-        );
-        Render3D.drawLine(leftShoulder, leftElbow, color, width, false);
-        Render3D.drawLine(leftElbow, leftHand, color, width, false);
+        Render2D.rect(posX - 4, posY - 1.25f, totalWidth + 8, height + 2, 0x80000000, 2f);
 
-        Vec3d rightHip = pelvis.add(Math.sin(bodyYawRad) * 0.15, 0, Math.cos(bodyYawRad) * 0.15);
-        Vec3d rightKnee = rightHip.add(
-                Math.sin(bodyYawRad + Math.PI / 2) * rightLegSwing * 0.1,
-                -0.35 + Math.max(0, rightLegSwing) * 0.05,
-                Math.cos(bodyYawRad + Math.PI / 2) * rightLegSwing * 0.1
-        );
-        Vec3d rightFoot = rightKnee.add(
-                Math.sin(bodyYawRad + Math.PI / 2) * rightLegSwing * 0.08,
-                -0.35 - Math.max(0, -rightLegSwing) * 0.05,
-                Math.cos(bodyYawRad + Math.PI / 2) * rightLegSwing * 0.08
-        );
-        Render3D.drawLine(rightHip, rightKnee, color, width, false);
-        Render3D.drawLine(rightKnee, rightFoot, color, width, false);
+        float drawX = posX;
 
-        Vec3d leftHip = pelvis.add(-Math.sin(bodyYawRad) * 0.15, 0, -Math.cos(bodyYawRad) * 0.15);
-        Vec3d leftKnee = leftHip.add(
-                Math.sin(bodyYawRad + Math.PI / 2) * leftLegSwing * 0.1,
-                -0.35 + Math.max(0, leftLegSwing) * 0.05,
-                Math.cos(bodyYawRad + Math.PI / 2) * leftLegSwing * 0.1
-        );
-        Vec3d leftFoot = leftKnee.add(
-                Math.sin(bodyYawRad + Math.PI / 2) * leftLegSwing * 0.08,
-                -0.35 - Math.max(0, -leftLegSwing) * 0.05,
-                Math.cos(bodyYawRad + Math.PI / 2) * leftLegSwing * 0.08
-        );
-        Render3D.drawLine(leftHip, leftKnee, color, width, false);
-        Render3D.drawLine(leftKnee, leftFoot, color, width, false);
+        if (!extraPart.isEmpty()) {
+            Fonts.TEST.draw(extraPart, drawX, posY, size, friend ? 0xFF00FF00 : 0xFFFF5555);
+            drawX += extraWidth;
+        }
 
-        Render3D.drawLine(rightShoulder, leftShoulder, color, width, false);
-        Render3D.drawLine(rightHip, leftHip, color, width, false);
+        if (!prefixPart.isEmpty()) {
+            Fonts.TEST.draw(prefixPart, drawX, posY, size, GRAY_COLOR);
+            drawX += prefixWidth;
+        }
+
+        Fonts.TEST.draw(namePart, drawX, posY, size, WHITE_COLOR);
+        drawX += nameWidth;
+
+        if (!clanPart.isEmpty()) {
+            Fonts.TEST.draw(clanPart, drawX, posY, size, GRAY_COLOR);
+            drawX += clanWidth;
+        }
+
+        if (!spherePart.isEmpty()) {
+            Fonts.TEST.draw(spherePart, drawX, posY, size, GRAY_COLOR);
+        }
     }
 
     private void drawBox(boolean friend, Vector4d vec, PlayerEntity player) {
@@ -313,17 +285,6 @@ public class Esp extends ModuleStructure {
                 Render2D.rect(endPosX, endPosY - size - 1, 1.5F, size, black);
                 Render2D.rect(endPosX - size + 0.5F, endPosY - 1, size + 1, 1.5F, black);
             }
-        } else if (boxType.isSelected("Full")) {
-            if (flatBoxOutline.isValue()) {
-                Render2D.rect(posX - 1F, posY - 1F, endPosX - posX + 2F, 1.5F, black);
-                Render2D.rect(posX - 1F, posY - 1F, 1.5F, endPosY - posY + 2F, black);
-                Render2D.rect(posX - 1F, endPosY - 1F, endPosX - posX + 2F, 1.5F, black);
-                Render2D.rect(endPosX - 0.5F, posY - 1F, 1.5F, endPosY - posY + 2F, black);
-            }
-            Render2D.rect(posX - 0.5F, posY - 0.5F, endPosX - posX + 1F, 0.5F, client);
-            Render2D.rect(posX - 0.5F, posY - 0.5F, 0.5F, endPosY - posY + 1F, client);
-            Render2D.rect(posX - 0.5F, endPosY - 0.5F, endPosX - posX + 1F, 0.5F, client);
-            Render2D.rect(endPosX, posY - 0.5F, 0.5F, endPosY - posY + 1F, client);
         }
     }
 
@@ -355,8 +316,8 @@ public class Esp extends ModuleStructure {
         for (ItemStack stack : new ItemStack[]{mainHand, offHand}) {
             if (stack.isEmpty()) continue;
             String text = stack.getName().getString();
-            posY += Fonts.BOLD.getHeight(size) / 2.0 + 6;
-            drawText(text, Projection.centerX(vec), posY, size);
+            posY += Fonts.TEST.getHeight(size) / 2.0 + 6;
+            drawText(context, text, Projection.centerX(vec), posY, size);
         }
     }
 
@@ -387,41 +348,15 @@ public class Esp extends ModuleStructure {
         context.getMatrices().popMatrix();
     }
 
-    private void drawText(String text, double startX, double startY, float size) {
-        float width = Fonts.TEST.getWidth(text, size);
+    private void drawText(DrawContext context, String text, double startX, double startY, float size) {
+        String cleanText = RwPrefix.stripFormatting(text);
+        float width = Fonts.TEST.getWidth(cleanText, size);
         float height = Fonts.TEST.getHeight(size);
         float posX = (float) (startX - width / 2);
         float posY = (float) startY - height;
 
-         Render2D.rect(posX - 4, posY - 1, width + 8, height + 2, 0x80000000,  0f);
-        Fonts.TEST.draw(text, posX, posY, size, 0xFFFFFFFF);
-    }
-
-    private String getTextPlayer(PlayerEntity player, boolean friend) {
-        float health = getHealth(player);
-        StringBuilder text = new StringBuilder();
-
-        if (friend) text.append("[Friend] - ");
-        if (AntiBot.getInstance() != null && AntiBot.getInstance().isState() && AntiBot.getInstance().isBot(player)) {
-            text.append("[BOT] ");
-        }
-
-        if (playerSetting.isSelected("NameTags")) {
-            text.append(player.getDisplayName().getString());
-        } else {
-            text.append(player.getName().getString());
-        }
-
-        ItemStack offHand = player.getStackInHand(Hand.OFF_HAND);
-        if (offHand.getItem().equals(Items.PLAYER_HEAD) || offHand.getItem().equals(Items.TOTEM_OF_UNDYING)) {
-            text.append(getSphere(offHand));
-        }
-//
-//        if (health >= 0 && health <= player.getMaxHealth()) {
-//            text.append(" [").append(getHealthString(health)).append("]");
-//        }
-
-        return text.toString();
+        Render2D.rect(posX - 4, posY - 1, width + 8, height + 2, 0x80000000, 2f);
+        Fonts.TEST.draw(cleanText, posX, posY, size, 0xFFFFFFFF);
     }
 
     private String getSphere(ItemStack stack) {

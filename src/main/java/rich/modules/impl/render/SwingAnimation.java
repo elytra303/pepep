@@ -1,6 +1,5 @@
 package rich.modules.impl.render;
 
-
 import lombok.AccessLevel;
 import lombok.experimental.FieldDefaults;
 import lombok.experimental.NonFinal;
@@ -21,9 +20,12 @@ import rich.modules.module.setting.implement.SliderSettings;
 
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class SwingAnimation extends ModuleStructure {
-    SelectSetting swingType = new SelectSetting("Тип взмаха", "Выберите тип взмаха").value("Swipe", "Down", "Smooth", "Smooth 2","Power", "Feast", "Twist", "Default");
-    SliderSettings hitStrengthSetting = new SliderSettings("Сила взмаха", "Сила анимации взмаха").setValue(1.0F).range(0.5F, 3.0F).setValue(0.5F);
-    SliderSettings swingSpeedSetting = new SliderSettings("Длительность взмаха", "Длительность анимации удара").setValue(1.0F).range(0.5F, 4.0F).setValue(0.5F);
+    SelectSetting swingType = new SelectSetting("Тип взмаха", "Выберите тип взмаха")
+            .value("Swipe", "Down", "Smooth", "Smooth 2", "Power", "Feast", "Twist", "Default");
+    SliderSettings hitStrengthSetting = new SliderSettings("Сила взмаха", "Сила анимации взмаха")
+            .setValue(1.0F).range(0.5F, 3.0F).setValue(0.5F);
+    SliderSettings swingSpeedSetting = new SliderSettings("Длительность взмаха", "Длительность анимации удара")
+            .setValue(1.0F).range(0.5F, 4.0F).setValue(0.5F);
 
     BooleanSetting onlySwing = new BooleanSetting("Только при взмахе", "Показывает анимацию только при взмахе")
             .setValue(false);
@@ -38,7 +40,7 @@ public class SwingAnimation extends ModuleStructure {
 
     @EventHandler
     public void onSwingDuration(SwingDurationEvent e) {
-        if (onlyAura.isValue() ? Aura.getInstance().isState() && Aura.getInstance().target !=null : true) {
+        if (onlyAura.isValue() ? Aura.getInstance().isState() && Aura.getInstance().target != null : true) {
             e.setAnimation(swingSpeedSetting.getValue());
             e.cancel();
         }
@@ -63,7 +65,7 @@ public class SwingAnimation extends ModuleStructure {
             float sinSmooth = (float) (Math.sin(swingProgress * Math.PI) * 0.5F);
             float strength = hitStrengthSetting.getValue();
 
-            if (onlyAura.isValue() ? Aura.getInstance().isState() && Aura.getInstance().target !=null : true) {
+            if (onlyAura.isValue() ? Aura.getInstance().isState() && Aura.getInstance().target != null : true) {
                 if (onlySwing.isValue() ? mc.player.handSwingTicks != 0 : true) {
                     switch (swingType.getSelected()) {
                         case "Twist" -> {
@@ -82,15 +84,10 @@ public class SwingAnimation extends ModuleStructure {
                             matrix.multiply(RotationAxis.POSITIVE_X.rotationDegrees((sin2 * sin1) * -120 * strength));
                             matrix.multiply(RotationAxis.POSITIVE_X.rotationDegrees(-70));
                         }
-
-                        //def
                         case "Default" -> {
-//                    if (mc.player.handSwingTicks > 0 && mc.player.handSwingTicks < 7) {
                             matrix.translate(i * 0.56F, -0.52F - (sin2 * 0.5F * strength), -0.72F);
                             matrix.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(45 * i));
                             matrix.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-45 * i));
-
-
                         }
                         case "Down" -> {
                             matrix.translate(i * 0.56F, -0.32F, -0.72F);

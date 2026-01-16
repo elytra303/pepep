@@ -1,10 +1,13 @@
 package rich.util.math;
 
+import lombok.Getter;
 import lombok.experimental.UtilityClass;
+import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.entity.Entity;
 import net.minecraft.util.math.ColorHelper;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
+import org.joml.Matrix3x2fStack;
 import org.joml.Vector3d;
 import rich.IMinecraft;
 
@@ -15,6 +18,10 @@ import static net.minecraft.util.math.MathHelper.lerp;
 @UtilityClass
 public class MathUtils implements IMinecraft {
     public double PI2 = Math.PI * 2;
+
+    @Getter
+    private static float contextAlpha = 1.0f;
+
     public boolean isHovered(double mouseX, double mouseY, double x, double y, double width, double height) {
         return mouseX >= x && mouseX <= x + width && mouseY >= y && mouseY <= y + height;
     }
@@ -32,7 +39,7 @@ public class MathUtils implements IMinecraft {
     }
 
     public float getRandom(float min, float max) {
-       return (float) getRandom(min, (double) max);
+        return (float) getRandom(min, (double) max);
     }
 
     public double getRandom(double min, double max) {
@@ -44,19 +51,33 @@ public class MathUtils implements IMinecraft {
                 min = max;
                 max = d;
             }
-
             return ThreadLocalRandom.current().nextDouble(min, max);
         }
     }
 
+    public void scale(Matrix3x2fStack stack, float x, float y, float scaleX, float scaleY, Runnable data) {
+        float sumScale = scaleX * scaleY;
+        if (sumScale != 1 && sumScale > 0) {
+            float prevAlpha = contextAlpha;
+            contextAlpha = sumScale;
+
+            stack.pushMatrix();
+            stack.translate(x, y);
+            stack.scale(scaleX, scaleY);
+            stack.translate(-x, -y);
+            data.run();
+            stack.popMatrix();
+
+            contextAlpha = prevAlpha;
+        } else if (sumScale >= 1) {
+            data.run();
+        }
+    }
 
     public float textScrolling(float textWidth) {
         int speed = (int) (textWidth * 75);
         return (float) MathHelper.clamp((System.currentTimeMillis() % speed * Math.PI / speed), 0, 1) * textWidth;
     }
-
-
-
 
     public double round(double num, double increment) {
         double rounded = Math.round(num / increment) * increment;
@@ -85,6 +106,11 @@ public class MathUtils implements IMinecraft {
 
     public int applyOpacity(int color, float opacity) {
         return ColorHelper.getArgb((int) (getAlpha(color) * opacity / 255), getRed(color), getGreen(color), getBlue(color));
+    }
+
+    public int applyContextAlpha(int color) {
+        int a = (int) (getAlpha(color) * contextAlpha);
+        return ColorHelper.getArgb(a, getRed(color), getGreen(color), getBlue(color));
     }
 
     public Vec3d cosSin(int i, int size, double width) {
@@ -130,5 +156,4 @@ public class MathUtils implements IMinecraft {
     public float interpolateSmooth(double smooth, float prev, float orig) {
         return (float) lerp(tickCounter.getFixedDeltaTicks() / smooth, prev, orig);
     }
-
 }
