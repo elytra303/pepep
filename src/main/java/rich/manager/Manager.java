@@ -10,6 +10,7 @@ import rich.screens.clickgui.ClickGui;
 import rich.util.config.ConfigSystem;
 import rich.util.config.impl.bind.BindConfig;
 import rich.util.config.impl.blockesp.BlockESPConfig;
+import rich.util.config.impl.drag.DragConfig;
 import rich.util.config.impl.friend.FriendConfig;
 import rich.util.config.impl.prefix.PrefixConfig;
 import rich.util.config.impl.proxy.ProxyConfig;
@@ -51,6 +52,7 @@ public class Manager {
         PrefixConfig.getInstance().load();
         StaffConfig.getInstance().load();
         ProxyConfig.getInstance().load();
+        DragConfig.getInstance().load();
         BindConfig.getInstance();
 
         FontInitializer.register();

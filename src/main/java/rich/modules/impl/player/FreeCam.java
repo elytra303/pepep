@@ -1,5 +1,6 @@
 package rich.modules.impl.player;
 
+import antidaunleak.api.annotation.Native;
 import lombok.AccessLevel;
 import lombok.experimental.FieldDefaults;
 import net.minecraft.client.option.Perspective;
@@ -30,10 +31,8 @@ public class FreeCam extends ModuleStructure {
     private final BooleanSetting reloadChunksSetting = new BooleanSetting("Reload Chunks", "Отключает cave culling").setValue(true);
     private final BooleanSetting toggleOnLogSetting = new BooleanSetting("Toggle On Log", "Выключает при дисконнекте").setValue(true);
 
-
     public final ColorSetting fakeplayer = new ColorSetting("Color 1", "First gradient color")
             .value(ColorUtil.getColor(255, 50, 100, 255));
-
 
     public Vec3d pos, prevPos;
 
@@ -43,6 +42,7 @@ public class FreeCam extends ModuleStructure {
     }
 
     @Override
+    @Native(type = Native.Type.VMProtectBeginMutation)
     public void activate() {
         prevPos = pos = mc.getEntityRenderDispatcher().camera.getCameraPos();
 
@@ -54,6 +54,7 @@ public class FreeCam extends ModuleStructure {
     }
 
     @Override
+    @Native(type = Native.Type.VMProtectBeginMutation)
     public void deactivate() {
         if (reloadChunksSetting.isValue()) {
             mc.execute(mc.worldRenderer::reload);
@@ -63,6 +64,7 @@ public class FreeCam extends ModuleStructure {
     }
 
     @EventHandler
+    @Native(type = Native.Type.VMProtectBeginUltra)
     public void onPacket(PacketEvent e) {
         switch (e.getPacket()) {
             case PlayerMoveC2SPacket move when freezeSetting.isValue() -> e.cancel();
@@ -73,6 +75,7 @@ public class FreeCam extends ModuleStructure {
     }
 
     @EventHandler
+    @Native(type = Native.Type.VMProtectBeginMutation)
     public void onMove(MoveEvent e) {
         if (freezeSetting.isValue()) {
             e.setMovement(Vec3d.ZERO);
@@ -80,6 +83,7 @@ public class FreeCam extends ModuleStructure {
     }
 
     @EventHandler
+    @Native(type = Native.Type.VMProtectBeginUltra)
     public void onInput(InputEvent e) {
         float speed = speedSetting.getValue();
         double[] motion = MoveUtil.calculateDirection(e.forward(), e.sideways(), speed);
@@ -102,6 +106,7 @@ public class FreeCam extends ModuleStructure {
     }
 
     @EventHandler
+    @Native(type = Native.Type.VMProtectBeginMutation)
     public void onGameLeft(GameLeftEvent event) {
         if (toggleOnLogSetting.isValue()) {
             setState(false);

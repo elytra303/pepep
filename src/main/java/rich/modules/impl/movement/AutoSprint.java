@@ -1,5 +1,6 @@
 package rich.modules.impl.movement;
 
+import antidaunleak.api.annotation.Native;
 import lombok.Getter;
 import rich.events.api.EventHandler;
 import rich.events.impl.TickEvent;
@@ -26,6 +27,7 @@ public class AutoSprint extends ModuleStructure {
         setup(noReset);
     }
 
+    @Native(type = Native.Type.VMProtectBeginMutation)
     public static void blockSprint() {
         if (mc.player == null) return;
         sprintBlocked = true;
@@ -33,6 +35,7 @@ public class AutoSprint extends ModuleStructure {
         mc.player.setSprinting(false);
     }
 
+    @Native(type = Native.Type.VMProtectBeginMutation)
     public static void unblockSprint() {
         sprintBlocked = false;
         sprintBlockTicks = 0;
@@ -42,6 +45,7 @@ public class AutoSprint extends ModuleStructure {
         return sprintBlocked;
     }
 
+    @Native(type = Native.Type.VMProtectBeginMutation)
     public static void tickBlockTimeout() {
         if (!sprintBlocked) return;
 
@@ -52,6 +56,7 @@ public class AutoSprint extends ModuleStructure {
     }
 
     @EventHandler
+    @Native(type = Native.Type.VMProtectBeginUltra)
     public void onTick(TickEvent e) {
         if (mc.player == null) return;
 
@@ -64,6 +69,11 @@ public class AutoSprint extends ModuleStructure {
             return;
         }
 
+        processSprint();
+    }
+
+    @Native(type = Native.Type.VMProtectBeginMutation)
+    private void processSprint() {
         boolean horizontal = mc.player.horizontalCollision && !mc.player.collidedSoftly;
         boolean sneaking = mc.player.isSneaking() && !mc.player.isSwimming();
         boolean canSprint = !horizontal && mc.player.forwardSpeed > 0;
@@ -78,6 +88,7 @@ public class AutoSprint extends ModuleStructure {
     }
 
     @Override
+    @Native(type = Native.Type.VMProtectBeginMutation)
     public void deactivate() {
         unblockSprint();
     }

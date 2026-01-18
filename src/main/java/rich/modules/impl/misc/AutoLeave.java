@@ -1,6 +1,6 @@
 package rich.modules.impl.misc;
 
-
+import antidaunleak.api.annotation.Native;
 import lombok.AccessLevel;
 import lombok.experimental.FieldDefaults;
 import net.minecraft.text.Text;
@@ -13,7 +13,6 @@ import rich.modules.module.setting.implement.SelectSetting;
 import rich.modules.module.setting.implement.SliderSettings;
 import rich.util.network.Network;
 import rich.util.repository.friend.FriendUtils;
-
 
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class AutoLeave extends ModuleStructure {
@@ -31,21 +30,19 @@ public class AutoLeave extends ModuleStructure {
         setup(leaveType, triggerSetting, distanceSetting);
     }
 
-    
     @EventHandler
+    @Native(type = Native.Type.VMProtectBeginUltra)
     public void onTick(TickEvent e) {
         if (Network.isPvp()) return;
 
         if (triggerSetting.isSelected("Players"))
             mc.world.getPlayers().stream().filter(p -> mc.player.distanceTo(p) < distanceSetting.getValue() && mc.player != p && !FriendUtils.isFriend(p)).findFirst().ifPresent(p -> leave(p.getName().copy().append(" - Появился рядом " + mc.player.distanceTo(p) + "м")));
-//        if (triggerSetting.isSelected("Staff") && !StaffList.getInstance().list.isEmpty()) leave(Text.of("Стафф на сервере"));
     }
 
-    
+    @Native(type = Native.Type.VMProtectBeginUltra)
     public void leave(Text text) {
         switch (leaveType.getSelected()) {
             case "Hub" -> {
-//                Notifications.getInstance().addList(Text.of("[AutoLeave] ").copy().append(text), 10000);
                 mc.getNetworkHandler().sendChatCommand("hub");
             }
             case "Main Menu" ->
@@ -53,5 +50,4 @@ public class AutoLeave extends ModuleStructure {
         }
         setState(false);
     }
-
 }

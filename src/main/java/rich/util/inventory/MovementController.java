@@ -29,12 +29,14 @@ public class MovementController {
         mc.options.leftKey.setPressed(false);
         mc.options.rightKey.setPressed(false);
         mc.options.jumpKey.setPressed(false);
+        mc.options.sprintKey.setPressed(false);
         blocked = true;
     }
 
     public void stopSprint() {
-        if (mc.player != null && mc.player.isSprinting()) {
+        if (mc.player != null) {
             mc.player.setSprinting(false);
+            mc.options.sprintKey.setPressed(false);
         }
     }
 
@@ -55,6 +57,7 @@ public class MovementController {
         mc.options.leftKey.setPressed(isCurrentlyPressed(mc.options.leftKey));
         mc.options.rightKey.setPressed(isCurrentlyPressed(mc.options.rightKey));
         mc.options.jumpKey.setPressed(isCurrentlyPressed(mc.options.jumpKey));
+        mc.options.sprintKey.setPressed(isCurrentlyPressed(mc.options.sprintKey));
         blocked = false;
     }
 

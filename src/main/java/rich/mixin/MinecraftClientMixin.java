@@ -21,10 +21,12 @@ import rich.events.api.EventManager;
 import rich.events.impl.GameLeftEvent;
 import rich.events.impl.SetScreenEvent;
 import rich.modules.impl.combat.NoInteract;
+import rich.modules.impl.render.Hud;
 import rich.screens.clickgui.ClickGui;
 import rich.util.config.ConfigSystem;
 import rich.util.render.font.FontRenderer;
 import rich.util.window.WindowStyle;
+import antidaunleak.api.UserProfile;
 
 import static rich.IMinecraft.mc;
 
@@ -80,6 +82,21 @@ public abstract class MinecraftClientMixin {
         }
     }
 
+    @Inject(method = "tick", at = @At("HEAD"))
+    private void onTick(CallbackInfo ci) {
+        MinecraftClient mc = MinecraftClient.getInstance();
+        if (mc.player == null || mc.world == null) return;
+
+        Hud hud = Hud.getInstance();
+        if (hud != null && hud.isState()) {
+            if (Initialization.getInstance() != null
+                    && Initialization.getInstance().getManager() != null
+                    && Initialization.getInstance().getManager().getHudManager() != null) {
+                Initialization.getInstance().getManager().getHudManager().tick();
+            }
+        }
+    }
+
     @Inject(method = "setScreen", at = @At(value = "HEAD"), cancellable = true)
     public void setScreenHook(Screen screen, CallbackInfo ci) {
         MinecraftClient client = (MinecraftClient) (Object) this;
@@ -96,7 +113,6 @@ public abstract class MinecraftClientMixin {
 
         Initialization instance = Initialization.getInstance();
 
-
         Screen eventScreen = event.getScreen();
         if (screen != eventScreen) {
             mc.setScreen(eventScreen);
@@ -106,7 +122,10 @@ public abstract class MinecraftClientMixin {
 
     @Inject(method = "getWindowTitle", at = @At("RETURN"), cancellable = true)
     private void getWindowTitle(CallbackInfoReturnable<String> cir) {
-        cir.setReturnValue(String.format("Rich Modern (Developer - Baflllik)", cir.getReturnValue().replace("Minecraft", "").replace("*", "").strip()));
+        UserProfile userProfile = UserProfile.getInstance();
+        String username = userProfile.profile("username");
+        String role = userProfile.profile("role");
+        cir.setReturnValue(String.format("Rich Modern (%s - %s)", role, username));
     }
 
     @Inject(method = "doItemUse", at = @At(value = "INVOKE", target = "Lnet/minecraft/util/Hand;values()[Lnet/minecraft/util/Hand;"), cancellable = true)

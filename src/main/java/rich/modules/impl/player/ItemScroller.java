@@ -1,5 +1,6 @@
 package rich.modules.impl.player;
 
+import antidaunleak.api.annotation.Native;
 import lombok.AccessLevel;
 import lombok.experimental.FieldDefaults;
 import net.minecraft.item.Item;
@@ -30,15 +31,12 @@ public class ItemScroller extends ModuleStructure {
     }
 
     @EventHandler
+    @Native(type = Native.Type.VMProtectBeginUltra)
     public void onHandledScreen(HandledScreenEvent e) {
         if (mc.player == null) return;
 
         Slot hoverSlot = e.getSlotHover();
-        SlotActionType actionType = PlayerInteractionHelper.isKey(mc.options.dropKey)
-                ? SlotActionType.THROW
-                : PlayerInteractionHelper.isKey(mc.options.attackKey)
-                ? SlotActionType.QUICK_MOVE
-                : null;
+        SlotActionType actionType = getActionType();
 
         if (PlayerInteractionHelper.isKey(mc.options.sneakKey)
                 && !PlayerInteractionHelper.isKey(mc.options.sprintKey)
@@ -55,7 +53,17 @@ public class ItemScroller extends ModuleStructure {
         }
     }
 
+    @Native(type = Native.Type.VMProtectBeginMutation)
+    private SlotActionType getActionType() {
+        return PlayerInteractionHelper.isKey(mc.options.dropKey)
+                ? SlotActionType.THROW
+                : PlayerInteractionHelper.isKey(mc.options.attackKey)
+                ? SlotActionType.QUICK_MOVE
+                : null;
+    }
+
     @EventHandler
+    @Native(type = Native.Type.VMProtectBeginUltra)
     public void onClickSlot(ClickSlotEvent e) {
         if (mc.player == null) return;
 
@@ -70,10 +78,15 @@ public class ItemScroller extends ModuleStructure {
                 && PlayerInteractionHelper.isKey(mc.options.sprintKey)
                 && stopWatch.every(50)) {
 
-            getSlots()
-                    .filter(s -> s.getStack().getItem().equals(item) && s.inventory.equals(slot.inventory))
-                    .forEach(s -> InventoryUtils.click(s.id, 1, e.getActionType()));
+            processSlotClick(slot, item, e);
         }
+    }
+
+    @Native(type = Native.Type.VMProtectBeginUltra)
+    private void processSlotClick(Slot slot, Item item, ClickSlotEvent e) {
+        getSlots()
+                .filter(s -> s.getStack().getItem().equals(item) && s.inventory.equals(slot.inventory))
+                .forEach(s -> InventoryUtils.click(s.id, 1, e.getActionType()));
     }
 
     private Stream<Slot> getSlots() {

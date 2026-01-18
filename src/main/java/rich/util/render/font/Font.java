@@ -3,7 +3,6 @@ package rich.util.render.font;
 import rich.Initialization;
 
 public class Font {
-
     private final String name;
 
     public Font(String name) {

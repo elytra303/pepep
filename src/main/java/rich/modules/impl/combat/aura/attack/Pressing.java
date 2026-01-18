@@ -8,26 +8,26 @@ import rich.IMinecraft;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class Pressing implements IMinecraft {
 
-    private final int[] funTimeTicks = new int[]{10, 11, 10, 13}, spookyTicks = new int[]{11, 10, 13, 10, 12, 11, 12}, defaultTicks = new int[]{10, 11};
-
     long lastClickTime = System.currentTimeMillis();
 
-    private static final long MINIMUM_COOLDOWN_MS = 500;
+    private static final long MINIMUM_COOLDOWN_MS = 550;
     private static final long MACE_COOLDOWN_MS = 50;
 
     public boolean isCooldownComplete(boolean dynamicCooldown, int ticks) {
-        boolean isMace = isHoldingMace();
+        if (mc.player == null) return false;
 
-        assert mc.player != null;
-
-        if (isMace) {
+        if (isHoldingMace()) {
             return lastClickPassed() >= MACE_COOLDOWN_MS;
         }
 
-        boolean cooldownReady = mc.player.getAttackCooldownProgress(ticks) > 0.9F;
+        float cooldownProgress = mc.player.getAttackCooldownProgress(ticks);
         boolean minimumDelayPassed = lastClickPassed() >= MINIMUM_COOLDOWN_MS;
 
-        return cooldownReady && minimumDelayPassed;
+        if (isWeapon()) {
+            return cooldownProgress >= 0.9F && minimumDelayPassed;
+        }
+
+        return minimumDelayPassed;
     }
 
     public boolean isMaceFastAttack() {
@@ -46,5 +46,13 @@ public class Pressing implements IMinecraft {
         if (mc.player == null) return false;
         ItemStack mainHand = mc.player.getMainHandStack();
         return mainHand.getItem().getTranslationKey().toLowerCase().contains("mace");
+    }
+
+    public boolean isWeapon() {
+        if (mc.player == null) return false;
+        ItemStack mainHand = mc.player.getMainHandStack();
+        if (mainHand.isEmpty()) return false;
+        String itemName = mainHand.getItem().getTranslationKey().toLowerCase();
+        return itemName.contains("sword") || itemName.contains("axe") || itemName.contains("trident");
     }
 }

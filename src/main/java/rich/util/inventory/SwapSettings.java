@@ -37,12 +37,23 @@ public class SwapSettings {
                 .resumeDelay(0, 0);
     }
 
+    public static SwapSettings instantWithStop() {
+        return new SwapSettings()
+                .stopMovement(true)
+                .stopSprint(true)
+                .preStopDelay(0, 0)
+                .waitStopDelay(15, 30)
+                .preSwapDelay(0, 5)
+                .postSwapDelay(0, 5)
+                .resumeDelay(10, 20);
+    }
+
     public static SwapSettings legit() {
         return new SwapSettings()
                 .stopMovement(true)
-                .stopSprint(false)
+                .stopSprint(true)
                 .preStopDelay(0, 10)
-                .waitStopDelay(40, 75)
+                .waitStopDelay(40, 80)
                 .preSwapDelay(15, 40)
                 .postSwapDelay(15, 30)
                 .resumeDelay(25, 50);

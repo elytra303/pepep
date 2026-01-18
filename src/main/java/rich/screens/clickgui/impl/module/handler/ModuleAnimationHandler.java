@@ -63,6 +63,8 @@ public class ModuleAnimationHandler {
     private static final float PULSE_SPEED = 5.5f;
     private static final float VISIBILITY_ANIM_SPEED = 8f;
     private static final float HEIGHT_ANIM_SPEED = 10f;
+    private static final float CORNER_INSET = 3f;
+    private static final float MODULE_ITEM_HEIGHT = 22f;
 
     public void prepareTransition(List<ModuleStructure> modules, List<ModuleStructure> displayModules) {
         if (!modules.isEmpty()) {
@@ -119,7 +121,8 @@ public class ModuleAnimationHandler {
     }
 
     public void updateAll(List<ModuleStructure> displayModules, ModuleStructure selectedModule,
-                          float mouseX, float mouseY, float listX, float listY, float listWidth, float listHeight) {
+                          float mouseX, float mouseY, float listX, float listY, float listWidth, float listHeight,
+                          float scrollOffset) {
         updateCategoryTransition();
         updateModuleAnimations(displayModules);
         updateStateAnimations(displayModules);
@@ -127,7 +130,7 @@ public class ModuleAnimationHandler {
         updateFavoriteAnimations(displayModules);
         updateBindAnimations(displayModules);
         updateHighlightAnimation();
-        updateHoverAnimations(displayModules, mouseX, mouseY, listX, listY, listWidth, listHeight, 0);
+        updateHoverAnimations(displayModules, mouseX, mouseY, listX, listY, listWidth, listHeight, scrollOffset);
     }
 
     private void updateCategoryTransition() {
@@ -229,17 +232,25 @@ public class ModuleAnimationHandler {
             selectedPulseAnimation -= (float) (Math.PI * 2);
         }
 
-        float startY = listY + 3 + 2f + scrollOffset;
-        float itemHeight = 22f;
+        float topInset = CORNER_INSET;
+        float bottomInset = CORNER_INSET;
+        float startY = listY + topInset + 2f + scrollOffset;
+        float itemHeight = MODULE_ITEM_HEIGHT;
+
+        float visibleTop = listY + topInset;
+        float visibleBottom = listY + listHeight - bottomInset;
 
         for (int i = 0; i < displayModules.size(); i++) {
             ModuleStructure module = displayModules.get(i);
             float modY = startY + i * (itemHeight + 2);
 
+            boolean isInVisibleArea = modY + itemHeight >= visibleTop && modY <= visibleBottom;
+
             boolean isHovered = !isCategoryTransitioning &&
+                    isInVisibleArea &&
                     mouseX >= listX + 3 && mouseX <= listX + listWidth - 3 &&
-                    mouseY >= modY && mouseY <= modY + itemHeight &&
-                    mouseY >= listY && mouseY <= listY + listHeight;
+                    mouseY >= Math.max(modY, visibleTop) && mouseY <= Math.min(modY + itemHeight, visibleBottom) &&
+                    mouseY >= modY && mouseY <= modY + itemHeight;
 
             float currentHover = hoverAnimations.getOrDefault(module, 0f);
             float targetHover = isHovered ? 1f : 0f;

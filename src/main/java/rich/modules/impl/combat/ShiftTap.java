@@ -1,5 +1,6 @@
 package rich.modules.impl.combat;
 
+import antidaunleak.api.annotation.Native;
 import lombok.AccessLevel;
 import lombok.experimental.FieldDefaults;
 import lombok.experimental.NonFinal;
@@ -26,6 +27,7 @@ public class ShiftTap extends ModuleStructure {
         super("ShiftTap", "Shift Tap", ModuleCategory.COMBAT);
     }
 
+    @Native(type = Native.Type.VMProtectBeginMutation)
     private void startShiftTap() {
         shiftTapEndTime = System.currentTimeMillis() + 25;
         if (!isModuleControllingSneak) {
@@ -33,6 +35,8 @@ public class ShiftTap extends ModuleStructure {
             isModuleControllingSneak = true;
         }
     }
+
+    @Native(type = Native.Type.VMProtectBeginMutation)
     private void stopShiftTap() {
         if (isModuleControllingSneak) {
             mc.options.sneakKey.setPressed(false);
@@ -41,8 +45,9 @@ public class ShiftTap extends ModuleStructure {
     }
 
     @EventHandler
+    @Native(type = Native.Type.VMProtectBeginMutation)
     public void onAttack(AttackEvent event) {
-        if ( mc.player == null) {
+        if (mc.player == null) {
             return;
         }
         startShiftTap();
@@ -50,7 +55,7 @@ public class ShiftTap extends ModuleStructure {
 
     @EventHandler
     public void onTick(TickEvent event) {
-        if ( mc.player == null || mc.player.isSpectator()) {
+        if (mc.player == null || mc.player.isSpectator()) {
             stopShiftTap();
             return;
         }
@@ -60,5 +65,4 @@ public class ShiftTap extends ModuleStructure {
             stopShiftTap();
         }
     }
-
 }

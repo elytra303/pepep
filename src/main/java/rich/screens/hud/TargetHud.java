@@ -1,7 +1,6 @@
 package rich.screens.hud;
 
 import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.ChatScreen;
 import net.minecraft.client.render.entity.EntityRenderer;
 import net.minecraft.client.render.entity.LivingEntityRenderer;
 import net.minecraft.client.render.entity.state.LivingEntityRenderState;
@@ -157,13 +156,18 @@ public class TargetHud extends AbstractHudElement {
         float maxHp = lastTarget.getMaxHealth();
         float absorp = lastTarget.getAbsorptionAmount();
 
-        boolean showHiddenHp = lastTarget.isInvisible();
+        boolean isInvisible = lastTarget.isInvisible();
 
-        float targetDisplayHealth = showHiddenHp ? displayedHealth : (hp + absorp);
+        float targetDisplayHealth;
+        if (isInvisible) {
+            targetDisplayHealth = maxHp;
+        } else {
+            targetDisplayHealth = hp + absorp;
+        }
         displayedHealth = lerp(displayedHealth, targetDisplayHealth, deltaTime, 5f);
         float snappedHealth = snapToStep(displayedHealth, 0.25f);
 
-        String hpStr = showHiddenHp ? "??" : getHealthString(snappedHealth);
+        String hpStr = isInvisible ? "??" : getHealthString(snappedHealth);
 
         String name = lastTarget.getName().getString();
         float hpWidth = Fonts.BOLD.getWidth(hpStr, 5.5f);
@@ -174,15 +178,25 @@ public class TargetHud extends AbstractHudElement {
         int hpColor = new Color(215, 215, 215, (int) (255 * alpha)).getRGB();
         Fonts.BOLD.draw(hpStr, x + getWidth() - 10 - hpWidth, nameY, 5.5f, hpColor);
 
-        float targetHealth = showHiddenHp ? 0 : hp / maxHp;
+        float targetHealth;
+        if (isInvisible) {
+            targetHealth = 1.0f;
+        } else {
+            targetHealth = hp / maxHp;
+        }
         healthAnimation = lerp(healthAnimation, targetHealth, deltaTime, 3f);
 
-        if (hp / maxHp > trailAnimation) {
-            trailAnimation = hp / maxHp;
+        if (targetHealth > trailAnimation) {
+            trailAnimation = targetHealth;
         }
         trailAnimation = lerp(trailAnimation, targetHealth, deltaTime, 3.5f);
 
-        float targetAbsorption = absorp / maxHp;
+        float targetAbsorption;
+        if (isInvisible) {
+            targetAbsorption = 0;
+        } else {
+            targetAbsorption = absorp / maxHp;
+        }
         absorptionAnimation = lerp(absorptionAnimation, targetAbsorption, deltaTime, 3f);
 
         float barX = contentX;

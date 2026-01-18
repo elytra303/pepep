@@ -1,11 +1,14 @@
 package rich.client.draggables;
 
 import net.minecraft.client.gui.DrawContext;
+import rich.events.impl.PacketEvent;
 
 public interface HudElement {
     void render(DrawContext context, float tickDelta);
 
     void tick();
+
+    default void onPacket(PacketEvent e) {}
 
     boolean isEnabled();
 

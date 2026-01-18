@@ -1,5 +1,6 @@
 package rich.modules.impl.player;
 
+import antidaunleak.api.annotation.Native;
 import lombok.AccessLevel;
 import lombok.experimental.FieldDefaults;
 import rich.events.api.EventHandler;
@@ -22,19 +23,10 @@ public class AutoRespawn extends ModuleStructure {
 
     @EventHandler
     public void onPacket(PacketEvent e) {
-//        switch (e.getPacket()) {
-//            case DeathMessageS2CPacket message when Network.getWorldType().equals("lobby") && modeSetting.isSelected("FunTime Back") -> {
-//                mc.player.networkHandler.sendPacket(new PlayerMoveC2SPacket.PositionAndOnGround(1448, 1337, 228, false, false));
-//                mc.player.requestRespawn();
-//                mc.player.closeScreen();
-//            }
-//            default -> {
-//            }
-//        }
     }
 
-    
     @EventHandler
+    @Native(type = Native.Type.VMProtectBeginMutation)
     public void onDeathScreen(DeathScreenEvent e) {
         if (modeSetting.isSelected("Default")) {
             mc.player.requestRespawn();

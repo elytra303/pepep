@@ -1,5 +1,6 @@
 package rich.modules.impl.movement;
 
+import antidaunleak.api.annotation.Native;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
@@ -67,6 +68,7 @@ public class Spider extends ModuleStructure {
     }
 
     @Override
+    @Native(type = Native.Type.VMProtectBeginMutation)
     public void deactivate() {
         if (mode.isSelected("Slime Block")) {
             mc.options.jumpKey.setPressed(false);
@@ -74,40 +76,20 @@ public class Spider extends ModuleStructure {
     }
 
     @EventHandler
+    @Native(type = Native.Type.VMProtectBeginUltra)
     public void onTick(TickEvent e) {
         if (mc.player == null || mc.world == null) return;
 
         if (mode.isSelected("FunTime")) {
-            if (mc.options.jumpKey.isPressed()) return;
-            Box playerBox = mc.player.getBoundingBox().expand(-1e-3);
-            Box box = new Box(playerBox.minX, playerBox.minY, playerBox.minZ, playerBox.maxX, playerBox.minY + 0.5, playerBox.maxZ);
-            if (stopWatch.finished(400) && PlayerInteractionHelper.isBox(box, this::hasCollision)) {
-                box = new Box(playerBox.minX - 0.3, playerBox.minY + 1, playerBox.minZ - 0.3, playerBox.maxX, playerBox.maxY, playerBox.maxZ);
-                if (PlayerInteractionHelper.isBox(box, this::hasCollision)) {
-                    mc.player.setOnGround(true);
-                    mc.player.setVelocity(mc.player.getVelocity().x, 0.6, mc.player.getVelocity().z);
-                } else {
-                    mc.player.setOnGround(true);
-                    mc.player.jump();
-                }
-            }
+            handleFunTimeMode();
         }
 
         if (mode.isSelected("Water Bucket")) {
-            if (mc.player.getMainHandStack().getItem() == Items.WATER_BUCKET && mc.player.horizontalCollision) {
-                mc.interactionManager.interactItem(mc.player, Hand.MAIN_HAND);
-                mc.player.swingHand(Hand.MAIN_HAND);
-                mc.player.setVelocity(mc.player.getVelocity().x, 0.3, mc.player.getVelocity().z);
-            }
+            handleWaterBucketMode();
         }
 
         if (mode.isSelected("SpookyTime") && stopWatch.finished(310)) {
-            if (mc.player.getMainHandStack().getItem() == Items.WATER_BUCKET && mc.player.horizontalCollision) {
-                mc.player.networkHandler.sendPacket(new PlayerInteractItemC2SPacket(Hand.MAIN_HAND, 0, mc.player.getYaw(), mc.player.getPitch()));
-                mc.player.networkHandler.sendPacket(new HandSwingC2SPacket(Hand.MAIN_HAND));
-                mc.player.setVelocity(mc.player.getVelocity().x, 0.35, mc.player.getVelocity().z);
-            }
-            stopWatch.reset();
+            handleSpookyTimeMode();
         }
 
         if (mode.isSelected("Slime Block")) {
@@ -115,6 +97,43 @@ public class Spider extends ModuleStructure {
         }
     }
 
+    @Native(type = Native.Type.VMProtectBeginUltra)
+    private void handleFunTimeMode() {
+        if (mc.options.jumpKey.isPressed()) return;
+        Box playerBox = mc.player.getBoundingBox().expand(-1e-3);
+        Box box = new Box(playerBox.minX, playerBox.minY, playerBox.minZ, playerBox.maxX, playerBox.minY + 0.5, playerBox.maxZ);
+        if (stopWatch.finished(400) && PlayerInteractionHelper.isBox(box, this::hasCollision)) {
+            box = new Box(playerBox.minX - 0.3, playerBox.minY + 1, playerBox.minZ - 0.3, playerBox.maxX, playerBox.maxY, playerBox.maxZ);
+            if (PlayerInteractionHelper.isBox(box, this::hasCollision)) {
+                mc.player.setOnGround(true);
+                mc.player.setVelocity(mc.player.getVelocity().x, 0.6, mc.player.getVelocity().z);
+            } else {
+                mc.player.setOnGround(true);
+                mc.player.jump();
+            }
+        }
+    }
+
+    @Native(type = Native.Type.VMProtectBeginMutation)
+    private void handleWaterBucketMode() {
+        if (mc.player.getMainHandStack().getItem() == Items.WATER_BUCKET && mc.player.horizontalCollision) {
+            mc.interactionManager.interactItem(mc.player, Hand.MAIN_HAND);
+            mc.player.swingHand(Hand.MAIN_HAND);
+            mc.player.setVelocity(mc.player.getVelocity().x, 0.3, mc.player.getVelocity().z);
+        }
+    }
+
+    @Native(type = Native.Type.VMProtectBeginUltra)
+    private void handleSpookyTimeMode() {
+        if (mc.player.getMainHandStack().getItem() == Items.WATER_BUCKET && mc.player.horizontalCollision) {
+            mc.player.networkHandler.sendPacket(new PlayerInteractItemC2SPacket(Hand.MAIN_HAND, 0, mc.player.getYaw(), mc.player.getPitch()));
+            mc.player.networkHandler.sendPacket(new HandSwingC2SPacket(Hand.MAIN_HAND));
+            mc.player.setVelocity(mc.player.getVelocity().x, 0.35, mc.player.getVelocity().z);
+        }
+        stopWatch.reset();
+    }
+
+    @Native(type = Native.Type.VMProtectBeginUltra)
     private void handleSlimeBlock() {
         BlockPos playerPos = mc.player.getBlockPos();
         BlockPos[] adjacentBlocks = {
@@ -219,6 +238,7 @@ public class Spider extends ModuleStructure {
         return -1;
     }
 
+    @Native(type = Native.Type.VMProtectBeginMutation)
     private boolean canPlace(ItemStack stack) {
         BlockPos blockPos = getBlockPos();
         if (blockPos.getY() >= mc.player.getBlockY()) return false;

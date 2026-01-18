@@ -1,5 +1,6 @@
 package rich.modules.impl.combat;
 
+import antidaunleak.api.annotation.Native;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.experimental.FieldDefaults;
@@ -170,6 +171,7 @@ public class AutoSwap extends ModuleStructure {
         };
     }
 
+    @Native(type = Native.Type.VMProtectBeginMutation)
     private Slot findValidSlot(Predicate<Slot> slotPredicate) {
         Predicate<Slot> combinedPredicate = s -> s.id != 45 && !s.getStack().isEmpty() && slotPredicate.test(s);
 

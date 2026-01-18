@@ -1,5 +1,6 @@
 package rich.modules.impl.misc;
 
+import antidaunleak.api.annotation.Native;
 import lombok.AccessLevel;
 import lombok.experimental.FieldDefaults;
 import net.minecraft.client.network.ClientPlayNetworkHandler;
@@ -22,29 +23,37 @@ public class ServerRPSpoofer extends ModuleStructure {
     }
 
     @EventHandler
+    @Native(type = Native.Type.VMProtectBeginMutation)
     public void onPacket(PacketEvent e) {
         if (e.getPacket() instanceof ResourcePackSendS2CPacket) {
             currentAction = ResourcePackAction.ACCEPT;
             e.cancel();
         }
     }
-    
+
     @EventHandler
+    @Native(type = Native.Type.VMProtectBeginUltra)
     public void onTick(TickEvent e) {
         ClientPlayNetworkHandler networkHandler = mc.getNetworkHandler();
         if (networkHandler != null) {
-            if (currentAction == ResourcePackAction.ACCEPT) {
-                networkHandler.sendPacket(new ResourcePackStatusC2SPacket(mc.player.getUuid(), ResourcePackStatusC2SPacket.Status.ACCEPTED));
-                currentAction = ResourcePackAction.SEND;
-                counter.resetCounter();
-            } else if (currentAction == ResourcePackAction.SEND && counter.isReached(300L)) {
-                networkHandler.sendPacket(new ResourcePackStatusC2SPacket(mc.player.getUuid(), ResourcePackStatusC2SPacket.Status.SUCCESSFULLY_LOADED));
-                currentAction = ResourcePackAction.WAIT;
-            }
+            processResourcePackAction(networkHandler);
+        }
+    }
+
+    @Native(type = Native.Type.VMProtectBeginUltra)
+    private void processResourcePackAction(ClientPlayNetworkHandler networkHandler) {
+        if (currentAction == ResourcePackAction.ACCEPT) {
+            networkHandler.sendPacket(new ResourcePackStatusC2SPacket(mc.player.getUuid(), ResourcePackStatusC2SPacket.Status.ACCEPTED));
+            currentAction = ResourcePackAction.SEND;
+            counter.resetCounter();
+        } else if (currentAction == ResourcePackAction.SEND && counter.isReached(300L)) {
+            networkHandler.sendPacket(new ResourcePackStatusC2SPacket(mc.player.getUuid(), ResourcePackStatusC2SPacket.Status.SUCCESSFULLY_LOADED));
+            currentAction = ResourcePackAction.WAIT;
         }
     }
 
     @Override
+    @Native(type = Native.Type.VMProtectBeginMutation)
     public void deactivate() {
         currentAction = ResourcePackAction.WAIT;
         super.deactivate();

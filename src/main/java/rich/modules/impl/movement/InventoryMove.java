@@ -1,5 +1,6 @@
 package rich.modules.impl.movement;
 
+import antidaunleak.api.annotation.Native;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.experimental.FieldDefaults;
@@ -76,6 +77,7 @@ public class InventoryMove extends ModuleStructure {
     }
 
     @Override
+    @Native(type = Native.Type.VMProtectBeginMutation)
     public void deactivate() {
         resetState();
     }
@@ -90,23 +92,30 @@ public class InventoryMove extends ModuleStructure {
     }
 
     @EventHandler
+    @Native(type = Native.Type.VMProtectBeginUltra)
     public void onPacket(PacketEvent e) {
         if (mode.isSelected("Legit")) {
-            if (e.getPacket() instanceof ClickSlotC2SPacket slot) {
-                if ((packetsHeld || MoveUtil.hasPlayerMovement()) && shouldSkipExecution()) {
-                    packets.add(slot);
-                    e.cancel();
-                    packetsHeld = true;
-                }
-            } else if (e.getPacket() instanceof CloseScreenS2CPacket screen) {
-                if (screen.getSyncId() == 0) {
-                    e.cancel();
-                }
+            handleLegitPackets(e);
+        }
+    }
+
+    @Native(type = Native.Type.VMProtectBeginUltra)
+    private void handleLegitPackets(PacketEvent e) {
+        if (e.getPacket() instanceof ClickSlotC2SPacket slot) {
+            if ((packetsHeld || MoveUtil.hasPlayerMovement()) && shouldSkipExecution()) {
+                packets.add(slot);
+                e.cancel();
+                packetsHeld = true;
+            }
+        } else if (e.getPacket() instanceof CloseScreenS2CPacket screen) {
+            if (screen.getSyncId() == 0) {
+                e.cancel();
             }
         }
     }
 
     @EventHandler
+    @Native(type = Native.Type.VMProtectBeginUltra)
     public void onTick(TickEvent e) {
         if (mc.player == null) return;
 
@@ -119,6 +128,7 @@ public class InventoryMove extends ModuleStructure {
         }
     }
 
+    @Native(type = Native.Type.VMProtectBeginUltra)
     private void processLegitMovement() {
         boolean hasOpenScreen = mc.currentScreen != null;
 
@@ -145,6 +155,7 @@ public class InventoryMove extends ModuleStructure {
         }
     }
 
+    @Native(type = Native.Type.VMProtectBeginUltra)
     private void handlePendingClose() {
         long elapsed = System.currentTimeMillis() - actionStartTime;
 
@@ -200,6 +211,7 @@ public class InventoryMove extends ModuleStructure {
         }
     }
 
+    @Native(type = Native.Type.VMProtectBeginMutation)
     private boolean isPlayerStopped() {
         if (mc.player == null) return true;
         double vx = Math.abs(mc.player.getVelocity().x);
@@ -207,6 +219,7 @@ public class InventoryMove extends ModuleStructure {
         return vx < 0.03 && vz < 0.03;
     }
 
+    @Native(type = Native.Type.VMProtectBeginMutation)
     private void blockMovementInput() {
         if (mc.player != null && mc.player.input != null) {
             mc.player.input.playerInput = new PlayerInput(false, false, false, false,
@@ -222,6 +235,7 @@ public class InventoryMove extends ModuleStructure {
         }
     }
 
+    @Native(type = Native.Type.VMProtectBeginUltra)
     private void sendHeldPackets() {
         if (!packets.isEmpty()) {
             packets.forEach(PlayerInteractionHelper::sendPacketWithOutEvent);
@@ -231,6 +245,7 @@ public class InventoryMove extends ModuleStructure {
         packetsHeld = false;
     }
 
+    @Native(type = Native.Type.VMProtectBeginUltra)
     private void closeInventoryNow() {
         if (mc.player == null || mc.getNetworkHandler() == null) return;
 
@@ -247,6 +262,7 @@ public class InventoryMove extends ModuleStructure {
         closeScreenSyncId = -1;
     }
 
+    @Native(type = Native.Type.VMProtectBeginMutation)
     private void startLegitMovement() {
         wasForwardPressed = isKeyPressed(mc.options.forwardKey.getDefaultKey().getCode());
         wasBackPressed = isKeyPressed(mc.options.backKey.getDefaultKey().getCode());
@@ -260,6 +276,7 @@ public class InventoryMove extends ModuleStructure {
         closeScreenSyncId = -1;
     }
 
+    @Native(type = Native.Type.VMProtectBeginUltra)
     private void handleMovementStates() {
         long elapsed = System.currentTimeMillis() - actionStartTime;
 
@@ -284,6 +301,7 @@ public class InventoryMove extends ModuleStructure {
         }
     }
 
+    @Native(type = Native.Type.VMProtectBeginMutation)
     private void restoreKeyStates() {
         mc.options.forwardKey.setPressed(wasForwardPressed && isKeyPressed(mc.options.forwardKey.getDefaultKey().getCode()));
         mc.options.backKey.setPressed(wasBackPressed && isKeyPressed(mc.options.backKey.getDefaultKey().getCode()));
@@ -293,6 +311,7 @@ public class InventoryMove extends ModuleStructure {
         keysOverridden = false;
     }
 
+    @Native(type = Native.Type.VMProtectBeginMutation)
     private void resetState() {
         if (movement.isBlocked()) movement.restoreFromCurrent();
         if (keysOverridden) restoreKeyStates();
@@ -305,6 +324,7 @@ public class InventoryMove extends ModuleStructure {
     }
 
     @EventHandler
+    @Native(type = Native.Type.VMProtectBeginMutation)
     public void onClickSlot(ClickSlotEvent e) {
         if (mode.isSelected("Legit")) {
             SlotActionType actionType = e.getActionType();
@@ -317,6 +337,7 @@ public class InventoryMove extends ModuleStructure {
     }
 
     @EventHandler
+    @Native(type = Native.Type.VMProtectBeginUltra)
     public void onCloseScreen(CloseScreenEvent e) {
         if (!mode.isSelected("Legit")) return;
         if (movePhase != MovePhase.ALLOW_MOVEMENT) return;

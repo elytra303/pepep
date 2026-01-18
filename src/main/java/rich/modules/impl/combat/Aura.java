@@ -1,5 +1,6 @@
 package rich.modules.impl.combat;
 
+import antidaunleak.api.annotation.Native;
 import lombok.Getter;
 import lombok.experimental.NonFinal;
 import net.minecraft.entity.LivingEntity;
@@ -37,12 +38,13 @@ import java.util.Objects;
 
 public class Aura extends ModuleStructure {
 
+    @Native(type = Native.Type.VMProtectBeginUltra)
     public static Aura getInstance() {
         return Instance.get(Aura.class);
     }
 
     private final SelectSetting mode = new SelectSetting("Режим наводки", "Select aim mode")
-            .value("Matrix", "FunTime Snap", "Snap", "HolyWorld")
+            .value("Matrix", "FunTime Snap", "Snap", "SpookyTime", "HolyWorld")
             .selected("Matrix");
 
     private final SelectSetting moveFix = new SelectSetting("Коррекция движения", "Select move fix mode")
@@ -148,6 +150,7 @@ public class Aura extends ModuleStructure {
         }
     }
 
+    @Native(type = Native.Type.VMProtectBeginMutation)
     public StrikerConstructor.AttackPerpetratorConfigurable getConfig() {
         float baseRange = attackrange.getValue();
 
@@ -220,19 +223,13 @@ public class Aura extends ModuleStructure {
                 }
             }
 
-            case "HolyWorld" -> {
-                if (attackHandler.canAttack(config, 6) || !attackHandler.getAttackTimer().finished(67)) {
-                    controller.rotateTo(rotation, target, 60, rotationConfig, TaskPriority.HIGH_IMPORTANCE_1, this);
-                }
-            }
-
             case "Snap" -> {
                 if (attackHandler.canAttack(config, 0)) {
                     controller.rotateTo(rotation, target, 0, rotationConfig, TaskPriority.HIGH_IMPORTANCE_1, this);
                 }
             }
 
-            case "Matrix", "SpookyTime" -> {
+            case "Matrix", "SpookyTime", "HolyWorld" -> {
                 controller.rotateTo(rotation, target, 1, rotationConfig, TaskPriority.HIGH_IMPORTANCE_1, this);
             }
 
@@ -378,6 +375,7 @@ public class Aura extends ModuleStructure {
         return switch (mode.getSelected()) {
             case "FunTime Snap" -> new FTAngle();
             case "HolyWorld" -> new HWAngle();
+            case "SpookyTime" -> new SPAngle();
             case "Snap" -> new SnapAngle();
             case "Matrix" -> new MatrixAngle();
             default -> new LinearConstructor();

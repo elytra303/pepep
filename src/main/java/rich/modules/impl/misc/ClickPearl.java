@@ -1,5 +1,6 @@
 package rich.modules.impl.misc;
 
+import antidaunleak.api.annotation.Native;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.experimental.FieldDefaults;
@@ -56,6 +57,7 @@ public class ClickPearl extends ModuleStructure {
     }
 
     @EventHandler
+    @Native(type = Native.Type.VMProtectBeginMutation)
     public void onKey(KeyEvent e) {
         if (mc.player == null || mc.world == null) return;
         if (mc.currentScreen != null) return;
@@ -110,6 +112,7 @@ public class ClickPearl extends ModuleStructure {
         }
     }
 
+    @Native(type = Native.Type.VMProtectBeginMutation)
     private void tryThrowPearl() {
         if (System.currentTimeMillis() - lastThrowTime < 100) return;
         lastThrowTime = System.currentTimeMillis();
@@ -117,6 +120,7 @@ public class ClickPearl extends ModuleStructure {
     }
 
     @EventHandler
+    @Native(type = Native.Type.VMProtectBeginUltra)
     public void onTick(TickEvent e) {
         if (mc.player == null || mc.world == null) {
             resetState();
@@ -143,6 +147,7 @@ public class ClickPearl extends ModuleStructure {
         }
     }
 
+    @Native(type = Native.Type.VMProtectBeginUltra)
     private void startPearlProcess() {
         savedSlot = mc.player.getInventory().getSelectedSlot();
 
@@ -172,6 +177,7 @@ public class ClickPearl extends ModuleStructure {
         }
     }
 
+    @Native(type = Native.Type.VMProtectBeginUltra)
     private boolean processTick() {
         if (mc.player == null || mc.currentScreen != null) {
             resetState();
@@ -292,6 +298,7 @@ public class ClickPearl extends ModuleStructure {
         }
     }
 
+    @Native(type = Native.Type.VMProtectBeginMutation)
     private SwapSettings buildSettings() {
         String mode = modeSetting.getSelected();
         return switch (mode) {

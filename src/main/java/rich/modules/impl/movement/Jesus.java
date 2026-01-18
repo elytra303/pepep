@@ -1,5 +1,6 @@
 package rich.modules.impl.movement;
 
+import antidaunleak.api.annotation.Native;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.experimental.FieldDefaults;
@@ -45,11 +46,13 @@ public class Jesus extends ModuleStructure {
     }
 
     @Override
+    @Native(type = Native.Type.VMProtectBeginMutation)
     public void deactivate() {
         tickCounter = 0;
     }
 
     @EventHandler
+    @Native(type = Native.Type.VMProtectBeginUltra)
     public void tick(TickEvent event) {
         if (mc.player == null || mc.world == null) return;
 
@@ -62,6 +65,7 @@ public class Jesus extends ModuleStructure {
         }
     }
 
+    @Native(type = Native.Type.VMProtectBeginUltra)
     private void handleMatrixMode() {
         if (mc.player.isTouchingWater() || mc.player.isInLava()) {
             StatusEffectInstance speedEffect = mc.player.getStatusEffect(StatusEffects.SPEED);
@@ -105,6 +109,7 @@ public class Jesus extends ModuleStructure {
         }
     }
 
+    @Native(type = Native.Type.VMProtectBeginUltra)
     private void handleMetaHVHMode() {
         if (mc.player.isTouchingWater() || mc.player.isInLava()) {
             StatusEffectInstance speedEffect = mc.player.getStatusEffect(StatusEffects.SPEED);
@@ -142,6 +147,7 @@ public class Jesus extends ModuleStructure {
         }
     }
 
+    @Native(type = Native.Type.VMProtectBeginUltra)
     private void handleFunTimeNewMode() {
         if (mc.player.isInFluid() || mc.player.isTouchingWater()) {
             tickCounter++;

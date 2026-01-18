@@ -1,5 +1,6 @@
 package rich.modules.impl.misc;
 
+import antidaunleak.api.annotation.Native;
 import lombok.AccessLevel;
 import lombok.experimental.FieldDefaults;
 import net.minecraft.network.packet.s2c.play.GameMessageS2CPacket;
@@ -11,7 +12,6 @@ import rich.modules.module.category.ModuleCategory;
 import rich.modules.module.setting.implement.BooleanSetting;
 import rich.util.network.Network;
 import rich.util.repository.friend.FriendUtils;
-
 
 import java.util.Arrays;
 
@@ -33,6 +33,7 @@ public class AutoTpAccept extends ModuleStructure {
     }
 
     @EventHandler
+    @Native(type = Native.Type.VMProtectBeginMutation)
     public void onPacket(PacketEvent e) {
         if (e.getPacket() instanceof GameMessageS2CPacket m) {
             String message = m.content().getString();
@@ -44,6 +45,7 @@ public class AutoTpAccept extends ModuleStructure {
     }
 
     @EventHandler
+    @Native(type = Native.Type.VMProtectBeginMutation)
     public void onTick(TickEvent e) {
         if (!Network.isPvp() && canAccept) {
             mc.player.networkHandler.sendChatCommand("tpaccept");
@@ -51,7 +53,7 @@ public class AutoTpAccept extends ModuleStructure {
         }
     }
 
-    
+    @Native(type = Native.Type.VMProtectBeginMutation)
     private boolean isTeleportMessage(String message) {
         return Arrays.stream(this.teleportMessages).map(String::toLowerCase).anyMatch(message::contains);
     }

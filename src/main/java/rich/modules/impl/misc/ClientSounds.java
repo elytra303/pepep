@@ -1,5 +1,6 @@
 package rich.modules.impl.misc;
 
+import antidaunleak.api.annotation.Native;
 import rich.events.api.EventHandler;
 import rich.events.impl.ModuleToggleEvent;
 import rich.modules.module.ModuleStructure;
@@ -23,20 +24,25 @@ public class ClientSounds extends ModuleStructure {
             .range(0.1f, 2.0f)
             .setValue(1.0f);
 
-
     public ClientSounds() {
         super("ClientSounds", ModuleCategory.MISC);
         setup(soundType, volume);
     }
 
     @EventHandler
+    @Native(type = Native.Type.VMProtectBeginMutation)
     public void onModuleToggle(ModuleToggleEvent event) {
         if (mc.player == null || mc.world == null) return;
         if (event.getModule() == this) return;
 
+        playToggleSound(event.isEnabled());
+    }
+
+    @Native(type = Native.Type.VMProtectBeginMutation)
+    private void playToggleSound(boolean enabled) {
         float vol = volume.getValue();
 
-        if (event.isEnabled()) {
+        if (enabled) {
             if (soundType.isSelected("New")) {
                 SoundManager.playSound(SoundManager.MODULE_ENABLE, vol, 1);
             } else {

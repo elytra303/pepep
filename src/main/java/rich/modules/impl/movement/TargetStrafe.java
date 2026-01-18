@@ -1,5 +1,6 @@
 package rich.modules.impl.movement;
 
+import antidaunleak.api.annotation.Native;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.util.math.MathHelper;
@@ -60,6 +61,7 @@ public class TargetStrafe extends ModuleStructure {
     }
 
     @EventHandler
+    @Native(type = Native.Type.VMProtectBeginUltra)
     public void onInput(InputEvent event) {
         if (mc.player == null || mc.world == null) return;
         LivingEntity target = Aura.target;
@@ -76,68 +78,76 @@ public class TargetStrafe extends ModuleStructure {
             }
         }
 
+        Vec3d nextPoint = calculateGrimNextPoint(target);
+        applyGrimMovement(event, nextPoint);
+    }
+
+    @Native(type = Native.Type.VMProtectBeginUltra)
+    private Vec3d calculateGrimNextPoint(LivingEntity target) {
         Vec3d playerPos = mc.player.getEntityPos();
         Vec3d targetPos = target.getEntityPos();
         double r = grimRadius.getValue();
 
-        Vec3d nextPoint;
-
-        int directionMultiplier = 1;
-        if (setting.isSelected("Direction Mode")) {
-            if (directionMode.isSelected("Counterclockwise")) {
-                directionMultiplier = -1;
-            } else if (directionMode.isSelected("Random")) {
-                long time = System.currentTimeMillis() / 3000;
-                directionMultiplier = (time % 2 == 0) ? 1 : -1;
-            }
-        }
+        int directionMultiplier = getDirectionMultiplier();
 
         if (setting.isSelected("In front of the target")) {
-            float targetYaw = target.getYaw();
-
-            if (type.isSelected("Center")) {
-                nextPoint = targetPos.add(
-                        -Math.sin(Math.toRadians(targetYaw)) * r * directionMultiplier,
-                        0,
-                        Math.cos(Math.toRadians(targetYaw)) * r * directionMultiplier);
-            } else {
-                double offset = Math.cos(System.currentTimeMillis() / 500.0) * r * directionMultiplier;
-                nextPoint = targetPos.add(
-                        -Math.sin(Math.toRadians(targetYaw)) * r + Math.cos(Math.toRadians(targetYaw)) * offset,
-                        0,
-                        Math.cos(Math.toRadians(targetYaw)) * r + Math.sin(Math.toRadians(targetYaw)) * offset
-                );
-            }
-
+            return calculateFrontPoint(target, targetPos, r, directionMultiplier);
         } else {
-            if (type.isSelected("Cube")) {
-                Vec3d[] points = new Vec3d[]{
-                        new Vec3d(targetPos.x - r, playerPos.y, targetPos.z - r),
-                        new Vec3d(targetPos.x - r, playerPos.y, targetPos.z + r),
-                        new Vec3d(targetPos.x + r, playerPos.y, targetPos.z + r),
-                        new Vec3d(targetPos.x + r, playerPos.y, targetPos.z - r)
-                };
-
-                if (playerPos.distanceTo(points[grimPointIndex]) < 0.5) {
-                    grimPointIndex = (grimPointIndex + directionMultiplier + points.length) % points.length;
-                }
-
-                nextPoint = points[grimPointIndex];
-            } else if (type.isSelected("Circle")) {
-                double baseAngle = (System.currentTimeMillis() % 3600L) / 3600.0 * 4 * Math.PI;
-                double angle = directionMultiplier > 0 ? baseAngle : (2 * Math.PI - baseAngle);
-
-                nextPoint = new Vec3d(
-                        targetPos.x + Math.cos(angle) * r,
-                        playerPos.y,
-                        targetPos.z + Math.sin(angle) * r
-                );
-
-            } else {
-                nextPoint = new Vec3d(targetPos.x, playerPos.y, targetPos.z);
-            }
+            return calculateNormalPoint(playerPos, targetPos, r, directionMultiplier);
         }
+    }
 
+    @Native(type = Native.Type.VMProtectBeginMutation)
+    private Vec3d calculateFrontPoint(LivingEntity target, Vec3d targetPos, double r, int directionMultiplier) {
+        float targetYaw = target.getYaw();
+
+        if (type.isSelected("Center")) {
+            return targetPos.add(
+                    -Math.sin(Math.toRadians(targetYaw)) * r * directionMultiplier,
+                    0,
+                    Math.cos(Math.toRadians(targetYaw)) * r * directionMultiplier);
+        } else {
+            double offset = Math.cos(System.currentTimeMillis() / 500.0) * r * directionMultiplier;
+            return targetPos.add(
+                    -Math.sin(Math.toRadians(targetYaw)) * r + Math.cos(Math.toRadians(targetYaw)) * offset,
+                    0,
+                    Math.cos(Math.toRadians(targetYaw)) * r + Math.sin(Math.toRadians(targetYaw)) * offset
+            );
+        }
+    }
+
+    @Native(type = Native.Type.VMProtectBeginUltra)
+    private Vec3d calculateNormalPoint(Vec3d playerPos, Vec3d targetPos, double r, int directionMultiplier) {
+        if (type.isSelected("Cube")) {
+            Vec3d[] points = new Vec3d[]{
+                    new Vec3d(targetPos.x - r, playerPos.y, targetPos.z - r),
+                    new Vec3d(targetPos.x - r, playerPos.y, targetPos.z + r),
+                    new Vec3d(targetPos.x + r, playerPos.y, targetPos.z + r),
+                    new Vec3d(targetPos.x + r, playerPos.y, targetPos.z - r)
+            };
+
+            if (playerPos.distanceTo(points[grimPointIndex]) < 0.5) {
+                grimPointIndex = (grimPointIndex + directionMultiplier + points.length) % points.length;
+            }
+
+            return points[grimPointIndex];
+        } else if (type.isSelected("Circle")) {
+            double baseAngle = (System.currentTimeMillis() % 3600L) / 3600.0 * 4 * Math.PI;
+            double angle = directionMultiplier > 0 ? baseAngle : (2 * Math.PI - baseAngle);
+
+            return new Vec3d(
+                    targetPos.x + Math.cos(angle) * r,
+                    playerPos.y,
+                    targetPos.z + Math.sin(angle) * r
+            );
+        } else {
+            return new Vec3d(targetPos.x, playerPos.y, targetPos.z);
+        }
+    }
+
+    @Native(type = Native.Type.VMProtectBeginUltra)
+    private void applyGrimMovement(InputEvent event, Vec3d nextPoint) {
+        Vec3d playerPos = mc.player.getEntityPos();
         Vec3d direction = nextPoint.subtract(playerPos).normalize();
 
         float yaw = AngleConnection.INSTANCE.getRotation().getYaw();
@@ -172,6 +182,7 @@ public class TargetStrafe extends ModuleStructure {
     }
 
     @EventHandler
+    @Native(type = Native.Type.VMProtectBeginUltra)
     public void onTick(TickEvent event) {
         if (mc.player == null || mc.world == null) return;
 
@@ -179,10 +190,6 @@ public class TargetStrafe extends ModuleStructure {
         if (target == null || !target.isAlive()) return;
 
         if (!mode.isSelected("Matrix")) return;
-
-        Vec3d playerPos = mc.player.getEntityPos();
-        Vec3d targetPos = target.getEntityPos();
-        double r = radius.getValue();
 
         if (setting.isSelected("Only Key Pressed")) {
             if (!mc.options.forwardKey.isPressed() &&
@@ -197,6 +204,31 @@ public class TargetStrafe extends ModuleStructure {
             mc.player.jump();
         }
 
+        processMatrixStrafe(target);
+    }
+
+    @Native(type = Native.Type.VMProtectBeginUltra)
+    private void processMatrixStrafe(LivingEntity target) {
+        Vec3d playerPos = mc.player.getEntityPos();
+        Vec3d targetPos = target.getEntityPos();
+        double r = radius.getValue();
+
+        int directionMultiplier = getDirectionMultiplier();
+
+        if (setting.isSelected("In front of the target")) {
+            processMatrixFrontStrafe(target, playerPos, targetPos, r, directionMultiplier);
+            return;
+        }
+
+        if (typeMatrix.isSelected("Cube")) {
+            processMatrixCubeStrafe(playerPos, targetPos, r, directionMultiplier);
+        } else if (typeMatrix.isSelected("Circle")) {
+            processMatrixCircleStrafe(playerPos, targetPos, r, directionMultiplier);
+        }
+    }
+
+    @Native(type = Native.Type.VMProtectBeginMutation)
+    private int getDirectionMultiplier() {
         int directionMultiplier = 1;
         if (setting.isSelected("Direction Mode")) {
             if (directionMode.isSelected("Counterclockwise")) {
@@ -206,59 +238,64 @@ public class TargetStrafe extends ModuleStructure {
                 directionMultiplier = (time % 2 == 0) ? 1 : -1;
             }
         }
+        return directionMultiplier;
+    }
 
-        if (setting.isSelected("In front of the target")) {
-            float targetYaw = target.getYaw();
-            double x = targetPos.x - Math.sin(Math.toRadians(targetYaw)) * r * directionMultiplier;
-            double z = targetPos.z + Math.cos(Math.toRadians(targetYaw)) * r * directionMultiplier;
+    @Native(type = Native.Type.VMProtectBeginUltra)
+    private void processMatrixFrontStrafe(LivingEntity target, Vec3d playerPos, Vec3d targetPos, double r, int directionMultiplier) {
+        float targetYaw = target.getYaw();
+        double x = targetPos.x - Math.sin(Math.toRadians(targetYaw)) * r * directionMultiplier;
+        double z = targetPos.z + Math.cos(Math.toRadians(targetYaw)) * r * directionMultiplier;
 
-            float yaw = (float) Math.toDegrees(Math.atan2(z - playerPos.z, x - playerPos.x)) - 90F;
-            double motionSpeed = speed.getValue();
-            mc.player.setVelocity(-Math.sin(Math.toRadians(yaw)) * motionSpeed,
-                    mc.player.getVelocity().y,
-                    Math.cos(Math.toRadians(yaw)) * motionSpeed);
-            return;
+        float yaw = (float) Math.toDegrees(Math.atan2(z - playerPos.z, x - playerPos.x)) - 90F;
+        double motionSpeed = speed.getValue();
+        mc.player.setVelocity(-Math.sin(Math.toRadians(yaw)) * motionSpeed,
+                mc.player.getVelocity().y,
+                Math.cos(Math.toRadians(yaw)) * motionSpeed);
+    }
+
+    @Native(type = Native.Type.VMProtectBeginUltra)
+    private void processMatrixCubeStrafe(Vec3d playerPos, Vec3d targetPos, double r, int directionMultiplier) {
+        Vec3d[] points = new Vec3d[]{
+                new Vec3d(targetPos.x - r, playerPos.y, targetPos.z - r),
+                new Vec3d(targetPos.x - r, playerPos.y, targetPos.z + r),
+                new Vec3d(targetPos.x + r, playerPos.y, targetPos.z + r),
+                new Vec3d(targetPos.x + r, playerPos.y, targetPos.z - r)
+        };
+
+        if (playerPos.distanceTo(points[grimPointIndex]) < 0.5) {
+            grimPointIndex = (grimPointIndex + directionMultiplier + points.length) % points.length;
         }
 
-        if (typeMatrix.isSelected("Cube")) {
-            Vec3d[] points = new Vec3d[]{
-                    new Vec3d(targetPos.x - r, playerPos.y, targetPos.z - r),
-                    new Vec3d(targetPos.x - r, playerPos.y, targetPos.z + r),
-                    new Vec3d(targetPos.x + r, playerPos.y, targetPos.z + r),
-                    new Vec3d(targetPos.x + r, playerPos.y, targetPos.z - r)
-            };
+        Vec3d nextPoint = points[grimPointIndex];
+        Vec3d dirVec = nextPoint.subtract(playerPos).normalize();
 
-            if (playerPos.distanceTo(points[grimPointIndex]) < 0.5) {
-                grimPointIndex = (grimPointIndex + directionMultiplier + points.length) % points.length;
-            }
+        float yaw = (float) Math.toDegrees(Math.atan2(dirVec.z, dirVec.x)) - 90F;
+        double motionSpeed = speed.getValue();
 
-            Vec3d nextPoint = points[grimPointIndex];
-            Vec3d dirVec = nextPoint.subtract(playerPos).normalize();
+        mc.player.setVelocity(-Math.sin(Math.toRadians(yaw)) * motionSpeed,
+                mc.player.getVelocity().y,
+                Math.cos(Math.toRadians(yaw)) * motionSpeed);
+    }
 
-            float yaw = (float) Math.toDegrees(Math.atan2(dirVec.z, dirVec.x)) - 90F;
-            double motionSpeed = speed.getValue();
+    @Native(type = Native.Type.VMProtectBeginUltra)
+    private void processMatrixCircleStrafe(Vec3d playerPos, Vec3d targetPos, double r, int directionMultiplier) {
+        double angle = Math.atan2(playerPos.z - targetPos.z, playerPos.x - targetPos.x);
+        angle += directionMultiplier * speed.getValue() / Math.max(playerPos.distanceTo(targetPos), r);
 
-            mc.player.setVelocity(-Math.sin(Math.toRadians(yaw)) * motionSpeed,
-                    mc.player.getVelocity().y,
-                    Math.cos(Math.toRadians(yaw)) * motionSpeed);
+        double x = targetPos.x + r * Math.cos(angle);
+        double z = targetPos.z + r * Math.sin(angle);
 
-        } else if (typeMatrix.isSelected("Circle")) {
-            double angle = Math.atan2(playerPos.z - targetPos.z, playerPos.x - targetPos.x);
-            angle += directionMultiplier * speed.getValue() / Math.max(playerPos.distanceTo(targetPos), r);
+        float yaw = (float) Math.toDegrees(Math.atan2(z - playerPos.z, x - playerPos.x)) - 90F;
+        double motionSpeed = speed.getValue();
 
-            double x = targetPos.x + r * Math.cos(angle);
-            double z = targetPos.z + r * Math.sin(angle);
-
-            float yaw = (float) Math.toDegrees(Math.atan2(z - playerPos.z, x - playerPos.x)) - 90F;
-            double motionSpeed = speed.getValue();
-
-            mc.player.setVelocity(-Math.sin(Math.toRadians(yaw)) * motionSpeed,
-                    mc.player.getVelocity().y,
-                    Math.cos(Math.toRadians(yaw)) * motionSpeed);
-        }
+        mc.player.setVelocity(-Math.sin(Math.toRadians(yaw)) * motionSpeed,
+                mc.player.getVelocity().y,
+                Math.cos(Math.toRadians(yaw)) * motionSpeed);
     }
 
     @Override
+    @Native(type = Native.Type.VMProtectBeginMutation)
     public void activate() {
         super.activate();
         grimPointIndex = 0;

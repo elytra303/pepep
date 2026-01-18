@@ -1,5 +1,6 @@
 package rich.modules.impl.combat;
 
+import antidaunleak.api.annotation.Native;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.experimental.FieldDefaults;
@@ -31,6 +32,7 @@ public class TapeMouse extends ModuleStructure {
     }
 
     @EventHandler
+    @Native(type = Native.Type.VMProtectBeginMutation)
     public void onTick(TickEvent e) {
         if (mc.player == null || mc.world == null) return;
         if (mc.currentScreen != null) return;
@@ -39,15 +41,20 @@ public class TapeMouse extends ModuleStructure {
 
         if (!delay.finished(delayMs)) return;
 
+        performClick();
+        delay.reset();
+    }
+
+    @Native(type = Native.Type.VMProtectBeginUltra)
+    private void performClick() {
         if (modeClick.isSelected("Левая кнопка")) {
             leftClick();
         } else {
             rightClick();
         }
-
-        delay.reset();
     }
 
+    @Native(type = Native.Type.VMProtectBeginUltra)
     private void leftClick() {
         if (mc.interactionManager == null) return;
 
@@ -59,6 +66,7 @@ public class TapeMouse extends ModuleStructure {
         }
     }
 
+    @Native(type = Native.Type.VMProtectBeginMutation)
     private void rightClick() {
         if (mc.interactionManager == null) return;
         mc.doItemUse();

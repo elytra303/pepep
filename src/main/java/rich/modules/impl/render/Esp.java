@@ -28,6 +28,7 @@ import rich.modules.impl.combat.AntiBot;
 import rich.modules.module.ModuleStructure;
 import rich.modules.module.category.ModuleCategory;
 import rich.modules.module.setting.implement.BooleanSetting;
+import rich.modules.module.setting.implement.ColorSetting;
 import rich.modules.module.setting.implement.MultiSelectSetting;
 import rich.modules.module.setting.implement.SelectSetting;
 import rich.modules.module.setting.implement.SliderSettings;
@@ -64,7 +65,15 @@ public class Esp extends ModuleStructure {
             .visible(() -> entityType.isSelected("Player"));
 
     public SelectSetting boxType = new SelectSetting("Тип", "Тип")
-            .value("Corner", "3D Box").selected("3D Box")
+            .value("Corner", "3D Box").selected("Corner")
+            .visible(() -> playerSetting.isSelected("Box"));
+
+    public ColorSetting boxColor = new ColorSetting("Цвет бокса", "Цвет для отображения бокса")
+            .value(0xFFFFAA00)
+            .visible(() -> playerSetting.isSelected("Box"));
+
+    public ColorSetting friendColor = new ColorSetting("Цвет друга", "Цвет для отображения друзей")
+            .value(0xFF00FF00)
             .visible(() -> playerSetting.isSelected("Box"));
 
     public BooleanSetting flatBoxOutline = new BooleanSetting("Контур", "Контур для плоских боксов")
@@ -79,7 +88,7 @@ public class Esp extends ModuleStructure {
 
     public Esp() {
         super("Esp", "Esp", ModuleCategory.RENDER);
-        setup(entityType, playerSetting, boxType, flatBoxOutline, boxAlpha);
+        setup(entityType, playerSetting, boxType, boxColor, friendColor, flatBoxOutline, boxAlpha);
     }
 
     @EventHandler
@@ -233,7 +242,7 @@ public class Esp extends ModuleStructure {
         float drawX = posX;
 
         if (!extraPart.isEmpty()) {
-            Fonts.TEST.draw(extraPart, drawX, posY, size, friend ? 0xFF00FF00 : 0xFFFF5555);
+            Fonts.TEST.draw(extraPart, drawX, posY, size, friend ? getFriendColor() : 0xFFFF5555);
             drawX += extraWidth;
         }
 
@@ -381,10 +390,10 @@ public class Esp extends ModuleStructure {
     }
 
     private int getFriendColor() {
-        return 0xFF00FF00;
+        return friendColor.getColorNoAlpha();
     }
 
     private int getClientColor() {
-        return 0xFF5555FF;
+        return boxColor.getColorNoAlpha();
     }
 }

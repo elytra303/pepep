@@ -1,5 +1,6 @@
 package rich.modules.impl.combat;
 
+import antidaunleak.api.annotation.Native;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.mob.MobEntity;
@@ -48,6 +49,7 @@ public class ProjectileHelper extends ModuleStructure {
         setup(searchDistance, targetType);
     }
 
+    @Native(type = Native.Type.VMProtectBeginMutation)
     public LivingEntity getTarget(World world, Iterable<Entity> entities) {
         List<Entity> entityList = StreamSupport.stream(entities.spliterator(), false).collect(Collectors.toList());
 
@@ -67,18 +69,16 @@ public class ProjectileHelper extends ModuleStructure {
                 nearestDistance = distance;
                 nearestTarget = target;
             }
-
         }
 
         currentTarget = nearestTarget;
         return currentTarget;
     }
 
+    @Native(type = Native.Type.VMProtectBeginMutation)
     private boolean isValidTarget(LivingEntity entity) {
         if (entity == null) return false;
-
-       if (entity == mc.player) return false;
-
+        if (entity == mc.player) return false;
         if (!entity.isAlive()) return false;
 
         if (!targetType.isSelected("Players") && entity instanceof PlayerEntity) return false;
@@ -88,7 +88,7 @@ public class ProjectileHelper extends ModuleStructure {
         return true;
     }
 
-
+    @Native(type = Native.Type.VMProtectBeginUltra)
     public Vec3d getPredictedPosition(LivingEntity target, Vec3d shooterPos, float projectileSpeed, float gravity) {
         Vec3d targetPos = target.getEntityPos().add(0, target.getHeight() * 0.5, 0);
         Vec3d targetVelocity = target.getVelocity();
@@ -120,25 +120,43 @@ public class ProjectileHelper extends ModuleStructure {
     }
 
     @EventHandler
+    @Native(type = Native.Type.VMProtectBeginUltra)
     public void onRotationUpdate(RotationUpdateEvent e) {
         if (e.getType() != EventType.PRE) return;
 
         ItemStack stack = mc.player.getMainHandStack();
 
+        if (!isValidWeaponState(stack)) {
+            currentTarget = null;
+            return;
+        }
+
+        updateTarget();
+
+        if (currentTarget != null) {
+            performAim();
+        }
+    }
+
+    @Native(type = Native.Type.VMProtectBeginMutation)
+    private boolean isValidWeaponState(ItemStack stack) {
         boolean holdingBow = stack.getItem() instanceof BowItem;
         boolean holdingCrossbow = stack.getItem() instanceof CrossbowItem && ((CrossbowItem) stack.getItem()).isCharged(stack);
         boolean holdingTrident = stack.getItem() instanceof TridentItem;
 
         if (!holdingBow && !holdingCrossbow && !holdingTrident) {
-            currentTarget = null;
-            return;
+            return false;
         }
 
         if (holdingBow && mc.player.getActiveItem() != stack) {
-            currentTarget = null;
-            return;
+            return false;
         }
 
+        return true;
+    }
+
+    @Native(type = Native.Type.VMProtectBeginMutation)
+    private void updateTarget() {
         if (currentTarget != null && !currentTarget.isAlive()) {
             currentTarget = null;
         }
@@ -149,31 +167,32 @@ public class ProjectileHelper extends ModuleStructure {
         }
 
         if (FriendUtils.isFriend(currentTarget)) currentTarget = null;
+    }
 
-        if (currentTarget != null) {
-            Vec3d shooterPos = mc.player.getEntityPos()
-                    .add(0, mc.player.getEyeHeight(mc.player.getPose()), 0)
-                    .add(mc.player.getVelocity());
+    @Native(type = Native.Type.VMProtectBeginUltra)
+    private void performAim() {
+        Vec3d shooterPos = mc.player.getEntityPos()
+                .add(0, mc.player.getEyeHeight(mc.player.getPose()), 0)
+                .add(mc.player.getVelocity());
 
-            float projectileSpeed = 6.0f;
-            float gravity = 0.02f;
+        float projectileSpeed = 6.0f;
+        float gravity = 0.02f;
 
-            Vec3d predictedPos = getPredictedPosition(currentTarget, shooterPos, projectileSpeed, gravity);
+        Vec3d predictedPos = getPredictedPosition(currentTarget, shooterPos, projectileSpeed, gravity);
 
-            double dx = predictedPos.x - shooterPos.x;
-            double dy = predictedPos.y - shooterPos.y;
-            double dz = predictedPos.z - shooterPos.z;
-            double distanceXZ = Math.sqrt(dx * dx + dz * dz);
+        double dx = predictedPos.x - shooterPos.x;
+        double dy = predictedPos.y - shooterPos.y;
+        double dz = predictedPos.z - shooterPos.z;
+        double distanceXZ = Math.sqrt(dx * dx + dz * dz);
 
-            float yaw = (float) Math.toDegrees(Math.atan2(dz, dx)) - 90f + MathUtils.getRandom(-1, 1);
-            float pitch = (float) -Math.toDegrees(Math.atan2(dy, distanceXZ))+ MathUtils.getRandom(-1, 1);
+        float yaw = (float) Math.toDegrees(Math.atan2(dz, dx)) - 90f + MathUtils.getRandom(-1, 1);
+        float pitch = (float) -Math.toDegrees(Math.atan2(dy, distanceXZ)) + MathUtils.getRandom(-1, 1);
 
-            AngleConnection.INSTANCE.rotateTo(
-                    new Angle(yaw, pitch),
-                    AngleConfig.DEFAULT,
-                    TaskPriority.HIGH_IMPORTANCE_1,
-                    this
-            );
-        }
+        AngleConnection.INSTANCE.rotateTo(
+                new Angle(yaw, pitch),
+                AngleConfig.DEFAULT,
+                TaskPriority.HIGH_IMPORTANCE_1,
+                this
+        );
     }
 }

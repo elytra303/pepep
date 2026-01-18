@@ -1,5 +1,6 @@
 package rich.modules.impl.movement;
 
+import antidaunleak.api.annotation.Native;
 import net.minecraft.client.MinecraftClient;
 import rich.events.api.EventHandler;
 import rich.events.impl.TickEvent;
@@ -37,6 +38,7 @@ public class Strafe extends ModuleStructure {
     }
 
     @EventHandler
+    @Native(type = Native.Type.VMProtectBeginUltra)
     public void onTick(TickEvent event) {
         if (mc.player == null || mc.world == null) return;
 
@@ -45,32 +47,42 @@ public class Strafe extends ModuleStructure {
         float yaw = mc.player.getYaw();
 
         if (mode.isSelected("Matrix")) {
-            if (moving) {
-                yaw = MoveUtil.moveYaw(mc.player.getYaw());
-                double motion = speed.getValue() * 1.5f;
-                MoveUtil.setVelocity(motion);
-            } else {
-                MoveUtil.setVelocity(0);
-            }
-            mc.player.setVelocity(mc.player.getVelocity().x, mc.player.getVelocity().y, mc.player.getVelocity().z);
+            handleMatrixMode(moving, yaw);
         } else if (mode.isSelected("Grim")) {
-            if (moving) {
-                AngleConfig.freeCorrection = true;
-                yaw = MoveUtil.moveYaw(mc.player.getYaw());
-                rot.setYaw(yaw);
-                rot.setPitch(mc.player.getPitch());
-                if (Aura.getInstance().target == null) {
-                    AngleConnection.INSTANCE.rotateTo(rot, AngleConfig.DEFAULT, TaskPriority.HIGH_IMPORTANCE_1 , this);
-                }
-            }
+            handleGrimMode(moving, yaw);
         }
 
         lastYaw = yaw;
         lastPitch = 0;
     }
 
+    @Native(type = Native.Type.VMProtectBeginUltra)
+    private void handleMatrixMode(boolean moving, float yaw) {
+        if (moving) {
+            yaw = MoveUtil.moveYaw(mc.player.getYaw());
+            double motion = speed.getValue() * 1.5f;
+            MoveUtil.setVelocity(motion);
+        } else {
+            MoveUtil.setVelocity(0);
+        }
+        mc.player.setVelocity(mc.player.getVelocity().x, mc.player.getVelocity().y, mc.player.getVelocity().z);
+    }
+
+    @Native(type = Native.Type.VMProtectBeginUltra)
+    private void handleGrimMode(boolean moving, float yaw) {
+        if (moving) {
+            AngleConfig.freeCorrection = true;
+            yaw = MoveUtil.moveYaw(mc.player.getYaw());
+            rot.setYaw(yaw);
+            rot.setPitch(mc.player.getPitch());
+            if (Aura.getInstance().target == null) {
+                AngleConnection.INSTANCE.rotateTo(rot, AngleConfig.DEFAULT, TaskPriority.HIGH_IMPORTANCE_1, this);
+            }
+        }
+    }
 
     @Override
+    @Native(type = Native.Type.VMProtectBeginMutation)
     public void activate() {
         super.activate();
         lastYaw = mc.player != null ? mc.player.getYaw() : 0;

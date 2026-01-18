@@ -1,5 +1,6 @@
 package rich.modules.impl.player;
 
+import antidaunleak.api.annotation.Native;
 import lombok.AccessLevel;
 import lombok.experimental.FieldDefaults;
 import net.minecraft.block.Blocks;
@@ -58,6 +59,7 @@ public class AutoPotion extends ModuleStructure {
     }
 
     @Override
+    @Native(type = Native.Type.VMProtectBeginMutation)
     public void deactivate() {
         isActivePotion = false;
         spoofed = false;
@@ -84,6 +86,7 @@ public class AutoPotion extends ModuleStructure {
         }
     }
 
+    @Native(type = Native.Type.VMProtectBeginMutation)
     private int findPotionSlot(PotionType type) {
         if (mc.player == null) return -1;
 
@@ -108,11 +111,13 @@ public class AutoPotion extends ModuleStructure {
         return mc.player != null && mc.player.hasStatusEffect(effect);
     }
 
+    @Native(type = Native.Type.VMProtectBeginMutation)
     private boolean canBuff(PotionType type) {
         if (hasEffect(type.effect)) return false;
         return type.isEnabled(this) && findPotionSlot(type) != -1;
     }
 
+    @Native(type = Native.Type.VMProtectBeginMutation)
     private boolean canBuff() {
         if (mc.player == null || mc.world == null) return false;
 
@@ -125,6 +130,7 @@ public class AutoPotion extends ModuleStructure {
         return isActivePotion || canBuff(PotionType.STRENGTH) || canBuff(PotionType.SPEED) || canBuff(PotionType.FIRE_RESISTANCE);
     }
 
+    @Native(type = Native.Type.VMProtectBeginMutation)
     private boolean shouldThrow() {
         if (mc.player == null || mc.world == null) return false;
 
@@ -134,33 +140,40 @@ public class AutoPotion extends ModuleStructure {
     }
 
     @EventHandler
+    @Native(type = Native.Type.VMProtectBeginUltra)
     public void onRotationUpdate(RotationUpdateEvent event) {
         if (mc.player == null || mc.world == null) return;
 
         if (event.getType() == EventType.PRE) {
             if (shouldThrow() || spoofed) {
-                Angle throwAngle = new Angle(mc.player.getYaw(), THROW_PITCH);
-                AngleConfig config = new AngleConfig(new LinearConstructor(), true, true);
-
-                AngleConnection.INSTANCE.rotateTo(
-                        throwAngle,
-                        3,
-                        config,
-                        TaskPriority.HIGH_IMPORTANCE_1,
-                        this
-                );
-
-                if (!spoofed) {
-                    spoofed = true;
-                    isActivePotion = true;
-                    rotationTicks = 0;
-                    selectedSlot = mc.player.getInventory().getSelectedSlot();
-                }
+                performRotation();
             }
         }
     }
 
+    @Native(type = Native.Type.VMProtectBeginUltra)
+    private void performRotation() {
+        Angle throwAngle = new Angle(mc.player.getYaw(), THROW_PITCH);
+        AngleConfig config = new AngleConfig(new LinearConstructor(), true, true);
+
+        AngleConnection.INSTANCE.rotateTo(
+                throwAngle,
+                3,
+                config,
+                TaskPriority.HIGH_IMPORTANCE_1,
+                this
+        );
+
+        if (!spoofed) {
+            spoofed = true;
+            isActivePotion = true;
+            rotationTicks = 0;
+            selectedSlot = mc.player.getInventory().getSelectedSlot();
+        }
+    }
+
     @EventHandler
+    @Native(type = Native.Type.VMProtectBeginUltra)
     public void onTick(TickEvent event) {
         if (mc.player == null || mc.world == null) return;
 
@@ -172,53 +185,64 @@ public class AutoPotion extends ModuleStructure {
         }
 
         if (spoofed) {
-            rotationTicks++;
-
-            Angle currentRotation = AngleConnection.INSTANCE.getRotation();
-            boolean rotationReady = currentRotation != null && currentRotation.getPitch() >= 80f;
-            boolean waitedEnough = rotationTicks >= ROTATION_WAIT_TICKS;
-
-            if (rotationReady && waitedEnough) {
-                boolean threwAny = false;
-
-                if (canBuff(PotionType.STRENGTH)) {
-                    throwPotion(PotionType.STRENGTH);
-                    threwAny = true;
-                }
-                if (canBuff(PotionType.SPEED)) {
-                    throwPotion(PotionType.SPEED);
-                    threwAny = true;
-                }
-                if (canBuff(PotionType.FIRE_RESISTANCE)) {
-                    throwPotion(PotionType.FIRE_RESISTANCE);
-                    threwAny = true;
-                }
-
-                if (selectedSlot != -1) {
-                    mc.player.networkHandler.sendPacket(new UpdateSelectedSlotC2SPacket(selectedSlot));
-                }
-
-                timer.reset();
-                spoofed = false;
-                rotationTicks = 0;
-                isActivePotion = false;
-
-                if (autoOff.isValue() || !threwAny) {
-                    setState(false);
-                }
-            }
-
-            if (rotationTicks > 10) {
-                spoofed = false;
-                rotationTicks = 0;
-                isActivePotion = false;
-                if (selectedSlot != -1) {
-                    mc.player.networkHandler.sendPacket(new UpdateSelectedSlotC2SPacket(selectedSlot));
-                }
-            }
+            processThrow();
         }
     }
 
+    @Native(type = Native.Type.VMProtectBeginUltra)
+    private void processThrow() {
+        rotationTicks++;
+
+        Angle currentRotation = AngleConnection.INSTANCE.getRotation();
+        boolean rotationReady = currentRotation != null && currentRotation.getPitch() >= 80f;
+        boolean waitedEnough = rotationTicks >= ROTATION_WAIT_TICKS;
+
+        if (rotationReady && waitedEnough) {
+            boolean threwAny = false;
+
+            if (canBuff(PotionType.STRENGTH)) {
+                throwPotion(PotionType.STRENGTH);
+                threwAny = true;
+            }
+            if (canBuff(PotionType.SPEED)) {
+                throwPotion(PotionType.SPEED);
+                threwAny = true;
+            }
+            if (canBuff(PotionType.FIRE_RESISTANCE)) {
+                throwPotion(PotionType.FIRE_RESISTANCE);
+                threwAny = true;
+            }
+
+            if (selectedSlot != -1) {
+                mc.player.networkHandler.sendPacket(new UpdateSelectedSlotC2SPacket(selectedSlot));
+            }
+
+            timer.reset();
+            spoofed = false;
+            rotationTicks = 0;
+            isActivePotion = false;
+
+            if (autoOff.isValue() || !threwAny) {
+                setState(false);
+            }
+        }
+
+        if (rotationTicks > 10) {
+            resetThrowState();
+        }
+    }
+
+    @Native(type = Native.Type.VMProtectBeginMutation)
+    private void resetThrowState() {
+        spoofed = false;
+        rotationTicks = 0;
+        isActivePotion = false;
+        if (selectedSlot != -1) {
+            mc.player.networkHandler.sendPacket(new UpdateSelectedSlotC2SPacket(selectedSlot));
+        }
+    }
+
+    @Native(type = Native.Type.VMProtectBeginUltra)
     private void throwPotion(PotionType type) {
         if (!type.isEnabled(this) || hasEffect(type.effect)) return;
         if (mc.player == null || mc.player.networkHandler == null) return;

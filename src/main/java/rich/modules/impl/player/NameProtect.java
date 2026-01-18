@@ -1,5 +1,6 @@
 package rich.modules.impl.player;
 
+import antidaunleak.api.annotation.Native;
 import lombok.AccessLevel;
 import lombok.experimental.FieldDefaults;
 import rich.events.api.EventHandler;
@@ -22,8 +23,16 @@ public class NameProtect extends ModuleStructure {
     }
 
     @EventHandler
+    @Native(type = Native.Type.VMProtectBeginUltra)
     public void onTextFactory(TextFactoryEvent e) {
         e.replaceText(mc.getSession().getUsername(), nameSetting.getText());
-        if (friendsSetting.isValue()) FriendUtils.getFriends().forEach(friend -> e.replaceText(friend.getName(), nameSetting.getText()));
+        if (friendsSetting.isValue()) {
+            replaceFriendNames(e);
+        }
+    }
+
+    @Native(type = Native.Type.VMProtectBeginMutation)
+    private void replaceFriendNames(TextFactoryEvent e) {
+        FriendUtils.getFriends().forEach(friend -> e.replaceText(friend.getName(), nameSetting.getText()));
     }
 }

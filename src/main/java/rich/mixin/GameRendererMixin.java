@@ -164,8 +164,8 @@ public abstract class GameRendererMixin {
 
         Hud hud = Hud.getInstance();
         if (hud != null && hud.isState()) {
-            Drag.tick();
-            Drag.onDraw(context, mouseX, mouseY, tickDelta);
+            boolean isChatScreen = client.currentScreen instanceof ChatScreen;
+            Drag.onDraw(context, mouseX, mouseY, tickDelta, isChatScreen);
         }
 
         if (client.currentScreen instanceof ClickGui clickGui) {

@@ -1,5 +1,6 @@
 package rich.modules.impl.combat;
 
+import antidaunleak.api.annotation.Native;
 import lombok.Getter;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.util.Pair;
@@ -71,6 +72,7 @@ public class TriggerBot extends ModuleStructure {
         target = null;
     }
 
+    @Native(type = Native.Type.VMProtectBeginMutation)
     private LivingEntity updateTarget() {
         TargetFinder.EntityFilter filter = new TargetFinder.EntityFilter(targetType.getSelected());
         float range = attackRange.getValue() + RANGE_MARGIN;
@@ -80,6 +82,7 @@ public class TriggerBot extends ModuleStructure {
     }
 
     @EventHandler
+    @Native(type = Native.Type.VMProtectBeginUltra)
     public void onRotationUpdate(RotationUpdateEvent e) {
         if (PlayerInteractionHelper.nullCheck()) return;
 
@@ -93,6 +96,7 @@ public class TriggerBot extends ModuleStructure {
         }
     }
 
+    @Native(type = Native.Type.VMProtectBeginUltra)
     public StrikerConstructor.AttackPerpetratorConfigurable getConfig() {
         float baseRange = attackRange.getValue() + RANGE_MARGIN;
 
@@ -123,18 +127,22 @@ public class TriggerBot extends ModuleStructure {
         return new LinearConstructor();
     }
 
+    @Native(type = Native.Type.VMProtectBeginMutation)
     public boolean isResetSprintLegit() {
         return sprintReset.isSelected("Легитный");
     }
 
+    @Native(type = Native.Type.VMProtectBeginMutation)
     public boolean isResetSprintPacket() {
         return sprintReset.isSelected("Интенсивный");
     }
 
+    @Native(type = Native.Type.VMProtectBeginMutation)
     public boolean isOnlyCrits() {
         return attackSetting.isSelected("Только криты");
     }
 
+    @Native(type = Native.Type.VMProtectBeginMutation)
     public boolean isRandomizeCrit() {
         return attackSetting.isSelected("Рандомизация крита");
     }

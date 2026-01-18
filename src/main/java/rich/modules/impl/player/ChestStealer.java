@@ -1,5 +1,6 @@
 package rich.modules.impl.player;
 
+import antidaunleak.api.annotation.Native;
 import lombok.AccessLevel;
 import lombok.experimental.FieldDefaults;
 import net.minecraft.client.gui.screen.ingame.GenericContainerScreen;
@@ -40,37 +41,45 @@ public class ChestStealer extends ModuleStructure {
     }
 
     @EventHandler
+    @Native(type = Native.Type.VMProtectBeginUltra)
     public void onTick(TickEvent e) {
         if (mc.player == null) return;
 
         switch (modeSetting.getSelected()) {
-            case "FunTime" -> {
-                if (mc.currentScreen instanceof GenericContainerScreen sh
-                        && sh.getTitle().getString().toLowerCase().contains("мистический")
-                        && !mc.player.getItemCooldownManager().isCoolingDown(Items.GUNPOWDER.getDefaultStack())) {
-
-                    sh.getScreenHandler().slots.stream()
-                            .filter(s -> s.hasStack()
-                                    && !s.inventory.equals(mc.player.getInventory())
-                                    && stopWatch.every(150))
-                            .forEach(s -> InventoryUtils.click(s.id, 0, SlotActionType.QUICK_MOVE));
-                }
-            }
-            case "WhiteList", "Default" -> {
-                if (mc.player.currentScreenHandler instanceof GenericContainerScreenHandler sh) {
-                    sh.slots.forEach(s -> {
-                        if (s.hasStack()
-                                && !s.inventory.equals(mc.player.getInventory())
-                                && (modeSetting.isSelected("Default") || whiteList(s.getStack().getItem()))
-                                && stopWatch.every(delaySetting.getValue())) {
-                            InventoryUtils.click(s.id, 0, SlotActionType.QUICK_MOVE);
-                        }
-                    });
-                }
-            }
+            case "FunTime" -> handleFunTimeMode();
+            case "WhiteList", "Default" -> handleDefaultMode();
         }
     }
 
+    @Native(type = Native.Type.VMProtectBeginUltra)
+    private void handleFunTimeMode() {
+        if (mc.currentScreen instanceof GenericContainerScreen sh
+                && sh.getTitle().getString().toLowerCase().contains("мистический")
+                && !mc.player.getItemCooldownManager().isCoolingDown(Items.GUNPOWDER.getDefaultStack())) {
+
+            sh.getScreenHandler().slots.stream()
+                    .filter(s -> s.hasStack()
+                            && !s.inventory.equals(mc.player.getInventory())
+                            && stopWatch.every(150))
+                    .forEach(s -> InventoryUtils.click(s.id, 0, SlotActionType.QUICK_MOVE));
+        }
+    }
+
+    @Native(type = Native.Type.VMProtectBeginUltra)
+    private void handleDefaultMode() {
+        if (mc.player.currentScreenHandler instanceof GenericContainerScreenHandler sh) {
+            sh.slots.forEach(s -> {
+                if (s.hasStack()
+                        && !s.inventory.equals(mc.player.getInventory())
+                        && (modeSetting.isSelected("Default") || whiteList(s.getStack().getItem()))
+                        && stopWatch.every(delaySetting.getValue())) {
+                    InventoryUtils.click(s.id, 0, SlotActionType.QUICK_MOVE);
+                }
+            });
+        }
+    }
+
+    @Native(type = Native.Type.VMProtectBeginMutation)
     private boolean whiteList(Item item) {
         return itemSettings.getSelected().toString().toLowerCase()
                 .contains(item.toString().toLowerCase().replace("_", ""));

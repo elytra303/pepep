@@ -291,6 +291,21 @@ public class Render2D {
                 .drawFramebufferTexture(textureId, x, y, width, height, colors, radii, a);
     }
 
+    public static void glowOutline(float x, float y, float width, float height, float thickness,
+                                   int color, float radius, float progress, float baseAlpha) {
+        float[] radii = {radius, radius, radius, radius};
+        Initialization.getInstance().getManager().getRenderCore().getGlowOutlinePipeline()
+                .drawGlowOutline(x, y, width, height, color, thickness, radii, progress, baseAlpha);
+    }
+
+    public static void glowOutline(float x, float y, float width, float height, float thickness,
+                                   int color, float topLeft, float topRight, float bottomRight, float bottomLeft,
+                                   float progress, float baseAlpha) {
+        float[] radii = {topLeft, topRight, bottomRight, bottomLeft};
+        Initialization.getInstance().getManager().getRenderCore().getGlowOutlinePipeline()
+                .drawGlowOutline(x, y, width, height, color, thickness, radii, progress, baseAlpha);
+    }
+
     public static boolean isInOverlayMode() {
         return inOverlayMode;
     }

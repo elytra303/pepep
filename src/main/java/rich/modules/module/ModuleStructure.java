@@ -13,6 +13,8 @@ import rich.events.api.EventManager;
 import rich.events.impl.ModuleToggleEvent;
 import rich.modules.module.category.ModuleCategory;
 import rich.modules.module.setting.SettingRepository;
+import rich.modules.impl.render.Hud;
+import rich.screens.hud.Notifications;
 import rich.util.animations.Animation;
 import rich.util.animations.Decelerate;
 import rich.util.animations.Direction;
@@ -71,6 +73,19 @@ public class ModuleStructure extends SettingRepository implements IMinecraft {
         MinecraftClient mc = MinecraftClient.getInstance();
 
         if (mc.player != null && mc.world != null) {
+            Hud hud = Hud.getInstance();
+            Notifications notifications = Notifications.getInstance();
+
+            if (hud != null && hud.isState() && notifications != null) {
+                if (hud.interfaceSettings.isSelected("Notifications")) {
+                    if (state) {
+                        notifications.addNotification("Feature "  + name + " - enabled!", 2000);
+                    } else {
+                        notifications.addNotification("Feature " + name + " - disabled!", 2000);
+                    }
+                }
+            }
+
             if (state) {
                 activate();
             } else {
@@ -84,7 +99,7 @@ public class ModuleStructure extends SettingRepository implements IMinecraft {
     }
 
     private void toggleSilent(boolean activate) {
-        EventManager eventManager = Initialization.getInstance().getManager().getEventManager();
+        var eventManager = Initialization.getInstance().getManager().getEventManager();
         if (activate) {
             eventManager.register(this);
         } else {

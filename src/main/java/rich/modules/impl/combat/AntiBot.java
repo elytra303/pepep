@@ -1,5 +1,6 @@
 package rich.modules.impl.combat;
 
+import antidaunleak.api.annotation.Native;
 import com.mojang.authlib.GameProfile;
 import lombok.AccessLevel;
 import lombok.experimental.FieldDefaults;
@@ -26,6 +27,7 @@ import java.util.stream.StreamSupport;
 
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class AntiBot extends ModuleStructure {
+    @Native(type = Native.Type.VMProtectBeginUltra)
     public static AntiBot getInstance() {
         return Instance.get(AntiBot.class);
     }
@@ -71,6 +73,7 @@ public class AntiBot extends ModuleStructure {
         }
     }
 
+    @Native(type = Native.Type.VMProtectBeginMutation)
     private void checkPlayerAfterSpawn(PlayerListS2CPacket listS2CPacket) {
         listS2CPacket.getPlayerAdditionEntries().forEach(entry -> {
             GameProfile profile = entry.profile();
@@ -203,6 +206,7 @@ public class AntiBot extends ModuleStructure {
         }
     }
 
+    @Native(type = Native.Type.VMProtectBeginUltra)
     public boolean isDuplicateProfile(GameProfile profile) {
         return Objects.requireNonNull(mc.getNetworkHandler()).getPlayerList().stream()
                 .filter(player -> player.getProfile().name().equals(profile.name()) && !player.getProfile().id().equals(profile.id()))
@@ -235,6 +239,7 @@ public class AntiBot extends ModuleStructure {
         return false;
     }
 
+    @Native(type = Native.Type.VMProtectBeginMutation)
     public boolean isBot(PlayerEntity entity) {
         String playerName = entity.getName().getString();
         boolean isNameBot = playerName.startsWith("CIT-") && !playerName.contains("NPC") && !playerName.startsWith("[ZNPC]");

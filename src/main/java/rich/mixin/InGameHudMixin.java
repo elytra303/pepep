@@ -49,7 +49,6 @@ public abstract class InGameHudMixin implements IMinecraft {
         context.getMatrices().popMatrix();
 
         if (shouldRenderHud(screen)) {
-            Drag.tick();
             int mouseX = (int) client.mouse.getScaledX(client.getWindow());
             int mouseY = (int) client.mouse.getScaledY(client.getWindow());
             float tickDelta = tickCounter.getTickProgress(false);

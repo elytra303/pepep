@@ -4,6 +4,7 @@ import net.minecraft.client.network.ClientPlayNetworkHandler;
 import net.minecraft.client.world.ClientWorld;
 import net.minecraft.network.packet.s2c.play.EnterReconfigurationS2CPacket;
 import net.minecraft.network.packet.s2c.play.GameJoinS2CPacket;
+import net.minecraft.network.packet.s2c.play.PlayerRespawnS2CPacket;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
@@ -14,6 +15,7 @@ import rich.IMinecraft;
 import rich.events.api.EventManager;
 import rich.events.impl.ChatEvent;
 import rich.events.impl.GameLeftEvent;
+import rich.events.impl.WorldChangeEvent;
 
 @Mixin(ClientPlayNetworkHandler.class)
 public class ClientPlayNetworkHandlerMixin implements IMinecraft {
@@ -43,5 +45,15 @@ public class ClientPlayNetworkHandlerMixin implements IMinecraft {
         if (worldNotNull) {
             EventManager.callEvent(GameLeftEvent.get());
         }
+    }
+
+    @Inject(method = "onGameJoin", at = @At("RETURN"))
+    private void onGameJoin(GameJoinS2CPacket packet, CallbackInfo ci) {
+        EventManager.callEvent(WorldChangeEvent.get());
+    }
+
+    @Inject(method = "onPlayerRespawn", at = @At("RETURN"))
+    private void onPlayerRespawn(PlayerRespawnS2CPacket packet, CallbackInfo ci) {
+        EventManager.callEvent(WorldChangeEvent.get());
     }
 }

@@ -1,5 +1,6 @@
 package rich.modules.impl.movement;
 
+import antidaunleak.api.annotation.Native;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.experimental.FieldDefaults;
@@ -42,30 +43,42 @@ public class Fly extends ModuleStructure {
     }
 
     @EventHandler
+    @Native(type = Native.Type.VMProtectBeginUltra)
     public void onTick(TickEvent e) {
         if (!state || mc.player == null || mc.world == null) return;
 
         if (mode.isSelected("Normal")) {
-            double motionY = getMotionY();
-            setMotion(speedXZ.getValue());
-            Vec3d v = mc.player.getVelocity();
-            mc.player.setVelocity(v.x, motionY, v.z);
+            handleNormalMode();
         } else if (mode.isSelected("Dragon Fly")) {
-            if (mc.player.getAbilities().flying) {
-                setMotion(speedXZ.getValue());
-                double motionY = 0.0;
-                if (mc.options.jumpKey.isPressed()) {
-                    motionY = speedY.getValue();
-                }
-                if (mc.options.sneakKey.isPressed()) {
-                    motionY = -speedY.getValue();
-                }
-                Vec3d v = mc.player.getVelocity();
-                mc.player.setVelocity(v.x, motionY, v.z);
-            }
+            handleDragonFlyMode();
         }
     }
 
+    @Native(type = Native.Type.VMProtectBeginUltra)
+    private void handleNormalMode() {
+        double motionY = getMotionY();
+        setMotion(speedXZ.getValue());
+        Vec3d v = mc.player.getVelocity();
+        mc.player.setVelocity(v.x, motionY, v.z);
+    }
+
+    @Native(type = Native.Type.VMProtectBeginUltra)
+    private void handleDragonFlyMode() {
+        if (mc.player.getAbilities().flying) {
+            setMotion(speedXZ.getValue());
+            double motionY = 0.0;
+            if (mc.options.jumpKey.isPressed()) {
+                motionY = speedY.getValue();
+            }
+            if (mc.options.sneakKey.isPressed()) {
+                motionY = -speedY.getValue();
+            }
+            Vec3d v = mc.player.getVelocity();
+            mc.player.setVelocity(v.x, motionY, v.z);
+        }
+    }
+
+    @Native(type = Native.Type.VMProtectBeginMutation)
     private double getMotionY() {
         if (mc.options.sneakKey.isPressed()) {
             return -speedY.getValue();
@@ -75,6 +88,7 @@ public class Fly extends ModuleStructure {
         return 0.0;
     }
 
+    @Native(type = Native.Type.VMProtectBeginMutation)
     private void setMotion(float speed) {
         float yaw = mc.player.getYaw();
         float f = mc.player.forwardSpeed;
@@ -91,6 +105,7 @@ public class Fly extends ModuleStructure {
     }
 
     @Override
+    @Native(type = Native.Type.VMProtectBeginMutation)
     public void deactivate() {
         super.deactivate();
         timer.reset();

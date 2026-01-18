@@ -1,5 +1,6 @@
 package rich.modules.impl.movement;
 
+import antidaunleak.api.annotation.Native;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.experimental.FieldDefaults;
@@ -38,22 +39,23 @@ public class ElytraMotion extends ModuleStructure {
     }
 
     @EventHandler
+    @Native(type = Native.Type.VMProtectBeginUltra)
     public void onTick(TickEvent e) {
         if (!state || mc.player == null || mc.world == null || !mc.player.isGliding()) return;
 
         Aura aura = Instance.get(Aura.class);
 
-//        if (timer.every(500)) {
-//            InventoryTask.swapAndUse(Items.FIREWORK_ROCKET);
-//        }
-
         if (aura.isState()) {
-            if (aura.isState() && aura.target !=null && mc.player.distanceTo(aura.target) < aura.getAttackrange().getValue() - 1F) {
-                mc.player.setVelocity(0, 0.02, 0);
-            }
+            handleAuraMotion(aura);
         }
     }
 
+    @Native(type = Native.Type.VMProtectBeginUltra)
+    private void handleAuraMotion(Aura aura) {
+        if (aura.isState() && aura.target != null && mc.player.distanceTo(aura.target) < aura.getAttackrange().getValue() - 1F) {
+            mc.player.setVelocity(0, 0.02, 0);
+        }
+    }
 
     @EventHandler
     public void onPacket(PacketEvent e) {
@@ -67,6 +69,7 @@ public class ElytraMotion extends ModuleStructure {
     }
 
     @Override
+    @Native(type = Native.Type.VMProtectBeginMutation)
     public void deactivate() {
         super.deactivate();
     }

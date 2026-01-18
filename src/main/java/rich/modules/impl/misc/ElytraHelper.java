@@ -1,5 +1,6 @@
 package rich.modules.impl.misc;
 
+import antidaunleak.api.annotation.Native;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.experimental.FieldDefaults;
@@ -86,6 +87,7 @@ public class ElytraHelper extends ModuleStructure {
     }
 
     @EventHandler
+    @Native(type = Native.Type.VMProtectBeginMutation)
     public void onKey(KeyEvent e) {
         if (mc.player == null || mc.world == null) return;
         if (mc.currentScreen != null) return;
@@ -163,6 +165,7 @@ public class ElytraHelper extends ModuleStructure {
     }
 
     @EventHandler
+    @Native(type = Native.Type.VMProtectBeginUltra)
     public void onTick(TickEvent e) {
         if (mc.player == null || mc.world == null) {
             resetAllStates();
@@ -218,12 +221,14 @@ public class ElytraHelper extends ModuleStructure {
         }
     }
 
+    @Native(type = Native.Type.VMProtectBeginMutation)
     private boolean isElytraEquipped() {
         if (mc.player == null) return false;
         ItemStack chestStack = mc.player.getEquippedStack(EquipmentSlot.CHEST);
         return chestStack.getItem() == Items.ELYTRA;
     }
 
+    @Native(type = Native.Type.VMProtectBeginMutation)
     private boolean isElytraUsable() {
         if (mc.player == null) return false;
         ItemStack chestStack = mc.player.getEquippedStack(EquipmentSlot.CHEST);
@@ -236,6 +241,7 @@ public class ElytraHelper extends ModuleStructure {
         return modeSetting.getSelected().equals("Instant");
     }
 
+    @Native(type = Native.Type.VMProtectBeginMutation)
     private void processAutoTakeoff() {
         if (!autoTakeoff.isValue()) {
             shouldJumpForTakeoff = false;
@@ -266,6 +272,7 @@ public class ElytraHelper extends ModuleStructure {
         }
     }
 
+    @Native(type = Native.Type.VMProtectBeginMutation)
     private void processAutoFirework() {
         if (!autoTakeoff.isValue() || !autoFirework.isValue()) return;
         if (mc.player == null) return;
@@ -283,6 +290,7 @@ public class ElytraHelper extends ModuleStructure {
         }
     }
 
+    @Native(type = Native.Type.VMProtectBeginUltra)
     private void useFirework() {
         if (!isElytraEquipped()) return;
 
@@ -293,6 +301,7 @@ public class ElytraHelper extends ModuleStructure {
         }
     }
 
+    @Native(type = Native.Type.VMProtectBeginUltra)
     private void useFireworkInstant() {
         int hotbarSlot = findItemInHotbar(Items.FIREWORK_ROCKET);
         if (hotbarSlot != -1) {
@@ -336,6 +345,7 @@ public class ElytraHelper extends ModuleStructure {
         }
     }
 
+    @Native(type = Native.Type.VMProtectBeginMutation)
     private void startFireworkUseLegit() {
         savedFireworkSlot = mc.player.getInventory().getSelectedSlot();
 
@@ -364,6 +374,7 @@ public class ElytraHelper extends ModuleStructure {
         }
     }
 
+    @Native(type = Native.Type.VMProtectBeginUltra)
     private void startArmorSwap() {
         boolean isElytra = isElytraEquipped();
         Item targetItem = isElytra ? null : Items.ELYTRA;
@@ -387,6 +398,7 @@ public class ElytraHelper extends ModuleStructure {
         }
     }
 
+    @Native(type = Native.Type.VMProtectBeginMutation)
     private int findChestArmorSlot(Item targetItem, boolean isElytraEquipped) {
         for (int i = 0; i < 46; i++) {
             ItemStack stack = mc.player.getInventory().getStack(i);
@@ -407,6 +419,7 @@ public class ElytraHelper extends ModuleStructure {
         return -1;
     }
 
+    @Native(type = Native.Type.VMProtectBeginUltra)
     private boolean processArmorSwapTick() {
         if (mc.player == null) {
             resetSwapState();
@@ -481,6 +494,7 @@ public class ElytraHelper extends ModuleStructure {
         return false;
     }
 
+    @Native(type = Native.Type.VMProtectBeginUltra)
     private boolean processFireworkUseTick() {
         if (mc.player == null) {
             resetFireworkState();
@@ -610,6 +624,7 @@ public class ElytraHelper extends ModuleStructure {
         }
     }
 
+    @Native(type = Native.Type.VMProtectBeginMutation)
     private SwapSettings buildSettings() {
         String mode = modeSetting.getSelected();
         return switch (mode) {

@@ -1,5 +1,6 @@
 package rich.modules.impl.movement;
 
+import antidaunleak.api.annotation.Native;
 import lombok.AccessLevel;
 import lombok.experimental.FieldDefaults;
 import net.minecraft.item.consume.UseAction;
@@ -44,31 +45,36 @@ public class NoSlow extends ModuleStructure {
     }
 
     @EventHandler
+    @Native(type = Native.Type.VMProtectBeginUltra)
     public void onUsingItem(UsingItemEvent e) {
         Hand first = mc.player.getActiveHand();
         Hand second = first.equals(Hand.MAIN_HAND) ? Hand.OFF_HAND : Hand.MAIN_HAND;
 
-
         switch (e.getType()) {
             case EventType.ON -> {
-                switch (itemMode.getSelected()) {
-                    case "Grim Old" -> {
-                        if (mc.player.getOffHandStack().getUseAction().equals(UseAction.NONE) || mc.player.getMainHandStack().getUseAction().equals(UseAction.NONE)) {
-                            PlayerInteractionHelper.interactItem(first);
-                            PlayerInteractionHelper.interactItem(second);
-                            e.cancel();
-                        }
-                    }
-                    case "SpookyTime" -> {
-                        if (ticks > 1F && mc.player.getItemUseTime() > 2) {
-                            e.cancel();
-                            ticks = 0;
-                        }
-                    }
-                }
+                handleItemUse(e, first, second);
             }
             case EventType.POST -> {
                 while (!script.isFinished()) script.update();
+            }
+        }
+    }
+
+    @Native(type = Native.Type.VMProtectBeginUltra)
+    private void handleItemUse(UsingItemEvent e, Hand first, Hand second) {
+        switch (itemMode.getSelected()) {
+            case "Grim Old" -> {
+                if (mc.player.getOffHandStack().getUseAction().equals(UseAction.NONE) || mc.player.getMainHandStack().getUseAction().equals(UseAction.NONE)) {
+                    PlayerInteractionHelper.interactItem(first);
+                    PlayerInteractionHelper.interactItem(second);
+                    e.cancel();
+                }
+            }
+            case "SpookyTime" -> {
+                if (ticks > 1F && mc.player.getItemUseTime() > 2) {
+                    e.cancel();
+                    ticks = 0;
+                }
             }
         }
     }

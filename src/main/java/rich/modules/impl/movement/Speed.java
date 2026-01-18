@@ -1,5 +1,6 @@
 package rich.modules.impl.movement;
 
+import antidaunleak.api.annotation.Native;
 import lombok.AccessLevel;
 import lombok.experimental.FieldDefaults;
 import net.minecraft.entity.Entity;
@@ -20,7 +21,7 @@ import rich.util.move.MoveUtil;
 public class Speed extends ModuleStructure {
 
     SelectSetting mode = new SelectSetting("Режим", "Выберите режим скорости")
-            .value("Vanilla", "Grim", "FunTime")
+            .value("Vanilla", "Grim", "FunTime", "HolyWorld")
             .selected("Grim");
 
     SliderSettings speed = new SliderSettings("Скорость", "Настройка скорости передвижения")
@@ -28,13 +29,13 @@ public class Speed extends ModuleStructure {
             .setValue(1.5f)
             .visible(() -> mode.isSelected("Vanilla"));
 
-
     public Speed() {
         super("Speed", "Speed", ModuleCategory.MOVEMENT);
         setup(mode, speed);
     }
 
     @EventHandler
+    @Native(type = Native.Type.VMProtectBeginMutation)
     public void onTick(TickEvent e) {
         if (mode.isSelected("Vanilla")) {
             MoveUtil.setVelocity(speed.getValue() / 3);
@@ -42,25 +43,50 @@ public class Speed extends ModuleStructure {
     }
 
     @EventHandler
+    @Native(type = Native.Type.VMProtectBeginUltra)
     public void onMotion(PlayerTravelEvent e) {
         if (mode.isSelected("FunTime")) {
-            if (!mc.player.isSwimming() && !mc.player.isGliding() && !mc.player.isSneaking()) {
-                if (mc.player.getBoundingBox().maxY - mc.player.getBoundingBox().minY < 1.5f) {
-                    float motion = mc.player.hasStatusEffect(StatusEffects.SPEED) ? 0.32f : 0.28f;
-                    MoveUtil.setVelocity(motion);
-                }
+            handleFunTimeMode();
+        }
+        if (mode.isSelected("Grim") && e.isPre() && MoveUtil.hasPlayerMovement()) {
+            handleGrimMode();
+        }
+
+        if (mode.isSelected("HolyWorld") && e.isPre() && MoveUtil.hasPlayerMovement()) {
+            handleHolyWorldMode();
+        }
+    }
+
+    @Native(type = Native.Type.VMProtectBeginUltra)
+    private void handleFunTimeMode() {
+        if (!mc.player.isSwimming() && !mc.player.isGliding() && !mc.player.isSneaking()) {
+            if (mc.player.getBoundingBox().maxY - mc.player.getBoundingBox().minY < 1.5f) {
+                float motion = mc.player.hasStatusEffect(StatusEffects.SPEED) ? 0.32f : 0.28f;
+                MoveUtil.setVelocity(motion);
             }
         }
-        if ((mode.isSelected("Grim")) && e.isPre() && MoveUtil.hasPlayerMovement()) {
-            int collisions = 0;
+    }
 
-            for (Entity ent : mc.world.getEntities())
-                if (ent != mc.player && (!(ent instanceof ArmorStandEntity)) && (ent instanceof LivingEntity || ent instanceof BoatEntity) && mc.player.getBoundingBox().expand(0.25f).intersects(ent.getBoundingBox()))
-                    collisions++;
-            double[] motion = MoveUtil.forward(0.07 * collisions);
-            mc.player.addVelocity(motion[0], 0, motion[1]);
-        }
+    @Native(type = Native.Type.VMProtectBeginUltra)
+    private void handleGrimMode() {
+        int collisions = 0;
 
+        for (Entity ent : mc.world.getEntities())
+            if (ent != mc.player && (!(ent instanceof ArmorStandEntity)) && (ent instanceof LivingEntity || ent instanceof BoatEntity) && mc.player.getBoundingBox().expand(0.15f).intersects(ent.getBoundingBox()))
+                collisions++;
+        double[] motion = MoveUtil.forward(0.07 * collisions);
+        mc.player.addVelocity(motion[0], 0, motion[1]);
+    }
+
+    @Native(type = Native.Type.VMProtectBeginUltra)
+    private void handleHolyWorldMode() {
+        int collisions = 0;
+
+        for (Entity ent : mc.world.getEntities())
+            if (ent != mc.player && (!(ent instanceof ArmorStandEntity)) && (ent instanceof LivingEntity || ent instanceof BoatEntity) && mc.player.getBoundingBox().expand(0.35f).intersects(ent.getBoundingBox()))
+                collisions++;
+        double[] motion = MoveUtil.forward(0.0205 * collisions);
+        mc.player.addVelocity(motion[0], 0, motion[1]);
     }
 
     private boolean hasSprintingTarget() {

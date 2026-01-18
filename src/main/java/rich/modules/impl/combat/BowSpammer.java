@@ -1,5 +1,6 @@
 package rich.modules.impl.combat;
 
+import antidaunleak.api.annotation.Native;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.experimental.FieldDefaults;
@@ -28,14 +29,26 @@ public class BowSpammer extends ModuleStructure {
     }
 
     @EventHandler
+    @Native(type = Native.Type.VMProtectBeginUltra)
     public void onTick(TickEvent e) {
         if (mc.player == null || mc.world == null) return;
         if (mc.getNetworkHandler() == null) return;
 
-        if (!(mc.player.getMainHandStack().getItem() instanceof BowItem)) return;
-        if (!mc.player.isUsingItem()) return;
-        if (mc.player.getItemUseTime() < delay.getValue()) return;
+        if (!canShoot()) return;
 
+        sendShootPackets();
+        mc.player.stopUsingItem();
+    }
+
+    @Native(type = Native.Type.VMProtectBeginMutation)
+    private boolean canShoot() {
+        if (!(mc.player.getMainHandStack().getItem() instanceof BowItem)) return false;
+        if (!mc.player.isUsingItem()) return false;
+        return mc.player.getItemUseTime() >= delay.getValue();
+    }
+
+    @Native(type = Native.Type.VMProtectBeginUltra)
+    private void sendShootPackets() {
         mc.getNetworkHandler().sendPacket(new PlayerActionC2SPacket(
                 PlayerActionC2SPacket.Action.RELEASE_USE_ITEM,
                 BlockPos.ORIGIN,
@@ -48,7 +61,5 @@ public class BowSpammer extends ModuleStructure {
                 mc.player.getYaw(),
                 mc.player.getPitch()
         ));
-
-        mc.player.stopUsingItem();
     }
 }

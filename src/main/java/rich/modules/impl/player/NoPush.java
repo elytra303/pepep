@@ -1,5 +1,6 @@
 package rich.modules.impl.player;
 
+import antidaunleak.api.annotation.Native;
 import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
 import rich.events.api.EventHandler;
@@ -16,11 +17,11 @@ public class NoPush extends ModuleStructure {
 
     public NoPush() {
         super("AntiPush", "Anti Push", ModuleCategory.PLAYER);
-        setup(ignoreSetting
-        );
+        setup(ignoreSetting);
     }
 
     @EventHandler
+    @Native(type = Native.Type.VMProtectBeginUltra)
     public void onPush(PushEvent e) {
         switch (e.getType()) {
             case PushEvent.Type.COLLISION -> e.setCancelled(ignoreSetting.isSelected("Коллизию сущностей"));
@@ -30,6 +31,7 @@ public class NoPush extends ModuleStructure {
     }
 
     @EventHandler
+    @Native(type = Native.Type.VMProtectBeginUltra)
     public void onPlayerCollision(PlayerCollisionEvent e) {
         Block block = e.getBlock();
         if (block.equals(Blocks.POWDER_SNOW)) e.setCancelled(ignoreSetting.isSelected("Рыхлый снег"));

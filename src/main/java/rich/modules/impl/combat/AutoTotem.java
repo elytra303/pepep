@@ -1,5 +1,6 @@
 package rich.modules.impl.combat;
 
+import antidaunleak.api.annotation.Native;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.experimental.FieldDefaults;
@@ -18,7 +19,6 @@ import net.minecraft.util.math.Vec3d;
 import rich.events.api.EventHandler;
 import rich.events.impl.InputEvent;
 import rich.events.impl.TickEvent;
-import rich.events.impl.WorldRenderEvent;
 import rich.modules.module.ModuleStructure;
 import rich.modules.module.category.ModuleCategory;
 import rich.modules.module.setting.implement.MultiSelectSetting;
@@ -26,9 +26,7 @@ import rich.modules.module.setting.implement.SelectSetting;
 import rich.modules.module.setting.implement.SliderSettings;
 import rich.util.inventory.SwapExecutor;
 import rich.util.inventory.SwapSettings;
-import rich.util.render.render3D.Render3D;
 
-import java.awt.*;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -88,6 +86,7 @@ public class AutoTotem extends ModuleStructure {
     }
 
     @Override
+    @Native(type = Native.Type.VMProtectBeginMutation)
     public void activate() {
         savedSlotId = -1;
         fallStartY = 0;
@@ -99,6 +98,7 @@ public class AutoTotem extends ModuleStructure {
     }
 
     @Override
+    @Native(type = Native.Type.VMProtectBeginMutation)
     public void deactivate() {
         executor.cancel();
         savedSlotId = -1;
@@ -109,6 +109,7 @@ public class AutoTotem extends ModuleStructure {
     }
 
     @EventHandler
+    @Native(type = Native.Type.VMProtectBeginUltra)
     public void onTick(TickEvent e) {
         if (mc.player == null || mc.world == null) return;
 
@@ -153,6 +154,7 @@ public class AutoTotem extends ModuleStructure {
         if (executor.isBlocking()) {
             e.setDirectionalLow(false, false, false, false);
             e.setJumping(false);
+            mc.player.setSprinting(false);
         }
     }
 
@@ -213,6 +215,7 @@ public class AutoTotem extends ModuleStructure {
         });
     }
 
+    @Native(type = Native.Type.VMProtectBeginUltra)
     private boolean shouldEquipTotem() {
         float health = mc.player.getHealth();
         float threshold = healthThreshold.getValue();
@@ -257,6 +260,7 @@ public class AutoTotem extends ModuleStructure {
         return mc.player.getOffHandStack().getItem() == Items.PLAYER_HEAD;
     }
 
+    @Native(type = Native.Type.VMProtectBeginMutation)
     private boolean checkCrystalDanger() {
         if (options.isSelected("Не брать если шар") && hasHeadInOffhand()) {
             float health = mc.player.getHealth();
@@ -277,6 +281,7 @@ public class AutoTotem extends ModuleStructure {
         return false;
     }
 
+    @Native(type = Native.Type.VMProtectBeginUltra)
     private boolean checkOneshotDanger() {
         dangerousFallingPlayer = null;
         dangerousElytraPlayer = null;
@@ -297,6 +302,7 @@ public class AutoTotem extends ModuleStructure {
         return false;
     }
 
+    @Native(type = Native.Type.VMProtectBeginMutation)
     private boolean isFallingPlayerDangerous(PlayerEntity player) {
         if (player == mc.player) return false;
         if (player.isGliding()) return false;
@@ -330,6 +336,7 @@ public class AutoTotem extends ModuleStructure {
         return fallDistance >= 3;
     }
 
+    @Native(type = Native.Type.VMProtectBeginMutation)
     private boolean checkElytraPlayer(PlayerEntity player) {
         if (!player.isGliding()) return false;
 
@@ -398,6 +405,7 @@ public class AutoTotem extends ModuleStructure {
         return false;
     }
 
+    @Native(type = Native.Type.VMProtectBeginUltra)
     private void swapSlots(int slot) {
         if (mc.player == null || mc.interactionManager == null) return;
         int syncId = mc.player.playerScreenHandler.syncId;
@@ -408,6 +416,7 @@ public class AutoTotem extends ModuleStructure {
         return mc.currentScreen != null && !(mc.currentScreen instanceof ChatScreen);
     }
 
+    @Native(type = Native.Type.VMProtectBeginUltra)
     private void equipTotem() {
         Slot totemSlot = findTotemSlot();
         if (totemSlot == null) return;
@@ -421,8 +430,10 @@ public class AutoTotem extends ModuleStructure {
 
         final int slotId = totemSlot.id;
 
-        if (swapMode.isSelected("Instant") || isScreenOpen()) {
+        if (isScreenOpen()) {
             swapSlots(slotId);
+        } else if (swapMode.isSelected("Instant")) {
+            executor.execute(() -> swapSlots(slotId), SwapSettings.instantWithStop());
         } else {
             executor.execute(() -> swapSlots(slotId), SwapSettings.legit());
         }
@@ -433,21 +444,29 @@ public class AutoTotem extends ModuleStructure {
 
         final int slotId = regularTotemSlot.id;
 
-        if (swapMode.isSelected("Instant") || isScreenOpen()) {
+        if (isScreenOpen()) {
             swapSlots(slotId);
+        } else if (swapMode.isSelected("Instant")) {
+            executor.execute(() -> swapSlots(slotId), SwapSettings.instantWithStop());
         } else {
             executor.execute(() -> swapSlots(slotId), SwapSettings.legit());
         }
     }
 
+    @Native(type = Native.Type.VMProtectBeginMutation)
     private void returnSavedItem() {
         if (savedSlotId == -1) return;
 
         final int slotId = savedSlotId;
 
-        if (swapMode.isSelected("Instant") || isScreenOpen()) {
+        if (isScreenOpen()) {
             swapSlots(slotId);
             savedSlotId = -1;
+        } else if (swapMode.isSelected("Instant")) {
+            executor.execute(() -> {
+                swapSlots(slotId);
+                savedSlotId = -1;
+            }, SwapSettings.instantWithStop());
         } else {
             executor.execute(() -> {
                 swapSlots(slotId);
@@ -456,6 +475,7 @@ public class AutoTotem extends ModuleStructure {
         }
     }
 
+    @Native(type = Native.Type.VMProtectBeginMutation)
     private Slot findTotemSlot() {
         if (mc.player == null) return null;
 

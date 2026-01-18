@@ -1,5 +1,6 @@
 package rich.modules.impl.misc;
 
+import antidaunleak.api.annotation.Native;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.experimental.FieldDefaults;
@@ -67,6 +68,7 @@ public class WindJump extends ModuleStructure {
     }
 
     @EventHandler
+    @Native(type = Native.Type.VMProtectBeginMutation)
     public void onKey(KeyEvent e) {
         if (mc.player == null || mc.world == null) return;
         if (mc.currentScreen != null) return;
@@ -121,6 +123,7 @@ public class WindJump extends ModuleStructure {
         }
     }
 
+    @Native(type = Native.Type.VMProtectBeginMutation)
     private void tryThrowCharge() {
         if (System.currentTimeMillis() - lastThrowTime < 100) return;
         lastThrowTime = System.currentTimeMillis();
@@ -128,6 +131,7 @@ public class WindJump extends ModuleStructure {
     }
 
     @EventHandler
+    @Native(type = Native.Type.VMProtectBeginUltra)
     public void onRotationUpdate(RotationUpdateEvent event) {
         if (mc.player == null || mc.world == null) return;
 
@@ -154,6 +158,7 @@ public class WindJump extends ModuleStructure {
         }
     }
 
+    @Native(type = Native.Type.VMProtectBeginUltra)
     private void performThrow() {
         if (mc.player == null) return;
 
@@ -177,6 +182,7 @@ public class WindJump extends ModuleStructure {
     }
 
     @EventHandler
+    @Native(type = Native.Type.VMProtectBeginUltra)
     public void onTick(TickEvent e) {
         if (mc.player == null || mc.world == null) {
             resetState();
@@ -203,6 +209,7 @@ public class WindJump extends ModuleStructure {
         }
     }
 
+    @Native(type = Native.Type.VMProtectBeginUltra)
     private void startChargeProcess() {
         savedSlot = mc.player.getInventory().getSelectedSlot();
 
@@ -232,6 +239,7 @@ public class WindJump extends ModuleStructure {
         }
     }
 
+    @Native(type = Native.Type.VMProtectBeginUltra)
     private boolean processTick() {
         if (mc.player == null || mc.currentScreen != null) {
             resetState();
@@ -364,6 +372,7 @@ public class WindJump extends ModuleStructure {
         }
     }
 
+    @Native(type = Native.Type.VMProtectBeginMutation)
     private SwapSettings buildSettings() {
         String mode = modeSetting.getSelected();
         return switch (mode) {

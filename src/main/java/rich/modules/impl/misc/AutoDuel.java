@@ -1,5 +1,6 @@
 package rich.modules.impl.misc;
 
+import antidaunleak.api.annotation.Native;
 import com.google.common.collect.Lists;
 import com.mojang.authlib.GameProfile;
 import net.minecraft.client.network.PlayerListEntry;
@@ -53,6 +54,7 @@ public class AutoDuel extends ModuleStructure {
     }
 
     @Override
+    @Native(type = Native.Type.VMProtectBeginMutation)
     public void activate() {
         counter.resetCounter();
         counter2.resetCounter();
@@ -63,6 +65,7 @@ public class AutoDuel extends ModuleStructure {
     }
 
     @EventHandler
+    @Native(type = Native.Type.VMProtectBeginUltra)
     public void onTick(TickEvent event) {
         if (mc.player == null || mc.world == null) return;
 
@@ -71,6 +74,7 @@ public class AutoDuel extends ModuleStructure {
     }
 
     @EventHandler
+    @Native(type = Native.Type.VMProtectBeginMutation)
     public void onPacket(PacketEvent event) {
         if (event.getType() == PacketEvent.Type.RECEIVE && event.getPacket() instanceof GameMessageS2CPacket chat) {
             String text = chat.content().getString();
@@ -81,6 +85,7 @@ public class AutoDuel extends ModuleStructure {
         }
     }
 
+    @Native(type = Native.Type.VMProtectBeginUltra)
     private void handleDuelLogic() {
         List<String> players = getOnlinePlayers();
 
@@ -107,11 +112,7 @@ public class AutoDuel extends ModuleStructure {
         for (String player : players) {
             if (!sent.contains(player) && !player.equals(mc.player.getGameProfile().name())) {
                 if (counter.hasTimeElapsed((long) slowTime.getValue())) {
-                    if (babki.isValue()) {
-                        mc.player.networkHandler.sendChatCommand("duel " + player + " " + money.getText());
-                    } else {
-                        mc.player.networkHandler.sendChatCommand("duel " + player);
-                    }
+                    sendDuelRequest(player);
                     sent.add(player);
                     counter.resetCounter();
                 }
@@ -119,6 +120,16 @@ public class AutoDuel extends ModuleStructure {
         }
     }
 
+    @Native(type = Native.Type.VMProtectBeginMutation)
+    private void sendDuelRequest(String player) {
+        if (babki.isValue()) {
+            mc.player.networkHandler.sendChatCommand("duel " + player + " " + money.getText());
+        } else {
+            mc.player.networkHandler.sendChatCommand("duel " + player);
+        }
+    }
+
+    @Native(type = Native.Type.VMProtectBeginMutation)
     private void handleScreenInteraction() {
         if (mc.currentScreen != null && mc.player.currentScreenHandler instanceof ScreenHandler chest) {
             String title = mc.currentScreen.getTitle().getString();
@@ -152,6 +163,7 @@ public class AutoDuel extends ModuleStructure {
         }
     }
 
+    @Native(type = Native.Type.VMProtectBeginMutation)
     private int getKitSlot() {
         return switch (mode.getSelected()) {
             case "Щит" -> 0;

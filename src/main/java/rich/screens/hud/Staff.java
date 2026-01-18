@@ -3,11 +3,13 @@ package rich.screens.hud;
 import com.mojang.authlib.GameProfile;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.network.PlayerListEntry;
+import net.minecraft.entity.player.SkinTextures;
 import net.minecraft.scoreboard.Scoreboard;
 import net.minecraft.scoreboard.Team;
 import net.minecraft.util.Identifier;
 import rich.client.draggables.AbstractHudElement;
 import rich.util.ColorUtil;
+import rich.util.animations.Direction;
 import rich.util.render.Render2D;
 import rich.util.render.Scissor;
 import rich.util.render.font.Fonts;
@@ -20,14 +22,18 @@ import java.util.regex.Pattern;
 public class Staff extends AbstractHudElement {
 
     private static final Pattern NAME_PATTERN = Pattern.compile("^\\w{3,16}$");
+    private static final Pattern DIGIT_ONLY_PATTERN = Pattern.compile("^\\d{1,3}$");
+    private static final Identifier STEVE_SKIN = Identifier.of("minecraft", "textures/entity/player/wide/steve.png");
 
     private static class StaffInfo {
         String name;
         GameProfile profile;
+        Identifier skin;
 
-        StaffInfo(String name, GameProfile profile) {
+        StaffInfo(String name, GameProfile profile, Identifier skin) {
             this.name = name;
             this.profile = profile;
+            this.skin = skin;
         }
     }
 
@@ -35,6 +41,7 @@ public class Staff extends AbstractHudElement {
     private Map<String, Float> staffAnimations = new LinkedHashMap<>();
     private Set<String> activeStaffIds = new HashSet<>();
     private Identifier cachedRandomSkin = null;
+    private boolean skinCached = false;
 
     private float animatedWidth = 80;
     private float animatedHeight = 23;
@@ -46,7 +53,61 @@ public class Staff extends AbstractHudElement {
 
     public Staff() {
         super("Staff", 300, 150, 80, 23, true);
-        startAnimation();
+        stopAnimation();
+    }
+
+    @Override
+    public boolean visible() {
+        return !scaleAnimation.isFinished(Direction.BACKWARDS);
+    }
+
+    private Identifier getSkinFromEntry(PlayerListEntry entry) {
+        try {
+            SkinTextures skinTextures = entry.getSkinTextures();
+            if (skinTextures != null && skinTextures.body() != null) {
+                Identifier texturePath = skinTextures.body().texturePath();
+                if (texturePath != null) {
+                    return texturePath;
+                }
+            }
+        } catch (Exception ignored) {
+        }
+        return null;
+    }
+
+    private Identifier findRandomOnlineSkin() {
+        if (mc.player == null || mc.player.networkHandler == null) {
+            return STEVE_SKIN;
+        }
+
+        List<PlayerListEntry> players = new ArrayList<>(mc.player.networkHandler.getPlayerList());
+        Collections.shuffle(players);
+
+        for (PlayerListEntry entry : players) {
+            Identifier skin = getSkinFromEntry(entry);
+            if (skin != null) {
+                return skin;
+            }
+        }
+
+        return STEVE_SKIN;
+    }
+
+    private Identifier getCachedSkin() {
+        if (!skinCached || cachedRandomSkin == null) {
+            if (mc.player != null && mc.player.networkHandler != null) {
+                Identifier found = findRandomOnlineSkin();
+                if (found != null && !found.equals(STEVE_SKIN)) {
+                    cachedRandomSkin = found;
+                    skinCached = true;
+                } else if (cachedRandomSkin == null) {
+                    cachedRandomSkin = STEVE_SKIN;
+                }
+            } else {
+                cachedRandomSkin = STEVE_SKIN;
+            }
+        }
+        return cachedRandomSkin;
     }
 
     @Override
@@ -54,6 +115,9 @@ public class Staff extends AbstractHudElement {
         if (mc.player == null || mc.world == null) {
             staffMap.clear();
             activeStaffIds.clear();
+            cachedRandomSkin = null;
+            skinCached = false;
+            stopAnimation();
             return;
         }
 
@@ -72,21 +136,13 @@ public class Staff extends AbstractHudElement {
             }
         }
 
-        if (cachedRandomSkin == null) {
-            for (PlayerListEntry entry : online) {
-                if (entry.getSkinTextures() != null && entry.getSkinTextures().body() != null) {
-                    cachedRandomSkin = entry.getSkinTextures().body().id();
-                    break;
-                }
-            }
-        }
-
         for (Team team : teams) {
             Collection<String> members = team.getPlayerList();
             if (members.size() != 1) continue;
             String name = members.iterator().next();
             if (!NAME_PATTERN.matcher(name).matches()) continue;
             if (name.equals(myName)) continue;
+            if (DIGIT_ONLY_PATTERN.matcher(name).matches()) continue;
 
             boolean isOnline = onlineNames.contains(name);
 
@@ -95,13 +151,23 @@ public class Staff extends AbstractHudElement {
 
                 if (!staffMap.containsKey(name)) {
                     GameProfile fakeProfile = new GameProfile(UUID.randomUUID(), name);
-                    staffMap.put(name, new StaffInfo(name, fakeProfile));
+                    Identifier randomSkin = findRandomOnlineSkin();
+                    staffMap.put(name, new StaffInfo(name, fakeProfile, randomSkin));
                 }
 
                 if (!staffAnimations.containsKey(name)) {
                     staffAnimations.put(name, 0f);
                 }
             }
+        }
+
+        boolean hasActiveStaff = !activeStaffIds.isEmpty() || !staffAnimations.isEmpty();
+        boolean inChat = isChat(mc.currentScreen);
+
+        if (hasActiveStaff || inChat) {
+            startAnimation();
+        } else {
+            stopAnimation();
         }
     }
 
@@ -110,16 +176,11 @@ public class Staff extends AbstractHudElement {
         return current + (target - current) * factor;
     }
 
-    private Identifier getSkinTexture(StaffInfo info) {
-        if (cachedRandomSkin != null) {
-            return cachedRandomSkin;
-        }
-        return null;
-    }
-
     @Override
     public void drawDraggable(DrawContext context, int alpha) {
         if (alpha <= 0) return;
+
+        float alphaFactor = alpha / 255.0f;
 
         long currentTime = System.currentTimeMillis();
         float deltaTime = (currentTime - lastUpdateTime) / 1000.0f;
@@ -151,17 +212,18 @@ public class Staff extends AbstractHudElement {
         float x = getX();
         float y = getY();
 
+        boolean hasAnimatingStaff = !staffAnimations.isEmpty();
+        boolean showExample = !hasAnimatingStaff && isChat(mc.currentScreen);
+
         int offset = 23;
         float targetWidth = 80;
 
-        boolean hasAnimatingStaff = !staffAnimations.isEmpty();
-
-        if (!hasAnimatingStaff) {
+        if (showExample) {
             offset += 11;
             String name = "ExampleStaff";
             float nameWidth = Fonts.BOLD.getWidth(name, 6);
             targetWidth = Math.max(nameWidth + 55, targetWidth);
-        } else {
+        } else if (hasAnimatingStaff) {
             for (Map.Entry<String, Float> entry : staffAnimations.entrySet()) {
                 String id = entry.getKey();
                 float animation = entry.getValue();
@@ -193,96 +255,55 @@ public class Staff extends AbstractHudElement {
         setHeight((int) Math.ceil(animatedHeight));
 
         float contentHeight = animatedHeight;
+        int bgAlpha = (int) (255 * alphaFactor);
 
         if (contentHeight > 0) {
             Render2D.gradientRect(x, y, getWidth(), contentHeight,
                     new int[]{
-                            new Color(52, 52, 52, 255).getRGB(),
-                            new Color(32, 32, 32, 255).getRGB(),
-                            new Color(52, 52, 52, 255).getRGB(),
-                            new Color(32, 32, 32, 255).getRGB()
+                            new Color(52, 52, 52, bgAlpha).getRGB(),
+                            new Color(32, 32, 32, bgAlpha).getRGB(),
+                            new Color(52, 52, 52, bgAlpha).getRGB(),
+                            new Color(32, 32, 32, bgAlpha).getRGB()
                     },
                     5);
-            Render2D.outline(x, y, getWidth(), contentHeight, 0.35f, new Color(90, 90, 90, 255).getRGB(), 5);
+            Render2D.outline(x, y, getWidth(), contentHeight, 0.35f, new Color(90, 90, 90, bgAlpha).getRGB(), 5);
         }
 
         Scissor.enable(x, y, getWidth(), contentHeight);
 
-        int staffCount = activeStaffIds.isEmpty() ? 1 : activeStaffIds.size();
-        String countText = String.valueOf(staffCount);
-        float countTextWidth = Fonts.BOLD.getWidth(countText, 6);
-        float staffTextWidth = Fonts.BOLD.getWidth("Staff", 6);
-
         Render2D.gradientRect(x + getWidth() - 18.5f, y + 5, 14, 12,
                 new int[]{
-                        new Color(52, 52, 52, 255).getRGB(),
-                        new Color(52, 52, 52, 255).getRGB(),
-                        new Color(52, 52, 52, 255).getRGB(),
-                        new Color(52, 52, 52, 255).getRGB()
+                        new Color(52, 52, 52, bgAlpha).getRGB(),
+                        new Color(52, 52, 52, bgAlpha).getRGB(),
+                        new Color(52, 52, 52, bgAlpha).getRGB(),
+                        new Color(52, 52, 52, bgAlpha).getRGB()
                 },
                 3);
 
-        Fonts.ICONS.draw("E", x + getWidth() - 15.5f, y + 7.5f, 8, new Color(165, 165, 165, 255).getRGB());
-
-        Fonts.BOLD.draw("Staff", x + 8, y + 6.5f, 6, new Color(255, 255, 255, 255).getRGB());
+        Fonts.ICONS.draw("E", x + getWidth() - 15.5f, y + 7.5f, 8, new Color(165, 165, 165, bgAlpha).getRGB());
+        Fonts.BOLD.draw("Staff", x + 8, y + 6.5f, 6, new Color(255, 255, 255, bgAlpha).getRGB());
 
         int moduleOffset = 23;
 
-        if (!hasAnimatingStaff) {
+        Identifier exampleSkin = getCachedSkin();
+
+        if (showExample) {
             String name = "ExampleStaff";
 
             float faceX = x + 8;
             float faceY = y + moduleOffset - 2f;
 
-            if (cachedRandomSkin != null) {
-                float u0 = 8f / 64f;
-                float v0 = 8f / 64f;
-                float u1 = 16f / 64f;
-                float v1 = 16f / 64f;
-
-                Render2D.texture(cachedRandomSkin, faceX, faceY, FACE_SIZE, FACE_SIZE,
-                        u0, v0, u1, v1, new Color(255, 255, 255, 255).getRGB(), 0, 2f);
-
-                float hatU0 = 40f / 64f;
-                float hatV0 = 8f / 64f;
-                float hatU1 = 48f / 64f;
-                float hatV1 = 16f / 64f;
-
-                float hatScale = 1.15f;
-                float hatSize = FACE_SIZE * hatScale;
-                float hatOffset = (hatSize - FACE_SIZE) / 2f;
-
-                Render2D.texture(cachedRandomSkin, faceX - hatOffset, faceY - hatOffset, hatSize, hatSize,
-                        hatU0, hatV0, hatU1, hatV1, new Color(255, 255, 255, 255).getRGB(), 0, 2f);
-
-                int blurTint = ColorUtil.rgba(0, 0, 0, 0);
-                Render2D.blur(faceX, faceY, 1, 1, 0f, 0, blurTint);
-            } else {
-                Render2D.rect(faceX, faceY, FACE_SIZE, FACE_SIZE,
-                        new Color(100, 100, 100, 128).getRGB(), 2);
-            }
+            drawFace(exampleSkin, faceX, faceY, bgAlpha);
 
             float nameX = x + 8 + FACE_SIZE + 4;
-            Fonts.BOLD.draw(name, nameX, y + moduleOffset - 1.5f, 6,
-                    new Color(255, 255, 255, 255).getRGB());
+            Fonts.BOLD.draw(name, nameX, y + moduleOffset - 1.5f, 6, new Color(255, 255, 255, bgAlpha).getRGB());
 
             float circleX = x + getWidth() - 14f;
             float circleY = y + moduleOffset - 0.5f;
 
-            Render2D.gradientRect(circleX - 3, circleY - 2, 11, 9,
-                    new int[]{
-                            new Color(52, 52, 52, 255).getRGB(),
-                            new Color(52, 52, 52, 255).getRGB(),
-                            new Color(52, 52, 52, 255).getRGB(),
-                            new Color(52, 52, 52, 255).getRGB()
-                    },
-                    3);
+            drawStatusCircle(circleX, circleY, bgAlpha);
 
-            Render2D.outline(circleX - 3, circleY - 2, 11, 9, 0.35f, new Color(90, 90, 90, 255).getRGB(), 3);
-
-            Render2D.rect(circleX, circleY, CIRCLE_SIZE, CIRCLE_SIZE, new Color(255, 80, 80, 255).getRGB(), CIRCLE_SIZE / 2f);
-
-        } else {
+        } else if (hasAnimatingStaff) {
             for (Map.Entry<String, Float> entry : staffAnimations.entrySet()) {
                 String id = entry.getKey();
                 float animation = entry.getValue();
@@ -291,66 +312,57 @@ public class Staff extends AbstractHudElement {
                 StaffInfo info = staffMap.get(id);
                 if (info == null) continue;
 
-                int textAlpha = (int) (255 * animation);
-                int textColor = new Color(255, 255, 255, textAlpha).getRGB();
+                Identifier skinToUse = info.skin != null ? info.skin : STEVE_SKIN;
 
-                Identifier skinTexture = getSkinTexture(info);
+                int textAlpha = (int) (255 * animation * alphaFactor);
+
                 float faceX = x + 8;
                 float faceY = y + moduleOffset - 2f;
 
-                if (skinTexture != null) {
-                    float u0 = 8f / 64f;
-                    float v0 = 8f / 64f;
-                    float u1 = 16f / 64f;
-                    float v1 = 16f / 64f;
-
-                    int faceColor = new Color(255, 255, 255, textAlpha).getRGB();
-                    Render2D.texture(skinTexture, faceX, faceY, FACE_SIZE, FACE_SIZE,
-                            u0, v0, u1, v1, faceColor, 0, 2f);
-
-                    float hatU0 = 40f / 64f;
-                    float hatV0 = 8f / 64f;
-                    float hatU1 = 48f / 64f;
-                    float hatV1 = 16f / 64f;
-
-                    float hatScale = 1.15f;
-                    float hatSize = FACE_SIZE * hatScale;
-                    float hatOffset = (hatSize - FACE_SIZE) / 2f;
-
-                    Render2D.texture(skinTexture, faceX - hatOffset, faceY - hatOffset, hatSize, hatSize,
-                            hatU0, hatV0, hatU1, hatV1, faceColor, 0, 2f);
-
-                    int blurTint = ColorUtil.rgba(0, 0, 0, 0);
-                    Render2D.blur(faceX, faceY, 1, 1, 0f, 0, blurTint);
-                } else {
-                    Render2D.rect(faceX, faceY, FACE_SIZE, FACE_SIZE,
-                            new Color(100, 100, 100, textAlpha).getRGB(), 2);
-                }
+                drawFace(skinToUse, faceX, faceY, textAlpha);
 
                 float nameX = faceX + FACE_SIZE + 4;
-                Fonts.BOLD.draw(info.name, nameX, y + moduleOffset - 1.5f, 6, textColor);
+                Fonts.BOLD.draw(info.name, nameX, y + moduleOffset - 1.5f, 6, new Color(255, 255, 255, textAlpha).getRGB());
 
-                int circleColor = new Color(255, 80, 80, textAlpha).getRGB();
                 float circleX = x + getWidth() - 14f;
                 float circleY = y + moduleOffset - 0.5f;
 
-                Render2D.gradientRect(circleX - 3, circleY - 2, 11, 9,
-                        new int[]{
-                                new Color(52, 52, 52, 255).getRGB(),
-                                new Color(52, 52, 52, 255).getRGB(),
-                                new Color(52, 52, 52, 255).getRGB(),
-                                new Color(52, 52, 52, 255).getRGB()
-                        },
-                        3);
-
-                Render2D.outline(circleX - 3, circleY - 2, 11, 9, 0.35f, new Color(90, 90, 90, 255).getRGB(), 3);
-
-                Render2D.rect(circleX, circleY, CIRCLE_SIZE, CIRCLE_SIZE, circleColor, CIRCLE_SIZE / 2f);
+                drawStatusCircle(circleX, circleY, textAlpha);
 
                 moduleOffset += (int) (animation * 11);
             }
         }
 
         Scissor.disable();
+    }
+
+    private void drawFace(Identifier skin, float faceX, float faceY, int alpha) {
+        int color = new Color(255, 255, 255, alpha).getRGB();
+
+        Render2D.texture(skin, faceX, faceY, FACE_SIZE, FACE_SIZE,
+                8f / 64f, 8f / 64f, 16f / 64f, 16f / 64f, color, 0, 2f);
+
+        float hatScale = 1.15f;
+        float hatSize = FACE_SIZE * hatScale;
+        float hatOffset = (hatSize - FACE_SIZE) / 2f;
+
+        Render2D.texture(skin, faceX - hatOffset, faceY - hatOffset, hatSize, hatSize,
+                40f / 64f, 8f / 64f, 48f / 64f, 16f / 64f, color, 0, 2f);
+
+        Render2D.blur(faceX, faceY, 1, 1, 0f, 0, ColorUtil.rgba(0, 0, 0, 0));
+    }
+
+    private void drawStatusCircle(float circleX, float circleY, int alpha) {
+        Render2D.gradientRect(circleX - 3, circleY - 2, 11, 9,
+                new int[]{
+                        new Color(52, 52, 52, alpha).getRGB(),
+                        new Color(52, 52, 52, alpha).getRGB(),
+                        new Color(52, 52, 52, alpha).getRGB(),
+                        new Color(52, 52, 52, alpha).getRGB()
+                },
+                3);
+
+        Render2D.outline(circleX - 3, circleY - 2, 11, 9, 0.35f, new Color(90, 90, 90, alpha).getRGB(), 3);
+        Render2D.rect(circleX, circleY, CIRCLE_SIZE, CIRCLE_SIZE, new Color(255, 80, 80, alpha).getRGB(), CIRCLE_SIZE / 2f);
     }
 }

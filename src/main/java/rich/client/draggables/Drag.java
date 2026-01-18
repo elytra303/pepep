@@ -1,77 +1,110 @@
 package rich.client.draggables;
 
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.gui.screen.ChatScreen;
 import rich.Initialization;
 import rich.modules.impl.render.Hud;
 import rich.util.ColorUtil;
-import rich.util.animations.AlphaAnim;
+import rich.util.animations.SweepAnim;
+import rich.util.config.impl.drag.DragConfig;
 import rich.util.render.Render2D;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 public class Drag {
 
     private static final float OUTLINE_OFFSET = 3.0f;
-    private static final float OUTLINE_THICKNESS = 0.5f;
+    private static final float OUTLINE_THICKNESS = 1.0f;
     private static final int OUTLINE_COLOR = ColorUtil.rgba(255, 255, 255, 255);
+
+    private static final Set<String> EXCLUDED_ELEMENTS = Set.of("Notifications", "Watermark", "Info");
 
     private static HudElement draggingElement;
     private static int startX, startY;
-    private static final Map<HudElement, AlphaAnim> hoverAnimations = new HashMap<>();
+    private static final Map<HudElement, SweepAnim> sweepAnimations = new HashMap<>();
+    private static final Map<HudElement, Boolean> wasHovered = new HashMap<>();
 
-    public static void onDraw(DrawContext context, int mouseX, int mouseY, float delta) {
+    public static void onDraw(DrawContext context, int mouseX, int mouseY, float delta, boolean isChatScreen) {
         HudManager hudManager = getHudManager();
         if (hudManager == null) return;
 
         Hud hud = Hud.getInstance();
         if (hud == null || !hud.isState()) return;
 
-        if (draggingElement != null) {
+        if (!isChatScreen) {
+            if (draggingElement != null) {
+                DragConfig.getInstance().save();
+                draggingElement = null;
+            }
+            sweepAnimations.clear();
+            wasHovered.clear();
+        }
+
+        if (isChatScreen && draggingElement != null) {
             draggingElement.setX(mouseX - startX);
             draggingElement.setY(mouseY - startY);
         }
 
         hudManager.render(context, delta, mouseX, mouseY);
 
-        for (HudElement element : hudManager.getEnabledElements()) {
-            if (!element.visible()) {
-                hoverAnimations.remove(element);
-                continue;
-            }
+        if (isChatScreen) {
+            for (HudElement element : hudManager.getEnabledElements()) {
+                if (!element.visible()) {
+                    sweepAnimations.remove(element);
+                    wasHovered.remove(element);
+                    continue;
+                }
 
-            boolean isHovered = isHovered(element, mouseX, mouseY);
+                if (EXCLUDED_ELEMENTS.contains(element.getName())) {
+                    continue;
+                }
 
-            float rounding = element.getRoundingRadius();
-            float offset = OUTLINE_OFFSET;
-            float outlineX = element.getX() - offset;
-            float outlineY = element.getY() - offset;
-            float outlineWidth = element.getWidth() + offset * 2;
-            float outlineHeight = element.getHeight() + offset * 2;
-            float outlineRounding = Math.max(0, rounding + offset);
+                boolean isHovered = isHovered(element, mouseX, mouseY);
+                boolean previouslyHovered = wasHovered.getOrDefault(element, false);
 
-            AlphaAnim anim = hoverAnimations.computeIfAbsent(element, e -> new AlphaAnim(0.0f, 0.3f));
+                float rounding = element.getRoundingRadius();
+                float offset = OUTLINE_OFFSET;
+                float outlineX = element.getX() - offset;
+                float outlineY = element.getY() - offset;
+                float outlineWidth = element.getWidth() + offset * 2;
+                float outlineHeight = element.getHeight() + offset * 2;
+                float outlineRounding = Math.max(0, rounding + offset);
 
-            if (isHovered) {
-                anim.setTarget(1.0f);
-            } else {
-                anim.setTarget(0.0f);
-            }
+                SweepAnim anim = sweepAnimations.computeIfAbsent(element, e -> new SweepAnim(0.05f));
 
-            anim.update();
-            float alpha = anim.getValue();
+                if (isHovered && !previouslyHovered) {
+                    anim.start();
+                } else if (!isHovered && previouslyHovered) {
+                    anim.reset();
+                }
 
-            if (alpha > 0.01f && outlineWidth > 0 && outlineHeight > 0) {
-                int outlineColor = ColorUtil.withAlpha(OUTLINE_COLOR, alpha * 0.8f);
-                Render2D.outline(outlineX, outlineY, outlineWidth, outlineHeight, OUTLINE_THICKNESS, outlineColor, outlineRounding);
-            } else if (!isHovered && alpha <= 0.001f) {
-                hoverAnimations.remove(element);
+                wasHovered.put(element, isHovered);
+
+                anim.update();
+                float progress = anim.getProgress();
+
+                if (isHovered || anim.isActive()) {
+                    float baseAlpha = 0.3f;
+                    Render2D.glowOutline(outlineX, outlineY, outlineWidth, outlineHeight,
+                            OUTLINE_THICKNESS, OUTLINE_COLOR, outlineRounding, progress, baseAlpha);
+                }
+
+                if (!isHovered && anim.isCompleted()) {
+                    sweepAnimations.remove(element);
+                    wasHovered.remove(element);
+                }
             }
         }
     }
 
     public static void onMouseClick(Click click) {
+        MinecraftClient mc = MinecraftClient.getInstance();
+        if (!(mc.currentScreen instanceof ChatScreen)) return;
+
         if (click.button() == 0) {
             HudManager hudManager = getHudManager();
             if (hudManager == null) return;
@@ -92,8 +125,18 @@ public class Drag {
 
     public static void onMouseRelease(Click click) {
         if (click.button() == 0 && draggingElement != null) {
+            DragConfig.getInstance().save();
             draggingElement = null;
         }
+    }
+
+    public static void resetDragging() {
+        if (draggingElement != null) {
+            DragConfig.getInstance().save();
+            draggingElement = null;
+        }
+        sweepAnimations.clear();
+        wasHovered.clear();
     }
 
     public static boolean isDragging() {

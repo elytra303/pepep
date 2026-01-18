@@ -31,6 +31,11 @@ public class SwapExecutor {
         this.onComplete = onComplete;
 
         if (this.settings.shouldStopMovement()) {
+            movement.saveState();
+            movement.block();
+            if (this.settings.shouldStopSprint()) {
+                movement.stopSprint();
+            }
             startPhase(Phase.PRE_STOP, this.settings.randomPreStopDelay());
         } else {
             startPhase(Phase.SWAPPING, 0);
@@ -42,6 +47,13 @@ public class SwapExecutor {
         if (mc.player == null) {
             reset();
             return;
+        }
+
+        if (settings.shouldStopMovement() && phase != Phase.RESUMING && phase != Phase.FINISHED) {
+            movement.block();
+            if (settings.shouldStopSprint()) {
+                movement.stopSprint();
+            }
         }
 
         boolean continueProcessing = true;
@@ -59,12 +71,11 @@ public class SwapExecutor {
 
         switch (phase) {
             case PRE_STOP -> {
+                movement.block();
+                if (settings.shouldStopSprint()) {
+                    movement.stopSprint();
+                }
                 if (elapsed >= currentDelay) {
-                    movement.saveState();
-                    movement.block();
-                    if (settings.shouldStopSprint()) {
-                        movement.stopSprint();
-                    }
                     startPhase(Phase.STOPPING, 0);
                     return true;
                 }
@@ -79,6 +90,9 @@ public class SwapExecutor {
             }
             case WAIT_STOP -> {
                 movement.block();
+                if (settings.shouldStopSprint()) {
+                    movement.stopSprint();
+                }
                 boolean stopped = movement.isPlayerStopped(settings.getVelocityThreshold());
                 boolean timeout = elapsed >= currentDelay;
 
@@ -89,12 +103,19 @@ public class SwapExecutor {
             }
             case PRE_SWAP -> {
                 movement.block();
+                if (settings.shouldStopSprint()) {
+                    movement.stopSprint();
+                }
                 if (elapsed >= currentDelay) {
                     startPhase(Phase.SWAPPING, 0);
                     return true;
                 }
             }
             case SWAPPING -> {
+                movement.block();
+                if (settings.shouldStopSprint()) {
+                    movement.stopSprint();
+                }
                 if (swapAction != null) {
                     swapAction.run();
                 }
@@ -102,6 +123,7 @@ public class SwapExecutor {
                 return currentDelay == 0;
             }
             case POST_SWAP -> {
+                movement.block();
                 if (elapsed >= currentDelay) {
                     if (settings.shouldCloseInventory()) {
                         InventoryUtils.closeScreen();
@@ -152,7 +174,7 @@ public class SwapExecutor {
     }
 
     public boolean isBlocking() {
-        return movement.isBlocked();
+        return movement.isBlocked() || (isRunning() && settings.shouldStopMovement());
     }
 
     public Phase getPhase() {

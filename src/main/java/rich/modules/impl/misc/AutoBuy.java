@@ -1,5 +1,6 @@
 package rich.modules.impl.misc;
 
+import antidaunleak.api.annotation.Native;
 import lombok.Getter;
 import net.minecraft.client.gui.screen.ingame.GenericContainerScreen;
 import net.minecraft.component.DataComponentTypes;
@@ -19,7 +20,6 @@ import rich.screens.clickgui.impl.autobuy.manager.AutoBuyManager;
 import rich.util.modules.autobuy.BuyRequest;
 import rich.util.modules.autobuy.NetworkManager;
 import rich.util.modules.autobuy.ServerManager;
-import rich.util.string.chat.ChatMessage;
 import rich.util.timer.TimerUtil;
 
 import java.util.*;
@@ -64,6 +64,7 @@ public class AutoBuy extends ModuleStructure {
     }
 
     @Override
+    @Native(type = Native.Type.VMProtectBeginMutation)
     public void activate() {
         super.activate();
         autoBuyManager.setEnabled(true);
@@ -85,6 +86,7 @@ public class AutoBuy extends ModuleStructure {
     }
 
     @Override
+    @Native(type = Native.Type.VMProtectBeginMutation)
     public void deactivate() {
         super.deactivate();
         autoBuyManager.setEnabled(false);
@@ -111,6 +113,7 @@ public class AutoBuy extends ModuleStructure {
     }
 
     @EventHandler
+    @Native(type = Native.Type.VMProtectBeginUltra)
     public void onTick(TickEvent e) {
         if (mc.player == null || mc.world == null) return;
         if (!isState()) return;
@@ -149,6 +152,7 @@ public class AutoBuy extends ModuleStructure {
         handleInAuction(screen);
     }
 
+    @Native(type = Native.Type.VMProtectBeginMutation)
     private void handlePauseSync() {
         Boolean pauseState = network.pollPauseState();
         if (pauseState != null) {
@@ -161,6 +165,7 @@ public class AutoBuy extends ModuleStructure {
         }
     }
 
+    @Native(type = Native.Type.VMProtectBeginMutation)
     private void handleServerSwitchCommand() {
         String switchCmd = network.pollServerSwitch();
         if (switchCmd != null) {
@@ -179,6 +184,7 @@ public class AutoBuy extends ModuleStructure {
         }
     }
 
+    @Native(type = Native.Type.VMProtectBeginUltra)
     private void handleServerLogic() {
         serverManager.updateHubStatus(mc.world);
 
@@ -235,6 +241,7 @@ public class AutoBuy extends ModuleStructure {
         }
     }
 
+    @Native(type = Native.Type.VMProtectBeginUltra)
     private void handleInAuction(GenericContainerScreen screen) {
         if (!inAuction) {
             inAuction = true;
@@ -268,6 +275,7 @@ public class AutoBuy extends ModuleStructure {
         }
     }
 
+    @Native(type = Native.Type.VMProtectBeginMutation)
     private boolean isSuspiciousPriceScreen(String title, int slots) {
         if (title.contains("подозрительн")) return true;
         if (title.contains("подтвер")) return true;
@@ -283,6 +291,7 @@ public class AutoBuy extends ModuleStructure {
         return false;
     }
 
+    @Native(type = Native.Type.VMProtectBeginUltra)
     private void confirmSuspiciousPrice(GenericContainerScreen screen) {
         int syncId = screen.getScreenHandler().syncId;
         mc.interactionManager.clickSlot(syncId, 1, 0, SlotActionType.PICKUP, mc.player);
@@ -312,6 +321,7 @@ public class AutoBuy extends ModuleStructure {
         return sb.toString();
     }
 
+    @Native(type = Native.Type.VMProtectBeginUltra)
     private void scanAndSendInstant(GenericContainerScreen screen) {
         if (!network.isConnected()) return;
 
@@ -334,26 +344,32 @@ public class AutoBuy extends ModuleStructure {
 
             if (sentItems.contains(key)) continue;
 
-            for (AutoBuyableItem item : items) {
-                int maxPrice = item.getSettings().getBuyBelow();
-                int minQuantity = item.getSettings().isCanHaveQuantity() ? item.getSettings().getMinQuantity() : 1;
+            processItemForSending(stack, items, key, itemId, price, loreHash);
+        }
+    }
 
-                if (price > maxPrice) continue;
+    @Native(type = Native.Type.VMProtectBeginMutation)
+    private void processItemForSending(ItemStack stack, List<AutoBuyableItem> items, String key, String itemId, int price, String loreHash) {
+        for (AutoBuyableItem item : items) {
+            int maxPrice = item.getSettings().getBuyBelow();
+            int minQuantity = item.getSettings().isCanHaveQuantity() ? item.getSettings().getMinQuantity() : 1;
 
-                if (item.getSettings().isCanHaveQuantity()) {
-                    if (stack.getCount() < minQuantity) continue;
-                }
+            if (price > maxPrice) continue;
 
-                if (AuctionUtils.compareItem(stack, item.createItemStack())) {
-                    sentItems.add(key);
-                    String displayName = item.getDisplayName();
-                    network.sendBuyCommand(price, itemId, displayName, stack.getCount(), loreHash, maxPrice, minQuantity);
-                    break;
-                }
+            if (item.getSettings().isCanHaveQuantity()) {
+                if (stack.getCount() < minQuantity) continue;
+            }
+
+            if (AuctionUtils.compareItem(stack, item.createItemStack())) {
+                sentItems.add(key);
+                String displayName = item.getDisplayName();
+                network.sendBuyCommand(price, itemId, displayName, stack.getCount(), loreHash, maxPrice, minQuantity);
+                break;
             }
         }
     }
 
+    @Native(type = Native.Type.VMProtectBeginUltra)
     private void processBuyRequestsInstant(GenericContainerScreen screen) {
         int syncId = screen.getScreenHandler().syncId;
 
@@ -364,66 +380,73 @@ public class AutoBuy extends ModuleStructure {
                 continue;
             }
 
-            boolean found = false;
-
-            for (int i = 0; i < 45 && i < screen.getScreenHandler().slots.size(); i++) {
-                Slot slot = screen.getScreenHandler().slots.get(i);
-                ItemStack stack = slot.getStack();
-                if (stack.isEmpty()) continue;
-
-                String stackItemId = Registries.ITEM.getId(stack.getItem()).toString();
-                if (!stackItemId.equals(request.itemId)) continue;
-
-                int stackPrice = AuctionUtils.getPrice(stack);
-                if (stackPrice != request.price) continue;
-
-                if (stack.getCount() != request.count) continue;
-
-                String stackLoreHash = generateLoreHash(stack);
-                if (!stackLoreHash.equals(request.loreHash)) continue;
-
-                if (AuctionUtils.isArmorItem(stack) && AuctionUtils.hasThornsEnchantment(stack)) continue;
-
-                mc.interactionManager.clickSlot(syncId, slot.id, 0, SlotActionType.QUICK_MOVE, mc.player);
-                boughtItems.add(buyKey);
-                msg("§a⚡ КУПИЛ: §f" + request.displayName + " §aза " + stackPrice + "$");
-                found = true;
-                break;
-            }
+            boolean found = tryExactMatch(screen, syncId, request, buyKey);
 
             if (!found) {
-                for (int i = 0; i < 45 && i < screen.getScreenHandler().slots.size(); i++) {
-                    Slot slot = screen.getScreenHandler().slots.get(i);
-                    ItemStack stack = slot.getStack();
-                    if (stack.isEmpty()) continue;
-
-                    String stackItemId = Registries.ITEM.getId(stack.getItem()).toString();
-                    if (!stackItemId.equals(request.itemId)) continue;
-
-                    int stackPrice = AuctionUtils.getPrice(stack);
-                    if (stackPrice <= 0 || stackPrice > request.maxPrice) continue;
-
-                    if (stack.getCount() < request.minQuantity) continue;
-
-                    if (AuctionUtils.isArmorItem(stack) && AuctionUtils.hasThornsEnchantment(stack)) continue;
-
-                    String fallbackKey = stackItemId + "|" + stackPrice + "|" + stack.getCount() + "|" + generateLoreHash(stack);
-                    if (boughtItems.contains(fallbackKey)) continue;
-
-                    mc.interactionManager.clickSlot(syncId, slot.id, 0, SlotActionType.QUICK_MOVE, mc.player);
-                    boughtItems.add(fallbackKey);
-                    boughtItems.add(buyKey);
-                    msg("§a⚡ КУПИЛ: §f" + request.displayName + " §aза " + stackPrice + "$");
-                    found = true;
-                    break;
-                }
+                tryFallbackMatch(screen, syncId, request, buyKey);
             }
         }
     }
 
+    @Native(type = Native.Type.VMProtectBeginUltra)
+    private boolean tryExactMatch(GenericContainerScreen screen, int syncId, BuyRequest request, String buyKey) {
+        for (int i = 0; i < 45 && i < screen.getScreenHandler().slots.size(); i++) {
+            Slot slot = screen.getScreenHandler().slots.get(i);
+            ItemStack stack = slot.getStack();
+            if (stack.isEmpty()) continue;
+
+            String stackItemId = Registries.ITEM.getId(stack.getItem()).toString();
+            if (!stackItemId.equals(request.itemId)) continue;
+
+            int stackPrice = AuctionUtils.getPrice(stack);
+            if (stackPrice != request.price) continue;
+
+            if (stack.getCount() != request.count) continue;
+
+            String stackLoreHash = generateLoreHash(stack);
+            if (!stackLoreHash.equals(request.loreHash)) continue;
+
+            if (AuctionUtils.isArmorItem(stack) && AuctionUtils.hasThornsEnchantment(stack)) continue;
+
+            mc.interactionManager.clickSlot(syncId, slot.id, 0, SlotActionType.QUICK_MOVE, mc.player);
+            boughtItems.add(buyKey);
+            msg("§a⚡ КУПИЛ: §f" + request.displayName + " §aза " + stackPrice + "$");
+            return true;
+        }
+        return false;
+    }
+
+    @Native(type = Native.Type.VMProtectBeginUltra)
+    private boolean tryFallbackMatch(GenericContainerScreen screen, int syncId, BuyRequest request, String buyKey) {
+        for (int i = 0; i < 45 && i < screen.getScreenHandler().slots.size(); i++) {
+            Slot slot = screen.getScreenHandler().slots.get(i);
+            ItemStack stack = slot.getStack();
+            if (stack.isEmpty()) continue;
+
+            String stackItemId = Registries.ITEM.getId(stack.getItem()).toString();
+            if (!stackItemId.equals(request.itemId)) continue;
+
+            int stackPrice = AuctionUtils.getPrice(stack);
+            if (stackPrice <= 0 || stackPrice > request.maxPrice) continue;
+
+            if (stack.getCount() < request.minQuantity) continue;
+
+            if (AuctionUtils.isArmorItem(stack) && AuctionUtils.hasThornsEnchantment(stack)) continue;
+
+            String fallbackKey = stackItemId + "|" + stackPrice + "|" + stack.getCount() + "|" + generateLoreHash(stack);
+            if (boughtItems.contains(fallbackKey)) continue;
+
+            mc.interactionManager.clickSlot(syncId, slot.id, 0, SlotActionType.QUICK_MOVE, mc.player);
+            boughtItems.add(fallbackKey);
+            boughtItems.add(buyKey);
+            msg("§a⚡ КУПИЛ: §f" + request.displayName + " §aза " + stackPrice + "$");
+            return true;
+        }
+        return false;
+    }
+
     private void msg(String text) {
         if (notifications.isValue() && mc.player != null) {
-//            ChatMessage.autobuymessage(text);
         }
     }
 
@@ -431,6 +454,7 @@ public class AutoBuy extends ModuleStructure {
         return network;
     }
 
+    @Native(type = Native.Type.VMProtectBeginMutation)
     public boolean isFullyEnabled() {
         return isState() && autoBuyManager.isEnabled();
     }

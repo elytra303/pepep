@@ -1,5 +1,6 @@
 package rich.modules.impl.misc;
 
+import antidaunleak.api.annotation.Native;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.experimental.FieldDefaults;
@@ -95,6 +96,7 @@ public class ServerHelper extends ModuleStructure {
         initialize();
     }
 
+    @Native(type = Native.Type.VMProtectBeginMutation)
     public void initialize() {
         setup(mode, swapMode, boxFillColor, boxLineColor);
 
@@ -190,6 +192,7 @@ public class ServerHelper extends ModuleStructure {
     }
 
     @Override
+    @Native(type = Native.Type.VMProtectBeginMutation)
     public void activate() {
         potionQueue.clear();
         potionTimer.reset();
@@ -205,6 +208,7 @@ public class ServerHelper extends ModuleStructure {
     }
 
     @Override
+    @Native(type = Native.Type.VMProtectBeginMutation)
     public void deactivate() {
         lastKeyStates.replaceAll((k, v) -> false);
         keyPressedThisTick.replaceAll((k, v) -> false);
@@ -226,6 +230,7 @@ public class ServerHelper extends ModuleStructure {
         movement.reset();
     }
 
+    @Native(type = Native.Type.VMProtectBeginMutation)
     private SwapSettings buildSettings() {
         return switch (swapMode.getSelected()) {
             case "Instant" -> SwapSettings.instant();
@@ -233,6 +238,7 @@ public class ServerHelper extends ModuleStructure {
         };
     }
 
+    @Native(type = Native.Type.VMProtectBeginMutation)
     private boolean isKeyPressed(int keyCode) {
         if (keyCode == -1) return false;
         long handle = mc.getWindow().getHandle();
@@ -242,6 +248,7 @@ public class ServerHelper extends ModuleStructure {
         return GLFW.glfwGetKey(handle, keyCode) == GLFW.GLFW_PRESS;
     }
 
+    @Native(type = Native.Type.VMProtectBeginMutation)
     private void blockMovement() {
         mc.options.forwardKey.setPressed(false);
         mc.options.backKey.setPressed(false);
@@ -253,6 +260,7 @@ public class ServerHelper extends ModuleStructure {
     }
 
     @EventHandler
+    @Native(type = Native.Type.VMProtectBeginUltra)
     public void onRotationUpdate(RotationUpdateEvent e) {
         if (mc.currentScreen != null) return;
 
@@ -270,6 +278,7 @@ public class ServerHelper extends ModuleStructure {
         processItemQueue();
     }
 
+    @Native(type = Native.Type.VMProtectBeginUltra)
     private void processKeyBindings() {
         for (KeyBind bind : keyBindings) {
             String key = getKeyFromBinding(bind.setting.getName());
@@ -297,6 +306,7 @@ public class ServerHelper extends ModuleStructure {
         }
     }
 
+    @Native(type = Native.Type.VMProtectBeginUltra)
     private void processItemQueue() {
         if (actionState == ActionState.IDLE && !potionQueue.isEmpty() && potionTimer.finished(150)) {
             String potionKey = potionQueue.remove(0);
@@ -314,6 +324,7 @@ public class ServerHelper extends ModuleStructure {
         }
     }
 
+    @Native(type = Native.Type.VMProtectBeginUltra)
     private void startItemUse(Slot slot, ItemInfo info) {
         originalSlot = mc.player.getInventory().getSelectedSlot();
         originalSourceSlot = slot.id;
@@ -346,6 +357,7 @@ public class ServerHelper extends ModuleStructure {
         }
     }
 
+    @Native(type = Native.Type.VMProtectBeginUltra)
     private void processItemAction() {
         long currentTime = System.currentTimeMillis();
         long elapsed = currentTime - actionTimer;
@@ -369,62 +381,21 @@ public class ServerHelper extends ModuleStructure {
             }
             case SWAP_TO_ITEM -> {
                 if (elapsed > settings.randomPreSwapDelay()) {
-                    if (targetSlot >= 0 && targetSlot < 9) {
-                        mc.player.networkHandler.sendPacket(new UpdateSelectedSlotC2SPacket(targetSlot));
-                        mc.player.getInventory().setSelectedSlot(targetSlot);
-                    } else if (targetSlot >= 36 && targetSlot < 45) {
-                        int hotbarSlot = targetSlot - 36;
-                        mc.player.networkHandler.sendPacket(new UpdateSelectedSlotC2SPacket(hotbarSlot));
-                        mc.player.getInventory().setSelectedSlot(hotbarSlot);
-                        targetSlot = hotbarSlot;
-                    } else {
-                        int swapSlot = 8;
-                        InventoryUtils.click(targetSlot, swapSlot, SlotActionType.SWAP);
-                        targetSlot = swapSlot;
-                        mc.player.networkHandler.sendPacket(new UpdateSelectedSlotC2SPacket(swapSlot));
-                        mc.player.getInventory().setSelectedSlot(swapSlot);
-                    }
+                    performSwapToItem();
                     actionState = ActionState.USE_ITEM;
                     actionTimer = currentTime;
                 }
             }
             case USE_ITEM -> {
                 if (elapsed > 40) {
-                    Angle angle = MathAngle.cameraAngle();
-                    mc.player.networkHandler.sendPacket(new PlayerInteractItemC2SPacket(Hand.MAIN_HAND, 0, angle.getYaw(), angle.getPitch()));
-                    mc.player.swingHand(Hand.MAIN_HAND);
+                    performUseItem();
                     actionState = ActionState.SWAP_BACK;
                     actionTimer = currentTime;
                 }
             }
             case SWAP_BACK -> {
                 if (elapsed > settings.randomPostSwapDelay()) {
-                    boolean wasFromInventory = !(originalSourceSlot >= 0 && originalSourceSlot < 9) && !(originalSourceSlot >= 36 && originalSourceSlot < 45);
-
-                    if (wasFromInventory) {
-                        if (targetSlot >= 0 && targetSlot < 9) {
-                            InventoryUtils.click(originalSourceSlot, targetSlot, SlotActionType.SWAP);
-                        }
-                    } else {
-                        if (originalSourceSlot >= 36 && originalSourceSlot < 45) {
-                            int hotbarSlot = originalSourceSlot - 36;
-                            if (targetSlot != hotbarSlot) {
-                                mc.player.networkHandler.sendPacket(new UpdateSelectedSlotC2SPacket(hotbarSlot));
-                                mc.player.getInventory().setSelectedSlot(hotbarSlot);
-                            }
-                        } else if (originalSourceSlot >= 0 && originalSourceSlot < 9) {
-                            if (targetSlot != originalSourceSlot) {
-                                mc.player.networkHandler.sendPacket(new UpdateSelectedSlotC2SPacket(originalSourceSlot));
-                                mc.player.getInventory().setSelectedSlot(originalSourceSlot);
-                            }
-                        }
-                    }
-
-                    if (mc.player.getInventory().getSelectedSlot() != originalSlot) {
-                        mc.player.networkHandler.sendPacket(new UpdateSelectedSlotC2SPacket(originalSlot));
-                        mc.player.getInventory().setSelectedSlot(originalSlot);
-                    }
-
+                    performSwapBack();
                     restoreKeyStates();
                     actionState = ActionState.SPEEDING_UP;
                     actionTimer = currentTime;
@@ -442,6 +413,62 @@ public class ServerHelper extends ModuleStructure {
         }
     }
 
+    @Native(type = Native.Type.VMProtectBeginUltra)
+    private void performSwapToItem() {
+        if (targetSlot >= 0 && targetSlot < 9) {
+            mc.player.networkHandler.sendPacket(new UpdateSelectedSlotC2SPacket(targetSlot));
+            mc.player.getInventory().setSelectedSlot(targetSlot);
+        } else if (targetSlot >= 36 && targetSlot < 45) {
+            int hotbarSlot = targetSlot - 36;
+            mc.player.networkHandler.sendPacket(new UpdateSelectedSlotC2SPacket(hotbarSlot));
+            mc.player.getInventory().setSelectedSlot(hotbarSlot);
+            targetSlot = hotbarSlot;
+        } else {
+            int swapSlot = 8;
+            InventoryUtils.click(targetSlot, swapSlot, SlotActionType.SWAP);
+            targetSlot = swapSlot;
+            mc.player.networkHandler.sendPacket(new UpdateSelectedSlotC2SPacket(swapSlot));
+            mc.player.getInventory().setSelectedSlot(swapSlot);
+        }
+    }
+
+    @Native(type = Native.Type.VMProtectBeginUltra)
+    private void performUseItem() {
+        Angle angle = MathAngle.cameraAngle();
+        mc.player.networkHandler.sendPacket(new PlayerInteractItemC2SPacket(Hand.MAIN_HAND, 0, angle.getYaw(), angle.getPitch()));
+        mc.player.swingHand(Hand.MAIN_HAND);
+    }
+
+    @Native(type = Native.Type.VMProtectBeginUltra)
+    private void performSwapBack() {
+        boolean wasFromInventory = !(originalSourceSlot >= 0 && originalSourceSlot < 9) && !(originalSourceSlot >= 36 && originalSourceSlot < 45);
+
+        if (wasFromInventory) {
+            if (targetSlot >= 0 && targetSlot < 9) {
+                InventoryUtils.click(originalSourceSlot, targetSlot, SlotActionType.SWAP);
+            }
+        } else {
+            if (originalSourceSlot >= 36 && originalSourceSlot < 45) {
+                int hotbarSlot = originalSourceSlot - 36;
+                if (targetSlot != hotbarSlot) {
+                    mc.player.networkHandler.sendPacket(new UpdateSelectedSlotC2SPacket(hotbarSlot));
+                    mc.player.getInventory().setSelectedSlot(hotbarSlot);
+                }
+            } else if (originalSourceSlot >= 0 && originalSourceSlot < 9) {
+                if (targetSlot != originalSourceSlot) {
+                    mc.player.networkHandler.sendPacket(new UpdateSelectedSlotC2SPacket(originalSourceSlot));
+                    mc.player.getInventory().setSelectedSlot(originalSourceSlot);
+                }
+            }
+        }
+
+        if (mc.player.getInventory().getSelectedSlot() != originalSlot) {
+            mc.player.networkHandler.sendPacket(new UpdateSelectedSlotC2SPacket(originalSlot));
+            mc.player.getInventory().setSelectedSlot(originalSlot);
+        }
+    }
+
+    @Native(type = Native.Type.VMProtectBeginMutation)
     private void restoreKeyStates() {
         if (!keysOverridden) return;
 
@@ -496,6 +523,7 @@ public class ServerHelper extends ModuleStructure {
         }
     }
 
+    @Native(type = Native.Type.VMProtectBeginMutation)
     private Slot findSlotByItem(ItemInfo info) {
         return InventoryUtils.findSlot(s ->
                 s.getStack().getItem().equals(info.item) &&
@@ -510,6 +538,7 @@ public class ServerHelper extends ModuleStructure {
         return name.getString().toLowerCase().replaceAll("§[0-9a-fk-or]", "");
     }
 
+    @Native(type = Native.Type.VMProtectBeginMutation)
     private String getKeyFromBinding(String bindingName) {
         return switch (bindingName) {
             case "Анти полет" -> "antiflight";

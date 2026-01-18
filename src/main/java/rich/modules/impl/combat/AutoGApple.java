@@ -1,5 +1,6 @@
 package rich.modules.impl.combat;
 
+import antidaunleak.api.annotation.Native;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.experimental.FieldDefaults;
@@ -121,6 +122,7 @@ public class AutoGApple extends ModuleStructure {
         return -1;
     }
 
+    @Native(type = Native.Type.VMProtectBeginMutation)
     private void swapToGappleSlot() {
         int gappleSlot = findGappleInHotbar();
         if (gappleSlot == -1) return;
@@ -142,6 +144,7 @@ public class AutoGApple extends ModuleStructure {
         }
     }
 
+    @Native(type = Native.Type.VMProtectBeginMutation)
     private void stopEating() {
         if (isEating) {
             mc.options.useKey.setPressed(false);

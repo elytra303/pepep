@@ -1,5 +1,6 @@
 package rich.modules.impl.movement;
 
+import antidaunleak.api.annotation.Native;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.experimental.FieldDefaults;
@@ -37,13 +38,10 @@ public class LongJump extends ModuleStructure {
     }
 
     @EventHandler
+    @Native(type = Native.Type.VMProtectBeginUltra)
     private void tickEvent(TickEvent event) {
         if (modeSetting.isSelected("Shulker Screen")) {
-            if (mc.currentScreen instanceof ShulkerBoxScreen) {
-                StopWatch speedTimer = new StopWatch();
-                float speed = 0.9F;
-                mc.player.addVelocity(0, speed, 0);
-            }
+            handleShulkerScreen();
         }
 
         if (modeSetting.isSelected("FunTime Soul Sand") && mc.player.isTouchingWater() && !mc.player.isSubmergedInWater()) {
@@ -51,46 +49,48 @@ public class LongJump extends ModuleStructure {
         }
 
         if (modeSetting.isSelected("Boat")) {
-            if (mc.currentScreen instanceof ShulkerBoxScreen) {
-                float yaw = (float) Math.toRadians(mc.player.getYaw());
-                double x = -Math.sin(yaw) * 1.0;
-                double z = Math.cos(yaw) * 1.0;
-                mc.player.addVelocity(0, 1, 0);
-                mc.player.setPos(mc.player.getX(), mc.player.getY() + 0.24, mc.player.getZ());
-            }
-            if (mc.currentScreen instanceof ShulkerBoxScreen) {
-                wasInShulkerScreen = true;
-            } else if (wasInShulkerScreen && mc.currentScreen == null && isNearShulkerBox()) {
-                wasInShulkerScreen = false;
-            }
+            handleBoatMode();
         }
 
-//        if (modeSetting.isSelected("Boat")) {
-//            for (Entity entity : mc.world.getEntities()) {
-//                if (entity instanceof BoatEntity boat && mc.player.distanceTo(boat) < 2F) {
-//                    if (mc.player.isOnGround()) {
-//                        mc.options.jumpKey.setPressed(false);
-//                        float yaw = (float) Math.toRadians(mc.player.getYaw());
-//                        double x = -Math.sin(yaw) * 1.25;
-//                        double z = Math.cos(yaw) * 1.25;
-//                        double y = 1.3;
-//                        mc.player.addVelocity(x, y, z);
-//                        deactivate();
-//                        break;
-//                    }
-//                }
-//            }
-//        }
-
         if (modeSetting.isSelected("Slime Boost")) {
-            if (mc.player.isOnGround() && isOnSlimeBlock()) {
-                wasOnSlimeBlock = true;
-            } else if (wasOnSlimeBlock && !mc.player.isOnGround() && mc.player.getVelocity().getY() > 0) {
-                mc.player.addVelocity(0, 1.35, 0);
-                wasOnSlimeBlock = false;
-            } else if (!isOnSlimeBlock()) {
-                wasOnSlimeBlock = false;
-            }
+            handleSlimeBoost();
+        }
+    }
+
+    @Native(type = Native.Type.VMProtectBeginMutation)
+    private void handleShulkerScreen() {
+        if (mc.currentScreen instanceof ShulkerBoxScreen) {
+            StopWatch speedTimer = new StopWatch();
+            float speed = 0.9F;
+            mc.player.addVelocity(0, speed, 0);
+        }
+    }
+
+    @Native(type = Native.Type.VMProtectBeginUltra)
+    private void handleBoatMode() {
+        if (mc.currentScreen instanceof ShulkerBoxScreen) {
+            float yaw = (float) Math.toRadians(mc.player.getYaw());
+            double x = -Math.sin(yaw) * 1.0;
+            double z = Math.cos(yaw) * 1.0;
+            mc.player.addVelocity(0, 1, 0);
+            mc.player.setPos(mc.player.getX(), mc.player.getY() + 0.24, mc.player.getZ());
+        }
+        if (mc.currentScreen instanceof ShulkerBoxScreen) {
+            wasInShulkerScreen = true;
+        } else if (wasInShulkerScreen && mc.currentScreen == null && isNearShulkerBox()) {
+            wasInShulkerScreen = false;
+        }
+    }
+
+    @Native(type = Native.Type.VMProtectBeginMutation)
+    private void handleSlimeBoost() {
+        if (mc.player.isOnGround() && isOnSlimeBlock()) {
+            wasOnSlimeBlock = true;
+        } else if (wasOnSlimeBlock && !mc.player.isOnGround() && mc.player.getVelocity().getY() > 0) {
+            mc.player.addVelocity(0, 1.35, 0);
+            wasOnSlimeBlock = false;
+        } else if (!isOnSlimeBlock()) {
+            wasOnSlimeBlock = false;
         }
     }
 

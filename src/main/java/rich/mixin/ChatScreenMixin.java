@@ -22,7 +22,7 @@ public abstract class ChatScreenMixin extends Screen {
 
     @Inject(method = "render", at = @At("TAIL"))
     private void onRender(DrawContext context, int mouseX, int mouseY, float deltaTicks, CallbackInfo ci) {
-        Drag.onDraw(context, mouseX, mouseY, deltaTicks);
+        Drag.onDraw(context, mouseX, mouseY, deltaTicks, true);
     }
 
     @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
@@ -54,5 +54,17 @@ public abstract class ChatScreenMixin extends Screen {
     @Override
     public boolean mouseDragged(Click click, double deltaX, double deltaY) {
         return super.mouseDragged(click, deltaX, deltaY);
+    }
+
+    @Override
+    public void removed() {
+        Drag.resetDragging();
+        super.removed();
+    }
+
+    @Override
+    public void close() {
+        Drag.resetDragging();
+        super.close();
     }
 }

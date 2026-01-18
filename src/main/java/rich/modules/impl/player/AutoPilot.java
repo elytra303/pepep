@@ -1,5 +1,6 @@
 package rich.modules.impl.player;
 
+import antidaunleak.api.annotation.Native;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.entity.ItemEntity;
 import net.minecraft.item.Items;
@@ -40,6 +41,7 @@ public class AutoPilot extends ModuleStructure {
     }
 
     @EventHandler
+    @Native(type = Native.Type.VMProtectBeginUltra)
     public void onTick(TickEvent event) {
         if (mc.player == null || mc.world == null || mc.getNetworkHandler() == null) {
             target = null;
@@ -49,33 +51,39 @@ public class AutoPilot extends ModuleStructure {
         target = findTarget();
 
         if (target != null) {
-            double dx = target.getEntityPos().getX() - mc.player.getEntityPos().getX();
-            double dy = (target.getEntityPos().getY()) - (mc.player.getEntityPos().getY() + mc.player.getEyeHeight(mc.player.getPose()));
-            double dz = target.getEntityPos().getZ() - mc.player.getEntityPos().getZ();
-
-            targetYaw = (float) (Math.atan2(dz, dx) * 180.0 / Math.PI - 90.0);
-            targetPitch = (float) (-Math.atan2(dy, Math.sqrt(dx * dx + dz * dz)) * 180.0 / Math.PI);
-
-            float maxRotation = 1024;
-
-            float yawDiff = MathHelper.wrapDegrees(targetYaw - lastYaw);
-            float yawStep = MathHelper.clamp(yawDiff, -maxRotation, maxRotation);
-            lastYaw += yawStep;
-
-            float pitchDiff = MathHelper.wrapDegrees(targetPitch - lastPitch);
-            float pitchStep = MathHelper.clamp(pitchDiff, -maxRotation, maxRotation);
-            lastPitch += pitchStep;
-            mc.player.setYaw(lastYaw);
-            mc.player.setPitch(lastPitch);
-            rot.setYaw(lastYaw);
-            rot.setPitch(lastPitch);
-            AngleConnection.INSTANCE.rotateTo(rot, AngleConfig.DEFAULT, TaskPriority.HIGH_IMPORTANCE_1, this);
+            processRotation();
         } else {
             lastYaw = mc.player.getYaw();
             lastPitch = mc.player.getPitch();
         }
     }
 
+    @Native(type = Native.Type.VMProtectBeginUltra)
+    private void processRotation() {
+        double dx = target.getEntityPos().getX() - mc.player.getEntityPos().getX();
+        double dy = (target.getEntityPos().getY()) - (mc.player.getEntityPos().getY() + mc.player.getEyeHeight(mc.player.getPose()));
+        double dz = target.getEntityPos().getZ() - mc.player.getEntityPos().getZ();
+
+        targetYaw = (float) (Math.atan2(dz, dx) * 180.0 / Math.PI - 90.0);
+        targetPitch = (float) (-Math.atan2(dy, Math.sqrt(dx * dx + dz * dz)) * 180.0 / Math.PI);
+
+        float maxRotation = 1024;
+
+        float yawDiff = MathHelper.wrapDegrees(targetYaw - lastYaw);
+        float yawStep = MathHelper.clamp(yawDiff, -maxRotation, maxRotation);
+        lastYaw += yawStep;
+
+        float pitchDiff = MathHelper.wrapDegrees(targetPitch - lastPitch);
+        float pitchStep = MathHelper.clamp(pitchDiff, -maxRotation, maxRotation);
+        lastPitch += pitchStep;
+        mc.player.setYaw(lastYaw);
+        mc.player.setPitch(lastPitch);
+        rot.setYaw(lastYaw);
+        rot.setPitch(lastPitch);
+        AngleConnection.INSTANCE.rotateTo(rot, AngleConfig.DEFAULT, TaskPriority.HIGH_IMPORTANCE_1, this);
+    }
+
+    @Native(type = Native.Type.VMProtectBeginMutation)
     private ItemEntity findTarget() {
         List<ItemEntity> items = mc.world.getEntitiesByClass(ItemEntity.class,
                         mc.player.getBoundingBox().expand(50.0),
@@ -86,6 +94,7 @@ public class AutoPilot extends ModuleStructure {
         return items.isEmpty() ? null : items.get(0);
     }
 
+    @Native(type = Native.Type.VMProtectBeginMutation)
     private boolean isValidItem(ItemEntity item) {
         var stack = item.getStack();
         return stack.getItem() == Items.SPAWNER ||
@@ -94,6 +103,8 @@ public class AutoPilot extends ModuleStructure {
                 stack.getItem().toString().contains("_spawn_egg");
     }
 
+    @Override
+    @Native(type = Native.Type.VMProtectBeginMutation)
     public void deactivate() {
         target = null;
         if (mc.player != null) {

@@ -1,5 +1,6 @@
 package rich.modules.impl.movement;
 
+import antidaunleak.api.annotation.Native;
 import lombok.AccessLevel;
 import lombok.experimental.FieldDefaults;
 import net.minecraft.block.Blocks;
@@ -36,6 +37,7 @@ public class WaterSpeed extends ModuleStructure {
     }
 
     @EventHandler
+    @Native(type = Native.Type.VMProtectBeginUltra)
     public void onTick(TickEvent e) {
         if (mc.player == null || mc.world == null) return;
 
@@ -45,44 +47,56 @@ public class WaterSpeed extends ModuleStructure {
         }
 
         if (iceBoost.isValue() && mc.player.isSwimming() && isHeadUnderIce()) {
-            float speedMultiplier = iceBoostSpeed.getValue();
-
-            double yaw = Math.toRadians(mc.player.getYaw());
-            double pitch = Math.toRadians(mc.player.getPitch());
-
-            double baseSpeed = 0.04 * speedMultiplier;
-
-            double horizontalSpeed = Math.cos(pitch) * baseSpeed;
-            double motionX = -Math.sin(yaw) * horizontalSpeed;
-            double motionZ = Math.cos(yaw) * horizontalSpeed;
-
-            mc.player.setVelocity(
-                    mc.player.getVelocity().x + motionX,
-                    mc.player.getVelocity().y,
-                    mc.player.getVelocity().z + motionZ
-            );
+            applyIceBoost();
         }
     }
 
+    @Native(type = Native.Type.VMProtectBeginUltra)
+    private void applyIceBoost() {
+        float speedMultiplier = iceBoostSpeed.getValue();
+
+        double yaw = Math.toRadians(mc.player.getYaw());
+        double pitch = Math.toRadians(mc.player.getPitch());
+
+        double baseSpeed = 0.04 * speedMultiplier;
+
+        double horizontalSpeed = Math.cos(pitch) * baseSpeed;
+        double motionX = -Math.sin(yaw) * horizontalSpeed;
+        double motionZ = Math.cos(yaw) * horizontalSpeed;
+
+        mc.player.setVelocity(
+                mc.player.getVelocity().x + motionX,
+                mc.player.getVelocity().y,
+                mc.player.getVelocity().z + motionZ
+        );
+    }
+
     @EventHandler
+    @Native(type = Native.Type.VMProtectBeginUltra)
     public void onSwimming(SwimmingEvent e) {
         if (mc.player == null || mc.world == null) return;
 
         if (modeSetting.isSelected("FunTime")) {
-            if (mc.options.jumpKey.isPressed()) {
-                float pitch = AngleConnection.INSTANCE.getRotation().getPitch();
-                float boost = pitch >= 0 ? MathHelper.clamp(pitch / 45, 1, 2) : 0.5F;
-                e.getVector().y = 0.1 * boost;
-            }
-
-            if (iceBoost.isValue() && isHeadUnderIce()) {
-                float speedMultiplier = iceBoostSpeed.getValue();
-                e.getVector().x *= speedMultiplier;
-                e.getVector().z *= speedMultiplier;
-            }
+            processSwimmingBoost(e);
         }
     }
 
+    @Native(type = Native.Type.VMProtectBeginMutation)
+    private void processSwimmingBoost(SwimmingEvent e) {
+        if (mc.options.jumpKey.isPressed()) {
+            float pitch = AngleConnection.INSTANCE.getRotation().getPitch();
+            float boost = pitch >= 0 ? MathHelper.clamp(pitch / 45, 1, 2) : 0.5F;
+            e.getVector().y = 0.1 * boost;
+        }
+
+        if (iceBoost.isValue() && isHeadUnderIce()) {
+            float speedMultiplier = iceBoostSpeed.getValue();
+            e.getVector().x *= speedMultiplier;
+            e.getVector().z *= speedMultiplier;
+        }
+    }
+
+    @Native(type = Native.Type.VMProtectBeginMutation)
     private boolean isHeadUnderIce() {
         if (mc.player == null || mc.world == null) return false;
 

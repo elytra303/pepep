@@ -14,8 +14,25 @@ public class Hud extends ModuleStructure {
     }
 
     public MultiSelectSetting interfaceSettings = new MultiSelectSetting("Элементы", "Настройка элементов интерфейса")
-            .value("Watermark", "HotKeys", "Potions", "Staff", "TargetHud", "Binds", "CoolDowns", "Inventory", "Info", "Notifications")
-            .selected("Watermark", "HotKeys", "Potions", "Staff", "TargetHud", "Binds", "CoolDowns", "Inventory", "Info", "Notifications");
+            .value("Watermark",
+                    "HotKeys",
+                    "Potions",
+                    "Staff",
+                    "TargetHud",
+//                    "CoolDowns",
+//                    "Inventory",
+                    "Info",
+                    "Notifications")
+
+            .selected("Watermark",
+                    "HotKeys",
+                    "Potions",
+                    "Staff",
+                    "TargetHud",
+//                    "CoolDowns",
+//                    "Inventory",
+                    "Info",
+                    "Notifications");
 
     public BooleanSetting showBps = new BooleanSetting("Show BPS", "Показывать блоки в секунду")
             .setValue(true)
@@ -25,18 +42,8 @@ public class Hud extends ModuleStructure {
             .setValue(true)
             .visible(() -> interfaceSettings.isSelected("Watermark"));
 
-    public MultiSelectSetting notificationSettings = new MultiSelectSetting("Уведомления", "Выберите, когда будут появляться уведомления")
-            .value("Module Switch", "Staff Join", "Staff Leave", "Item Pick Up", "Auto Armor", "Break Shield")
-            .selected("Module Switch", "Item Pick Up", "Auto Armor", "Break Shield")
-            .visible(() -> interfaceSettings.isSelected("Notifications"));
-
-    public SliderSettings soundVolumeSetting = new SliderSettings("Sound Volume", "Volume for module switch sounds")
-            .range(0.0f, 1.0f)
-            .setValue(1.0f)
-            .visible(() -> interfaceSettings.isSelected("Notifications"));
-
     public Hud() {
         super("Hud", ModuleCategory.RENDER);
-        setup(interfaceSettings, showBps, showTps, notificationSettings, soundVolumeSetting);
+        setup(interfaceSettings, showBps, showTps);
     }
 }

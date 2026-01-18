@@ -1,8 +1,8 @@
 package rich.modules.impl.movement;
 
+import antidaunleak.api.annotation.Native;
 import rich.events.api.EventHandler;
 import rich.events.impl.KeyEvent;
-import rich.modules.impl.render.Hud;
 import rich.modules.module.ModuleStructure;
 import rich.modules.module.category.ModuleCategory;
 import rich.modules.module.setting.implement.BindSetting;
@@ -32,12 +32,11 @@ public class ElytraTarget extends ModuleStructure {
     }
 
     @EventHandler
+    @Native(type = Native.Type.VMProtectBeginMutation)
     private void onEventKey(KeyEvent e) {
         if (e.isKeyDown(forward.getKey())) {
             shouldElytraTarget = !shouldElytraTarget;
-//            Notifications.getInstance().addList("Elytra Forward " + (shouldElytraTarget ? "enabled!" : "disabled"), 1500, null);
             SoundManager.playSound(shouldElytraTarget ? SoundManager.MODULE_ENABLE : SoundManager.MODULE_DISABLE, 1, 1.0f);
         }
     }
-
 }

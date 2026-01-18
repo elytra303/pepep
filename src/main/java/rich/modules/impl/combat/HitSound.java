@@ -1,11 +1,11 @@
 package rich.modules.impl.combat;
 
+import antidaunleak.api.annotation.Native;
 import net.minecraft.entity.LivingEntity;
 import rich.events.api.EventHandler;
 import rich.events.impl.AttackEvent;
 import rich.modules.module.ModuleStructure;
 import rich.modules.module.category.ModuleCategory;
-import rich.modules.module.setting.implement.MultiSelectSetting;
 import rich.modules.module.setting.implement.SelectSetting;
 import rich.modules.module.setting.implement.SliderSettings;
 import rich.util.Instance;
@@ -33,10 +33,16 @@ public class HitSound extends ModuleStructure {
     }
 
     @EventHandler
+    @Native(type = Native.Type.VMProtectBeginMutation)
     public void onAttack(AttackEvent event) {
         if (mc.player == null || mc.world == null) return;
         if (!(event.getTarget() instanceof LivingEntity)) return;
 
+        playSelectedSound();
+    }
+
+    @Native(type = Native.Type.VMProtectBeginMutation)
+    private void playSelectedSound() {
         float vol = volume.getValue();
 
         if (soundType.isSelected("Moan")) {

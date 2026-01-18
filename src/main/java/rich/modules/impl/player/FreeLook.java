@@ -1,5 +1,6 @@
 package rich.modules.impl.player;
 
+import antidaunleak.api.annotation.Native;
 import lombok.AccessLevel;
 import lombok.experimental.FieldDefaults;
 import net.minecraft.client.option.Perspective;
@@ -16,7 +17,6 @@ import rich.modules.module.category.ModuleCategory;
 import rich.modules.module.setting.implement.BindSetting;
 import rich.util.string.PlayerInteractionHelper;
 
-
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class FreeLook extends ModuleStructure {
 
@@ -31,6 +31,7 @@ public class FreeLook extends ModuleStructure {
     }
 
     @EventHandler
+    @Native(type = Native.Type.VMProtectBeginMutation)
     public void onKey(KeyEvent e) {
         if (e.isKeyDown(freeLookSetting.getKey())) {
             perspective = mc.options.getPerspective();
@@ -41,20 +42,32 @@ public class FreeLook extends ModuleStructure {
     }
 
     @EventHandler
+    @Native(type = Native.Type.VMProtectBeginUltra)
     public void onFov(FovEvent e) {
         if (PlayerInteractionHelper.isKey(freeLookSetting)) {
-            if (mc.options.getPerspective().isFirstPerson()) mc.options.setPerspective(Perspective.THIRD_PERSON_BACK);
-            if (angle == null) {
-                angle = MathAngle.cameraAngle();
-            }
+            handleFreeLookActivation();
         } else if (perspective != null) {
-            mc.options.setPerspective(perspective);
-            perspective = null;
-            angle = null;
+            handleFreeLookDeactivation();
         }
     }
 
+    @Native(type = Native.Type.VMProtectBeginMutation)
+    private void handleFreeLookActivation() {
+        if (mc.options.getPerspective().isFirstPerson()) mc.options.setPerspective(Perspective.THIRD_PERSON_BACK);
+        if (angle == null) {
+            angle = MathAngle.cameraAngle();
+        }
+    }
+
+    @Native(type = Native.Type.VMProtectBeginMutation)
+    private void handleFreeLookDeactivation() {
+        mc.options.setPerspective(perspective);
+        perspective = null;
+        angle = null;
+    }
+
     @EventHandler
+    @Native(type = Native.Type.VMProtectBeginUltra)
     public void onMouseRotation(MouseRotationEvent e) {
         if (PlayerInteractionHelper.isKey(freeLookSetting)) {
             if (angle == null) {

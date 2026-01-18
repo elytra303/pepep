@@ -1,8 +1,10 @@
 package rich.client.draggables;
 
 import net.minecraft.client.gui.DrawContext;
+import rich.events.impl.PacketEvent;
 import rich.modules.impl.render.Hud;
 import rich.screens.hud.*;
+import rich.util.config.impl.drag.DragConfig;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -10,22 +12,37 @@ import java.util.List;
 public class HudManager {
 
     private final List<HudElement> elements = new ArrayList<>();
+    private boolean initialized = false;
 
     public HudManager() {
     }
 
     public void initElements() {
+        if (initialized) return;
+
         register(new Watermark());
         register(new HotKeys());
+        register(new Notifications());
         register(new Potions());
+        register(new CoolDowns());
         register(new TargetHud());
         register(new Info());
         register(new Staff());
         register(new Inventory());
+
+        initialized = true;
+
+        DragConfig.getInstance().load();
     }
 
     public void register(HudElement element) {
         elements.add(element);
+    }
+
+    public void onPacket(PacketEvent e) {
+        for (HudElement element : elements) {
+            element.onPacket(e);
+        }
     }
 
     public void render(DrawContext context, float tickDelta, int mouseX, int mouseY) {
@@ -58,7 +75,7 @@ public class HudManager {
     public HudElement getElementAt(double mouseX, double mouseY) {
         for (int i = elements.size() - 1; i >= 0; i--) {
             HudElement element = elements.get(i);
-            if (isElementEnabled(element)) {
+            if (isElementEnabled(element) && element.visible()) {
                 if (mouseX >= element.getX() && mouseX <= element.getX() + element.getWidth() &&
                         mouseY >= element.getY() && mouseY <= element.getY() + element.getHeight()) {
                     return element;
@@ -80,9 +97,11 @@ public class HudManager {
     }
 
     public void saveConfig() {
+        DragConfig.getInstance().save();
     }
 
     public void loadConfig() {
+        DragConfig.getInstance().load();
     }
 
     public List<HudElement> getElements() {
@@ -97,5 +116,9 @@ public class HudManager {
             }
         }
         return enabled;
+    }
+
+    public boolean isInitialized() {
+        return initialized;
     }
 }

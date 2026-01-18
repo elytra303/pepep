@@ -133,7 +133,8 @@ public class ModuleComponent implements IMinecraft {
         lastListWidth = width;
         lastListHeight = height;
 
-        animationHandler.updateAll(displayModules, selectedModule, mouseX, mouseY, x, y, width, height);
+        animationHandler.updateAll(displayModules, selectedModule, mouseX, mouseY, x, y, width, height,
+                (float) scrollHandler.getModuleDisplayScroll());
         listRenderer.render(context, displayModules, selectedModule, bindingModule, x, y, width, height,
                 mouseX, mouseY, guiScale, alphaMultiplier, animationHandler, scrollHandler);
     }

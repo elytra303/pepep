@@ -15,7 +15,10 @@ public class EventListener implements Listener {
     @EventHandler
     public void onTick(TickEvent e) {
         Initialization.getInstance().getManager().getAttackPerpetrator().tick();
-     }
+        if (Initialization.getInstance().getManager().getHudManager() != null) {
+            Initialization.getInstance().getManager().getHudManager().tick();
+        }
+    }
 
     @EventHandler
     public void onPacket(PacketEvent e) {
@@ -28,12 +31,14 @@ public class EventListener implements Listener {
             case UpdateSelectedSlotC2SPacket slot -> selectedSlot = slot.getSelectedSlot();
             default -> {}
         }
-        Initialization.getInstance().getManager().getAttackPerpetrator().onPacket(e);
-    }
 
+        Initialization.getInstance().getManager().getAttackPerpetrator().onPacket(e);
+        Initialization.getInstance().getManager().getHudManager().onPacket(e);
+    }
 
     @EventHandler
     public void onUsingItemEvent(UsingItemEvent e) {
         Initialization.getInstance().getManager().getAttackPerpetrator().onUsingItem(e);
     }
+
 }

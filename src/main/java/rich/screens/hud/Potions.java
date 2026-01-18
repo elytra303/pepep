@@ -8,6 +8,7 @@ import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.util.Identifier;
 import rich.client.draggables.AbstractHudElement;
+import rich.util.animations.Direction;
 import rich.util.render.Render2D;
 import rich.util.render.Scissor;
 import rich.util.render.font.Fonts;
@@ -43,7 +44,12 @@ public class Potions extends AbstractHudElement {
 
     public Potions() {
         super("Potions", 300, 100, 80, 23, true);
-        startAnimation();
+        stopAnimation();
+    }
+
+    @Override
+    public boolean visible() {
+        return !scaleAnimation.isFinished(Direction.BACKWARDS);
     }
 
     @Override
@@ -51,6 +57,7 @@ public class Potions extends AbstractHudElement {
         if (mc.player == null) {
             effectsList = new ArrayList<>();
             activeEffectIds.clear();
+            stopAnimation();
             return;
         }
 
@@ -69,7 +76,16 @@ public class Potions extends AbstractHudElement {
             }
         }
 
-        if (effectsList.isEmpty()) {
+        boolean hasActiveEffects = !activeEffectIds.isEmpty() || !effectAnimations.isEmpty();
+        boolean inChat = isChat(mc.currentScreen);
+
+        if (hasActiveEffects || inChat) {
+            startAnimation();
+        } else {
+            stopAnimation();
+        }
+
+        if (effectsList.isEmpty() && inChat) {
             long currentTime = System.currentTimeMillis();
             if (currentTime - lastEffectChange >= 1000) {
                 currentRandomEffect = RANDOM_EFFECTS.get(new Random().nextInt(RANDOM_EFFECTS.size()));
@@ -151,6 +167,8 @@ public class Potions extends AbstractHudElement {
     public void drawDraggable(DrawContext context, int alpha) {
         if (alpha <= 0) return;
 
+        float alphaFactor = alpha / 255.0f;
+
         long currentTime = System.currentTimeMillis();
         float deltaTime = (currentTime - lastUpdateTime) / 1000.0f;
         lastUpdateTime = currentTime;
@@ -181,14 +199,15 @@ public class Potions extends AbstractHudElement {
         float x = getX();
         float y = getY();
 
+        boolean hasAnimatingEffects = !effectAnimations.isEmpty();
+        boolean showExample = !hasAnimatingEffects && isChat(mc.currentScreen);
+
         int offset = 23;
         float targetWidth = 80;
 
-        boolean hasAnimatingEffects = !effectAnimations.isEmpty();
+        String exampleTimer = "00:00";
 
-        String exampleTimer = "[00:00]";
-
-        if (!hasAnimatingEffects) {
+        if (showExample) {
             offset += 11;
             String name = "Example Effect";
             String levelText = "LVL";
@@ -196,7 +215,7 @@ public class Potions extends AbstractHudElement {
             float nameWidth = Fonts.BOLD.getWidth(name, 6);
             float levelWidth = Fonts.REGULAR.getWidth(levelText, 6);
             targetWidth = Math.max(nameWidth + 3 + levelWidth + timerWidth + 60, targetWidth);
-        } else {
+        } else if (hasAnimatingEffects) {
             for (Map.Entry<String, Float> entry : effectAnimations.entrySet()) {
                 String id = entry.getKey();
                 float animation = entry.getValue();
@@ -207,7 +226,7 @@ public class Potions extends AbstractHudElement {
 
                 offset += (int) (animation * 11);
 
-                String timer = "[" + formatDuration(effect.getDuration()) + "]";
+                String timer = "" + formatDuration(effect.getDuration()) + "";
                 float timerWidth = Fonts.BOLD.getWidth(timer, 6);
                 float fullNameWidth = getFullNameWidth(effect);
                 targetWidth = Math.max(fullNameWidth + timerWidth + 60, targetWidth);
@@ -230,17 +249,18 @@ public class Potions extends AbstractHudElement {
         setHeight((int) Math.ceil(animatedHeight));
 
         float contentHeight = animatedHeight;
+        int bgAlpha = (int) (255 * alphaFactor);
 
         if (contentHeight > 0) {
             Render2D.gradientRect(x, y, getWidth(), contentHeight,
                     new int[]{
-                            new Color(52, 52, 52, 255).getRGB(),
-                            new Color(32, 32, 32, 255).getRGB(),
-                            new Color(52, 52, 52, 255).getRGB(),
-                            new Color(32, 32, 32, 255).getRGB()
+                            new Color(52, 52, 52, bgAlpha).getRGB(),
+                            new Color(32, 32, 32, bgAlpha).getRGB(),
+                            new Color(52, 52, 52, bgAlpha).getRGB(),
+                            new Color(32, 32, 32, bgAlpha).getRGB()
                     },
                     5);
-            Render2D.outline(x, y, getWidth(), contentHeight, 0.35f, new Color(90, 90, 90, 255).getRGB(), 5);
+            Render2D.outline(x, y, getWidth(), contentHeight, 0.35f, new Color(90, 90, 90, bgAlpha).getRGB(), 5);
         }
 
         Scissor.enable(x, y, getWidth(), contentHeight);
@@ -252,38 +272,38 @@ public class Potions extends AbstractHudElement {
 
         Render2D.gradientRect(x + getWidth() - countTextWidth - potionsTextWidth + 3, y + 5, 14, 12,
                 new int[]{
-                        new Color(52, 52, 52, 255).getRGB(),
-                        new Color(52, 52, 52, 255).getRGB(),
-                        new Color(52, 52, 52, 255).getRGB(),
-                        new Color(52, 52, 52, 255).getRGB()
+                        new Color(52, 52, 52, bgAlpha).getRGB(),
+                        new Color(52, 52, 52, bgAlpha).getRGB(),
+                        new Color(52, 52, 52, bgAlpha).getRGB(),
+                        new Color(52, 52, 52, bgAlpha).getRGB()
                 },
                 3);
 
-        Fonts.HUD_ICONS.draw("f", x + getWidth() - countTextWidth - potionsTextWidth + 5, y + 6, 10, new Color(165, 165, 165, 255).getRGB());
+        Fonts.HUD_ICONS.draw("f", x + getWidth() - countTextWidth - potionsTextWidth + 5, y + 6, 10, new Color(165, 165, 165, bgAlpha).getRGB());
 
-        Fonts.BOLD.draw("Potions", x + 8, y + 6.5f, 6, new Color(255, 255, 255, 255).getRGB());
+        Fonts.BOLD.draw("Potions", x + 8, y + 6.5f, 6, new Color(255, 255, 255, bgAlpha).getRGB());
 
         int moduleOffset = 23;
 
-        if (!hasAnimatingEffects) {
+        if (showExample) {
             String name = "Example Effect";
             String levelText = "LVL";
-            String timer = "[00:00]";
+            String timer = "00:00";
 
             float timerWidth = Fonts.BOLD.getWidth(timer, 6);
             float timerBoxX = x + getWidth() - timerWidth - 11.5f;
 
             Render2D.gradientRect(timerBoxX, y + moduleOffset - 2f, timerWidth + 4, 9,
                     new int[]{
-                            new Color(52, 52, 52, 255).getRGB(),
-                            new Color(52, 52, 52, 255).getRGB(),
-                            new Color(52, 52, 52, 255).getRGB(),
-                            new Color(52, 52, 52, 255).getRGB()
+                            new Color(52, 52, 52, bgAlpha).getRGB(),
+                            new Color(52, 52, 52, bgAlpha).getRGB(),
+                            new Color(52, 52, 52, bgAlpha).getRGB(),
+                            new Color(52, 52, 52, bgAlpha).getRGB()
                     },
                     3);
 
             Render2D.outline(timerBoxX, y + moduleOffset - 2f, timerWidth + 4, 9, 0.05f,
-                    new Color(132, 132, 132, 255).getRGB(), 2);
+                    new Color(132, 132, 132, bgAlpha).getRGB(), 2);
 
             Identifier randomTexture = getRandomEffectTexture();
             float scale = ICON_SIZE / 18f;
@@ -298,16 +318,16 @@ public class Potions extends AbstractHudElement {
 
             float nameX = x + 20;
             Fonts.BOLD.draw(name, nameX, y + moduleOffset - 1.5f, 6,
-                    new Color(255, 255, 255, 255).getRGB());
+                    new Color(255, 255, 255, bgAlpha).getRGB());
 
             float nameWidth = Fonts.BOLD.getWidth(name, 6);
 
             Fonts.TEST.draw(levelText, nameX + nameWidth + 2, y + moduleOffset - 0.5f, 5,
-                    new Color(155, 155, 155, 255).getRGB());
+                    new Color(155, 155, 155, bgAlpha).getRGB());
 
             Fonts.BOLD.draw(timer, timerBoxX + 2, y + moduleOffset - 1, 6,
-                    new Color(165, 165, 165, 255).getRGB());
-        } else {
+                    new Color(165, 165, 165, bgAlpha).getRGB());
+        } else if (hasAnimatingEffects) {
             for (Map.Entry<String, Float> entry : effectAnimations.entrySet()) {
                 String id = entry.getKey();
                 float animation = entry.getValue();
@@ -319,13 +339,13 @@ public class Potions extends AbstractHudElement {
                 String name = getEffectName(effect);
                 int amplifier = effect.getAmplifier();
                 String levelText = getLevelText(amplifier);
-                String timer = "[" + formatDuration(effect.getDuration()) + "]";
+                String timer = "" + formatDuration(effect.getDuration()) + "";
 
                 int duration = effect.getDuration();
 
                 float timerWidth = Fonts.BOLD.getWidth(timer, 6);
 
-                int baseAlpha = (int) (255 * animation);
+                int baseAlpha = (int) (255 * animation * alphaFactor);
                 int blinkAlpha = getBlinkAlpha(duration, baseAlpha);
 
                 int textColor = new Color(255, 255, 255, blinkAlpha).getRGB();

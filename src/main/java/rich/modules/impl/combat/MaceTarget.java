@@ -1,5 +1,6 @@
 package rich.modules.impl.combat;
 
+import antidaunleak.api.annotation.Native;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.experimental.FieldDefaults;
@@ -84,10 +85,12 @@ public class MaceTarget extends ModuleStructure {
         stageHandler = new StageHandler(armorSwapHandler, fireworkHandler, attackHandler, fireworkTimer);
     }
 
+    @Native(type = Native.Type.VMProtectBeginMutation)
     private boolean isSilentMode() {
         return modeSetting.getSelected().equals("Silent");
     }
 
+    @Native(type = Native.Type.VMProtectBeginMutation)
     private boolean isReallyWorldMode() {
         return serverMode.getSelected().equals("ReallyWorld");
     }
@@ -96,6 +99,7 @@ public class MaceTarget extends ModuleStructure {
         return isSilentMode() ? SwapSettings.instant() : SwapSettings.legit();
     }
 
+    @Native(type = Native.Type.VMProtectBeginMutation)
     private void updateHandlers() {
         stageHandler.setSilentMode(isSilentMode());
         stageHandler.setReallyWorldMode(isReallyWorldMode());
@@ -105,6 +109,7 @@ public class MaceTarget extends ModuleStructure {
     }
 
     @Override
+    @Native(type = Native.Type.VMProtectBeginMutation)
     public void activate() {
         stageHandler.reset();
         target = null;
@@ -116,6 +121,7 @@ public class MaceTarget extends ModuleStructure {
     }
 
     @Override
+    @Native(type = Native.Type.VMProtectBeginMutation)
     public void deactivate() {
         if (autoEquipChest.isValue() && mc.player != null) {
             equipChestplateOnDisable();
@@ -131,6 +137,7 @@ public class MaceTarget extends ModuleStructure {
         AngleConnection.INSTANCE.startReturning();
     }
 
+    @Native(type = Native.Type.VMProtectBeginUltra)
     private void equipChestplateOnDisable() {
         if (InventoryUtils.hasElytra()) {
             int slot = InventoryUtils.findChestArmorSlot();
@@ -143,6 +150,7 @@ public class MaceTarget extends ModuleStructure {
     }
 
     @EventHandler
+    @Native(type = Native.Type.VMProtectBeginUltra)
     public void onRotationUpdate(RotationUpdateEvent event) {
         if (mc.player == null || mc.world == null) return;
 
@@ -174,19 +182,25 @@ public class MaceTarget extends ModuleStructure {
         }
 
         if (event.getType() == EventType.POST) {
-            if (attackHandler.isPendingAttack()) {
-                attackHandler.performAttack(target);
-                attackHandler.setPendingAttack(false);
+            handlePostRotation();
+        }
+    }
 
-                if (attackHandler.isShouldDisableAfterAttack()) {
-                    attackHandler.setShouldDisableAfterAttack(false);
-                    setState(false);
-                }
+    @Native(type = Native.Type.VMProtectBeginUltra)
+    private void handlePostRotation() {
+        if (attackHandler.isPendingAttack()) {
+            attackHandler.performAttack(target);
+            attackHandler.setPendingAttack(false);
+
+            if (attackHandler.isShouldDisableAfterAttack()) {
+                attackHandler.setShouldDisableAfterAttack(false);
+                setState(false);
             }
         }
     }
 
     @EventHandler
+    @Native(type = Native.Type.VMProtectBeginUltra)
     public void onTick(TickEvent event) {
         if (mc.player == null || mc.world == null) {
             resetAllStates();
@@ -206,6 +220,11 @@ public class MaceTarget extends ModuleStructure {
             return;
         }
 
+        processStage();
+    }
+
+    @Native(type = Native.Type.VMProtectBeginUltra)
+    private void processStage() {
         boolean hasElytra = InventoryUtils.hasElytra();
         Stage currentStage = stageHandler.getStage();
 
@@ -235,6 +254,7 @@ public class MaceTarget extends ModuleStructure {
         }
     }
 
+    @Native(type = Native.Type.VMProtectBeginMutation)
     private void findTarget() {
         TargetFinder.EntityFilter filter = new TargetFinder.EntityFilter(targetType.getSelected());
         targetFinder.searchTargets(mc.world.getEntities(), 128.0f, 360, true);
@@ -242,12 +262,14 @@ public class MaceTarget extends ModuleStructure {
         target = targetFinder.getCurrentTarget();
     }
 
+    @Native(type = Native.Type.VMProtectBeginMutation)
     private void rotateTo(Angle angle) {
         AngleConfig config = new AngleConfig(new LinearConstructor(), true, false);
         Angle.VecRotation rotation = new Angle.VecRotation(angle, angle.toVector());
         AngleConnection.INSTANCE.rotateTo(rotation, target, 1, config, TaskPriority.HIGH_IMPORTANCE_1, this);
     }
 
+    @Native(type = Native.Type.VMProtectBeginMutation)
     private void resetAllStates() {
         armorSwapHandler.reset();
         fireworkHandler.reset();

@@ -4,6 +4,7 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.experimental.FieldDefaults;
+import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.entity.EntityPose;
 import net.minecraft.entity.effect.StatusEffects;
@@ -12,11 +13,10 @@ import net.minecraft.item.consume.UseAction;
 import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.c2s.play.HandSwingC2SPacket;
 import net.minecraft.network.packet.c2s.play.UpdateSelectedSlotC2SPacket;
-import net.minecraft.sound.SoundEvents;
 import net.minecraft.util.Hand;
+import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
-import org.joml.Vector3f;
 import rich.IMinecraft;
 import rich.events.api.types.EventType;
 import rich.events.impl.PacketEvent;
@@ -30,8 +30,6 @@ import rich.modules.impl.movement.ElytraTarget;
 import rich.util.player.PlayerSimulation;
 import rich.util.string.PlayerInteractionHelper;
 import rich.util.timer.StopWatch;
-
-import java.util.concurrent.ThreadLocalRandom;
 
 @Setter
 @Getter
@@ -82,13 +80,15 @@ public class StrikeManager implements IMinecraft {
         return clickScheduler.isHoldingMace();
     }
 
+    private boolean isEmptyHand() {
+        return mc.player != null && mc.player.getMainHandStack().isEmpty();
+    }
+
     private boolean isPlayerEating() {
         if (mc.player == null) return false;
         if (!mc.player.isUsingItem()) return false;
-
         var activeItem = mc.player.getActiveItem();
         if (activeItem.isEmpty()) return false;
-
         var useAction = activeItem.getUseAction();
         return useAction == UseAction.EAT || useAction == UseAction.DRINK;
     }
@@ -98,6 +98,71 @@ public class StrikeManager implements IMinecraft {
         return aura.options.isSelected("Не бить если ешь") && isPlayerEating();
     }
 
+    private boolean isInWater() {
+        return mc.player != null && (mc.player.isTouchingWater() || mc.player.isSubmergedInWater() || mc.player.isSwimming());
+    }
+
+    private boolean isFullyUnderwater() {
+        return mc.player != null && (mc.player.isSubmergedInWater() || mc.player.isSwimming());
+    }
+
+    private boolean isOnWaterSurface() {
+        if (mc.player == null) return false;
+        return mc.player.isTouchingWater() && !mc.player.isSubmergedInWater() && !mc.player.isSwimming();
+    }
+
+    private boolean canCritOnWaterSurface() {
+        if (mc.player == null) return false;
+        if (!isOnWaterSurface()) return false;
+
+        double velocityY = mc.player.getVelocity().y;
+        double fallDistance = mc.player.fallDistance;
+        double playerY = mc.player.getY();
+        double lastY = mc.player.lastRenderY;
+
+        boolean isFalling = velocityY < -0.08D;
+        boolean hasFallDistance = fallDistance > 0.0D;
+        boolean isDescending = playerY < lastY;
+
+        return isFalling || hasFallDistance || isDescending;
+    }
+
+    private boolean isAboveWaterAndFalling() {
+        if (mc.player == null) return false;
+        if (!mc.player.isTouchingWater()) return false;
+
+        double velocityY = mc.player.getVelocity().y;
+        double fallDistance = mc.player.fallDistance;
+
+        boolean notFullySubmerged = !mc.player.isSubmergedInWater();
+        boolean isFallingDown = velocityY < -0.05D || fallDistance > 0.0D;
+
+        return notFullySubmerged && isFallingDown;
+    }
+
+    private boolean hasLowCeiling() {
+        if (mc.player == null || mc.world == null) return false;
+
+        BlockPos playerPos = mc.player.getBlockPos();
+        BlockPos above1 = playerPos.up(2);
+        BlockPos above2 = playerPos.up(3);
+
+        BlockState state1 = mc.world.getBlockState(above1);
+        BlockState state2 = mc.world.getBlockState(above2);
+
+        boolean blocked1 = !state1.isAir() && !state1.getCollisionShape(mc.world, above1).isEmpty();
+        boolean blocked2 = !state2.isAir() && !state2.getCollisionShape(mc.world, above2).isEmpty();
+
+        return blocked1 || blocked2;
+    }
+
+    private long getMinAttackDelay() {
+        if (isHoldingMace()) {
+            return 50L;
+        }
+        return 550L;
+    }
+
     void handleAttack(StrikerConstructor.AttackPerpetratorConfigurable config) {
         if (config.getTarget() == null || !config.getTarget().isAlive()) {
             resetPendingState();
@@ -105,9 +170,7 @@ public class StrikeManager implements IMinecraft {
         }
 
         if (shouldWaitForEating()) {
-            if (pendingAttack) {
-                cancelPendingAttack();
-            }
+            if (pendingAttack) cancelPendingAttack();
             return;
         }
 
@@ -120,16 +183,11 @@ public class StrikeManager implements IMinecraft {
                 AutoSprint.getInstance().isState() &&
                 AutoSprint.getInstance().getNoReset().isValue();
 
-        boolean inWater = mc.player.isSubmergedInWater();
-        boolean needSprintReset = !noResetSprint && !inWater && mc.player.isSprinting();
+        boolean inWater = isInWater();
+        boolean needSprintReset = !noResetSprint && !inWater && mc.player.isSprinting() && !mc.player.isGliding();
 
         if (pendingAttack && AutoSprint.isBlocked() && AutoSprint.sprintBlockTicks >= 1) {
             if (shouldWaitForEating()) {
-                cancelPendingAttack();
-                return;
-            }
-
-            if (!shouldAttack(config)) {
                 cancelPendingAttack();
                 return;
             }
@@ -157,15 +215,16 @@ public class StrikeManager implements IMinecraft {
             return;
         }
 
-        if (!shouldAttack(config)) {
-            if (pendingAttack) cancelPendingAttack();
-            return;
+        if (canAttack(config, 0)) {
+            preAttackEntity(config);
         }
 
         boolean elytraMode = checkElytraMode(config);
-        if (elytraMode && !checkElytraRaycast(config)) {
-            if (pendingAttack) cancelPendingAttack();
-            return;
+        if (elytraMode) {
+            if (!checkElytraRaycast(config)) {
+                if (pendingAttack) cancelPendingAttack();
+                return;
+            }
         }
 
         if (!RaycastAngle.rayTrace(config)) {
@@ -175,7 +234,6 @@ public class StrikeManager implements IMinecraft {
 
         if (canAttack(config, 0)) {
             if (needSprintReset && !AutoSprint.isBlocked()) {
-                handleShieldUnpress(config);
                 AutoSprint.blockSprint();
                 pendingAttack = true;
                 return;
@@ -186,38 +244,33 @@ public class StrikeManager implements IMinecraft {
         }
 
         if (canAttack(config, 2) && needSprintReset && !AutoSprint.isBlocked()) {
-            handleShieldUnpress(config);
+            preAttackEntity(config);
             AutoSprint.blockSprint();
             pendingAttack = true;
         }
     }
 
+    private void preAttackEntity(StrikerConstructor.AttackPerpetratorConfigurable config) {
+        if (config.isShouldUnPressShield() &&
+                mc.player.isUsingItem() &&
+                mc.player.getActiveItem().getItem().equals(Items.SHIELD)) {
+            mc.interactionManager.stopUsingItem(mc.player);
+            shieldWatch.reset();
+        }
+    }
+
     private void handleMaceAttack(StrikerConstructor.AttackPerpetratorConfigurable config) {
-        if (shouldWaitForEating()) {
-            return;
-        }
-
-        if (mc.player.distanceTo(config.getTarget()) > Aura.getInstance().getAttackrange().getValue()) {
-            return;
-        }
-
-        if (!RaycastAngle.rayTrace(config)) {
-            return;
-        }
-
-        if (!clickScheduler.isMaceFastAttack()) {
-            return;
-        }
-
-        if (!attackTimer.finished(25)) {
-            return;
-        }
+        if (shouldWaitForEating()) return;
+        if (mc.player.distanceTo(config.getTarget()) > Aura.getInstance().getAttackrange().getValue()) return;
+        if (!RaycastAngle.rayTrace(config)) return;
+        if (!clickScheduler.isMaceFastAttack()) return;
+        if (!attackTimer.finished(25)) return;
 
         boolean noResetSprint = AutoSprint.getInstance() != null &&
                 AutoSprint.getInstance().isState() &&
                 AutoSprint.getInstance().getNoReset().isValue();
 
-        if (!noResetSprint && !mc.player.isSubmergedInWater() && mc.player.isSprinting()) {
+        if (!noResetSprint && !isInWater() && mc.player.isSprinting() && !mc.player.isGliding()) {
             AutoSprint.blockSprint();
             if (AutoSprint.sprintBlockTicks < 1) {
                 pendingAttack = true;
@@ -226,10 +279,7 @@ public class StrikeManager implements IMinecraft {
         }
 
         executeAttack(config);
-
-        if (AutoSprint.isBlocked()) {
-            AutoSprint.unblockSprint();
-        }
+        if (AutoSprint.isBlocked()) AutoSprint.unblockSprint();
         pendingAttack = false;
     }
 
@@ -247,7 +297,6 @@ public class StrikeManager implements IMinecraft {
         if (ElytraTarget.shouldElytraTarget) {
             leadTicks = ElytraTarget.getInstance().elytraForward.getValue();
         }
-
         Vec3d predictedPos = config.getTarget().getEntityPos().add(targetVelocity.multiply(leadTicks));
         Box predictedBox = new Box(
                 predictedPos.x - config.getTarget().getWidth() / 2,
@@ -257,7 +306,6 @@ public class StrikeManager implements IMinecraft {
                 predictedPos.y + config.getTarget().getHeight(),
                 predictedPos.z + config.getTarget().getWidth() / 2
         );
-
         Vec3d eyePos = mc.player.getEyePos();
         Vec3d lookVec = AngleConnection.INSTANCE.getRotation().toVector();
         return predictedBox.raycast(eyePos, eyePos.add(lookVec.multiply(config.getMaximumRange()))).isPresent();
@@ -266,37 +314,12 @@ public class StrikeManager implements IMinecraft {
     private void executeAttack(StrikerConstructor.AttackPerpetratorConfigurable config) {
         mc.interactionManager.attackEntity(mc.player, config.getTarget());
         mc.player.swingHand(Hand.MAIN_HAND);
-
-        if (!mc.player.isOnGround() && convenientFallOffset() > 0.0F) {
-            mc.world.playSound(
-                    null,
-                    mc.player.getX(),
-                    mc.player.getY(),
-                    mc.player.getZ(),
-                    SoundEvents.ENTITY_PLAYER_ATTACK_CRIT,
-                    mc.player.getSoundCategory(),
-                    1.0f,
-                    1.0f
-            );
-            mc.player.addCritParticles(config.getTarget());
-        }
-
         attackTimer.reset();
         count++;
     }
 
-    private void handleShieldUnpress(StrikerConstructor.AttackPerpetratorConfigurable config) {
-        if (config.isShouldUnPressShield() &&
-                mc.player.isUsingItem() &&
-                mc.player.getActiveItem().getItem().equals(Items.SHIELD)) {
-            mc.interactionManager.stopUsingItem(mc.player);
-            shieldWatch.reset();
-        }
-    }
-
     void handleTriggerAttack(StrikerConstructor.AttackPerpetratorConfigurable config, TriggerBot triggerBot) {
         if (shouldWaitForEating()) return;
-        if (!shouldAttackTrigger(config, triggerBot)) return;
         if (!RaycastAngle.rayTrace(config)) return;
         if (!canAttackTrigger(config, triggerBot, 0)) return;
 
@@ -304,212 +327,60 @@ public class StrikeManager implements IMinecraft {
                 AutoSprint.getInstance().isState() &&
                 AutoSprint.getInstance().getNoReset().isValue();
 
-        if (!noResetSprint && !mc.player.isSubmergedInWater() && mc.player.isSprinting()) {
+        if (!noResetSprint && !isInWater() && mc.player.isSprinting() && !mc.player.isGliding()) {
             AutoSprint.blockSprint();
         }
 
-        if (AutoSprint.isBlocked() && AutoSprint.sprintBlockTicks < 1) {
-            return;
-        }
+        if (AutoSprint.isBlocked() && AutoSprint.sprintBlockTicks < 1) return;
 
         executeAttack(config);
-
-        if (AutoSprint.isBlocked()) {
-            AutoSprint.unblockSprint();
-        }
+        if (AutoSprint.isBlocked()) AutoSprint.unblockSprint();
     }
 
     public boolean shouldResetSprinting(StrikerConstructor.AttackPerpetratorConfigurable config) {
         if (Aura.target == null) return false;
         if (shouldWaitForEating()) return false;
         if (isHoldingMace()) return true;
-        return !mc.player.isOnGround() && (canAttack(config, 1) || shouldAttack(config));
+        return !mc.player.isOnGround() && canAttack(config, 1);
     }
 
     public boolean shouldResetSprintingForTrigger(StrikerConstructor.AttackPerpetratorConfigurable config, TriggerBot triggerBot) {
         if (triggerBot.target == null) return false;
         if (shouldWaitForEating()) return false;
-        return !mc.player.isOnGround() && (canAttackTrigger(config, triggerBot, 1) || shouldAttackTrigger(config, triggerBot));
-    }
-
-    public boolean shouldAttack(StrikerConstructor.AttackPerpetratorConfigurable config) {
-        Aura aura = Aura.getInstance();
-
-        if (shouldWaitForEating()) {
-            return false;
-        }
-
-        if (mc.player.distanceTo(config.getTarget()) > aura.attackrange.getValue()) {
-            return false;
-        }
-
-        if (isHoldingMace()) {
-            return true;
-        }
-
-        boolean crit = true;
-
-        if (aura.getCheckCrit().isValue()) {
-            float minFallDist = 0;
-            if (aura.isRandomizeCrit()) {
-                minFallDist = ThreadLocalRandom.current().nextDouble() > 0.75
-                        ? randomFloat(0.1f, 0.4f)
-                        : randomFloat(0.0f, 0.1f);
-            }
-
-            boolean fallDistance = convenientFallOffset() > minFallDist;
-
-            boolean canCrit = (!mc.player.isOnGround()
-                    || mc.world.getBlockState(mc.player.getBlockPos().add(0, 0, 0)).isAir()
-                    || mc.player.input.playerInput.jump())
-                    && fallDistance;
-
-            canCrit = canCrit
-                    && !mc.player.isOnGround()
-                    && !mc.player.isClimbing()
-                    && !mc.player.isTouchingWater();
-
-            boolean isOnGround = mc.player.isOnGround() || !mc.player.input.playerInput.jump();
-            boolean isLiquid = mc.player.isSwimming() || mc.player.isTouchingWater() || mc.player.isInFluid();
-
-            if (aura.getSmartCrits().isValue()) {
-                crit = isOnGround || canCrit || isLiquid;
-            } else {
-                crit = canCrit || isLiquid;
-            }
-
-            crit |= PlayerInteractionHelper.isBoxInBlock(mc.player.getBoundingBox().expand(-1e-3), Blocks.COBWEB);
-            crit |= mc.player.isClimbing();
-        }
-
-        return crit;
-    }
-
-    public boolean shouldAttackTrigger(StrikerConstructor.AttackPerpetratorConfigurable config, TriggerBot triggerBot) {
-        if (shouldWaitForEating()) {
-            return false;
-        }
-
-        if (mc.player.distanceTo(config.getTarget()) > triggerBot.attackRange.getValue()) {
-            return false;
-        }
-
-        boolean crit = true;
-
-        if (triggerBot.isOnlyCrits()) {
-            float minFallDist = 0;
-            if (triggerBot.isRandomizeCrit()) {
-                minFallDist = ThreadLocalRandom.current().nextDouble() > 0.75
-                        ? randomFloat(0.1f, 0.4f)
-                        : randomFloat(0.0f, 0.1f);
-            }
-
-            boolean fallDistance = convenientFallOffset() > minFallDist;
-
-            boolean canCrit = (!mc.player.isOnGround()
-                    || mc.world.getBlockState(mc.player.getBlockPos().add(0, 0, 0)).isAir()
-                    || mc.player.input.playerInput.jump())
-                    && fallDistance;
-
-            canCrit = canCrit
-                    && !mc.player.isOnGround()
-                    && !mc.player.isClimbing()
-                    && !mc.player.isTouchingWater();
-
-            boolean isOnGround = mc.player.isOnGround() || !mc.player.input.playerInput.jump();
-            boolean isLiquid = mc.player.isSwimming() || mc.player.isTouchingWater() || mc.player.isInFluid();
-
-            if (triggerBot.getSmartCrits().isValue()) {
-                crit = isOnGround || canCrit || isLiquid;
-            } else {
-                crit = canCrit || isLiquid;
-            }
-
-            crit |= PlayerInteractionHelper.isBoxInBlock(mc.player.getBoundingBox().expand(-1e-3), Blocks.COBWEB);
-            crit |= mc.player.isClimbing();
-        }
-
-        return crit;
-    }
-
-    public double convenientFallOffset() {
-        double fallOffset = mc.player.fallDistance;
-
-        if (mc.world != null
-                && !mc.player.isOnGround()
-                && mc.player.getVelocity().y < -0.0784000015258789D
-                && mc.world.getBlockState(mc.player.getBlockPos()).getFluidState().isEmpty()
-                && !mc.world.getBlockState(mc.player.getBlockPos().up()).getFluidState().isEmpty()) {
-
-            if (mc.player.fallDistance < -mc.player.getVelocity().y && ticksOnBlock > 6) {
-                fallOffset = -mc.player.getVelocity().y;
-            }
-        }
-        return fallOffset;
-    }
-
-    public float getFallDistance(int nextTicks) {
-        Vector3f deltaMove = new Vector3f(0, (float) mc.player.getVelocity().y, 0);
-
-        if (deltaMove.y == 0 || mc.player.isOnGround()) return 0;
-
-        float fallDistance = 0;
-        double gravity = 0.08D;
-        boolean flag = deltaMove.y <= 0.0D;
-
-        if (flag && mc.player.hasStatusEffect(StatusEffects.SLOW_FALLING)) {
-            gravity = 0.01D;
-        }
-
-        for (int i = 0; i < nextTicks + 1; i++) {
-            double d2 = deltaMove.y;
-            d2 -= gravity;
-            deltaMove.y = (float) (d2 * 0.98F);
-
-            if (deltaMove.y > 0) {
-                fallDistance = 0;
-            } else {
-                fallDistance -= deltaMove.y;
-            }
-        }
-
-        return fallDistance;
+        return !mc.player.isOnGround() && canAttackTrigger(config, triggerBot, 1);
     }
 
     public boolean canAttack(StrikerConstructor.AttackPerpetratorConfigurable config, int ticks) {
-        if (shouldWaitForEating()) {
-            return false;
-        }
-
+        if (shouldWaitForEating()) return false;
         if (isHoldingMace()) {
             return attackTimer.finished(25) && clickScheduler.isMaceFastAttack();
         }
 
+        if (!attackTimer.finished(getMinAttackDelay())) {
+            return false;
+        }
+
         for (int i = 0; i <= ticks; i++) {
-            if (canCrit(config, i) && attackTimer.finished(50)) {
-                return true;
-            }
+            if (canCrit(config, i)) return true;
         }
         return false;
     }
 
     public boolean canAttackTrigger(StrikerConstructor.AttackPerpetratorConfigurable config, TriggerBot triggerBot, int ticks) {
-        if (shouldWaitForEating()) {
+        if (shouldWaitForEating()) return false;
+
+        if (!attackTimer.finished(getMinAttackDelay())) {
             return false;
         }
 
         for (int i = 0; i <= ticks; i++) {
-            if (canCritTrigger(config, triggerBot, i) && attackTimer.finished(50)) {
-                return true;
-            }
+            if (canCritTrigger(config, triggerBot, i)) return true;
         }
         return false;
     }
 
     public boolean canCrit(StrikerConstructor.AttackPerpetratorConfigurable config, int ticks) {
-        if (isHoldingMace()) {
-            return true;
-        }
+        if (isHoldingMace()) return true;
 
         if (mc.player.isUsingItem()
                 && !mc.player.getActiveItem().getItem().equals(Items.SHIELD)
@@ -517,15 +388,52 @@ public class StrikeManager implements IMinecraft {
             return false;
         }
 
-        if (!clickScheduler.isCooldownComplete(false, 1)) {
+        if (!clickScheduler.isCooldownComplete(false, 1)) return false;
+
+        Aura aura = Aura.getInstance();
+        boolean checkCritEnabled = aura.getCheckCrit().isValue();
+        boolean smartCritsEnabled = aura.getSmartCrits().isValue();
+
+        if (isFullyUnderwater()) {
+            return true;
+        }
+
+        if (isOnWaterSurface()) {
+            if (!checkCritEnabled) {
+                return true;
+            }
+
+            if (canCritOnWaterSurface() || isAboveWaterAndFalling()) {
+                return true;
+            }
+
             return false;
         }
 
-        PlayerSimulation simulated = PlayerSimulation.simulateLocalPlayer(ticks);
-
-        if (!hasMovementRestrictions(simulated)) {
-            return isPlayerInCriticalState(simulated, ticks);
+        if (mc.player.isTouchingWater()) {
+            return true;
         }
+
+        if (hasLowCeiling()) {
+            return true;
+        }
+
+        PlayerSimulation simulated = PlayerSimulation.simulateLocalPlayer(ticks);
+        boolean noRestrictions = !hasMovementRestrictions(simulated);
+        boolean critState = isPlayerInCriticalState(simulated, ticks);
+
+        if (smartCritsEnabled && checkCritEnabled) {
+            if (noRestrictions) {
+                return critState || simulated.onGround;
+            } else {
+                return true;
+            }
+        }
+
+        if (checkCritEnabled && noRestrictions) {
+            return critState;
+        }
+
         return true;
     }
 
@@ -536,23 +444,66 @@ public class StrikeManager implements IMinecraft {
             return false;
         }
 
-        if (!clickScheduler.isCooldownComplete(false, 1)) {
+        if (!clickScheduler.isCooldownComplete(false, 1)) return false;
+
+        boolean checkCritEnabled = triggerBot.isOnlyCrits();
+        boolean smartCritsEnabled = triggerBot.getSmartCrits().isValue();
+
+        if (isFullyUnderwater()) {
+            return true;
+        }
+
+        if (isOnWaterSurface()) {
+            if (!checkCritEnabled) {
+                return true;
+            }
+
+            if (canCritOnWaterSurface() || isAboveWaterAndFalling()) {
+                return true;
+            }
+
             return false;
         }
 
-        PlayerSimulation simulated = PlayerSimulation.simulateLocalPlayer(ticks);
-
-        if (!hasMovementRestrictions(simulated)) {
-            return isPlayerInCriticalStateTrigger(simulated, triggerBot, ticks);
+        if (mc.player.isTouchingWater()) {
+            return true;
         }
+
+        if (hasLowCeiling()) {
+            return true;
+        }
+
+        PlayerSimulation simulated = PlayerSimulation.simulateLocalPlayer(ticks);
+        boolean noRestrictions = !hasMovementRestrictions(simulated);
+        boolean critState = isPlayerInCriticalState(simulated, ticks);
+
+        if (smartCritsEnabled && checkCritEnabled) {
+            if (noRestrictions) {
+                return critState || simulated.onGround;
+            } else {
+                return true;
+            }
+        }
+
+        if (checkCritEnabled && noRestrictions) {
+            return critState;
+        }
+
         return true;
     }
 
     private boolean hasMovementRestrictions(PlayerSimulation simulated) {
+        if (isInWater()) {
+            return false;
+        }
+
+        if (hasLowCeiling()) {
+            return true;
+        }
+
         return simulated.hasStatusEffect(StatusEffects.BLINDNESS)
                 || simulated.hasStatusEffect(StatusEffects.LEVITATION)
                 || PlayerInteractionHelper.isBoxInBlock(simulated.boundingBox.expand(-1e-3), Blocks.COBWEB)
-                || simulated.isSubmergedInWater()
                 || simulated.isInLava()
                 || simulated.isClimbing()
                 || !PlayerInteractionHelper.canChangeIntoPose(EntityPose.STANDING, simulated.pos)
@@ -560,28 +511,7 @@ public class StrikeManager implements IMinecraft {
     }
 
     private boolean isPlayerInCriticalState(PlayerSimulation simulated, int ticks) {
-        Aura aura = Aura.getInstance();
-
-        if (aura.getSmartCrits().isValue() && simulated.onGround) {
-            float cooldown = mc.player.getAttackCooldownProgress(0.5F + ticks);
-            return cooldown > (mc.player.getMainHandStack().isEmpty() ? 0.99f : 0.94F);
-        }
-
-        boolean fall = simulated.fallDistance > 0 || getFallDistance(1 + ticks) > 0;
-        return !simulated.onGround && fall;
-    }
-
-    private boolean isPlayerInCriticalStateTrigger(PlayerSimulation simulated, TriggerBot triggerBot, int ticks) {
-        if (triggerBot.getSmartCrits().isValue() && simulated.onGround) {
-            float cooldown = mc.player.getAttackCooldownProgress(0.5F + ticks);
-            return cooldown > (mc.player.getMainHandStack().isEmpty() ? 0.99f : 0.94F);
-        }
-
-        boolean fall = simulated.fallDistance > 0 || getFallDistance(1 + ticks) > 0;
-        return !simulated.onGround && fall;
-    }
-
-    private float randomFloat(float min, float max) {
-        return min + ThreadLocalRandom.current().nextFloat() * (max - min);
+        double fall = simulated.fallDistance;
+        return !simulated.onGround && fall > 0;
     }
 }

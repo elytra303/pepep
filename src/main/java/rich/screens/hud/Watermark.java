@@ -37,6 +37,10 @@ public class Watermark extends AbstractHudElement {
     public void tick() {
     }
 
+    private int clampAlpha(float alpha) {
+        return Math.max(0, Math.min(255, (int) (alpha * 255)));
+    }
+
     @Override
     public void drawDraggable(DrawContext context, int alpha) {
         if (alpha <= 0) return;
@@ -222,15 +226,21 @@ public class Watermark extends AbstractHudElement {
                 if (oldChar != ' ' && isOldDigit) {
                     float oldAlpha = 1.0f - easedProgress;
                     float oldOffsetY = easedProgress * ANIMATION_OFFSET;
-                    int oldColor = new Color(255, 255, 255, (int) (oldAlpha * 255)).getRGB();
-                    Fonts.BOLD.draw(String.valueOf(oldChar), offsetX, y + oldOffsetY, size, oldColor);
+                    int oldAlphaClamped = clampAlpha(oldAlpha);
+                    if (oldAlphaClamped > 0) {
+                        int oldColor = new Color(255, 255, 255, oldAlphaClamped).getRGB();
+                        Fonts.BOLD.draw(String.valueOf(oldChar), offsetX, y + oldOffsetY, size, oldColor);
+                    }
                 }
 
                 if (newChar != ' ' && isNewDigit) {
                     float newAlpha = easedProgress;
                     float newOffsetY = (1.0f - easedProgress) * -ANIMATION_OFFSET;
-                    int newColor = new Color(255, 255, 255, (int) (newAlpha * 255)).getRGB();
-                    Fonts.BOLD.draw(String.valueOf(newChar), offsetX, y + newOffsetY, size, newColor);
+                    int newAlphaClamped = clampAlpha(newAlpha);
+                    if (newAlphaClamped > 0) {
+                        int newColor = new Color(255, 255, 255, newAlphaClamped).getRGB();
+                        Fonts.BOLD.draw(String.valueOf(newChar), offsetX, y + newOffsetY, size, newColor);
+                    }
                 }
             }
 
