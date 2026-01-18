@@ -28,7 +28,7 @@ import rich.modules.module.setting.implement.SelectSetting;
 import rich.util.ColorUtil;
 import rich.util.inventory.*;
 import rich.util.math.MathUtils;
-import rich.util.render.render3D.Render3D;
+import rich.util.render.Render3D;
 import rich.util.repository.friend.FriendUtils;
 import rich.util.string.PlayerInteractionHelper;
 import rich.util.timer.StopWatch;

@@ -35,7 +35,7 @@ import rich.modules.impl.player.NoEntityTrace;
 import rich.modules.impl.render.Hud;
 import rich.modules.impl.render.NoRender;
 import rich.screens.clickgui.ClickGui;
-import rich.util.render.render3D.Render3D;
+import rich.util.render.Render3D;
 
 @Mixin(GameRenderer.class)
 public abstract class GameRendererMixin {

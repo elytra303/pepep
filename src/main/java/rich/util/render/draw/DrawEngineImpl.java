@@ -1,4 +1,4 @@
-package rich.util.render;
+package rich.util.render.draw;
 
 import lombok.AccessLevel;
 import lombok.experimental.FieldDefaults;

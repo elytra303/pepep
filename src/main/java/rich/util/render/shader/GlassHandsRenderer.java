@@ -1,4 +1,4 @@
-package rich.util.render;
+package rich.util.render.shader;
 
 import com.mojang.blaze3d.systems.CommandEncoder;
 import com.mojang.blaze3d.systems.RenderSystem;

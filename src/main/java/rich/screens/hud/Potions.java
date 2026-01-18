@@ -10,7 +10,7 @@ import net.minecraft.util.Identifier;
 import rich.client.draggables.AbstractHudElement;
 import rich.util.animations.Direction;
 import rich.util.render.Render2D;
-import rich.util.render.Scissor;
+import rich.util.render.shader.Scissor;
 import rich.util.render.font.Fonts;
 
 import java.awt.*;

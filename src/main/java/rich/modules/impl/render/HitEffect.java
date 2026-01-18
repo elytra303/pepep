@@ -14,7 +14,7 @@ import rich.modules.module.category.ModuleCategory;
 import rich.modules.module.setting.implement.ColorSetting;
 import rich.util.ColorUtil;
 import rich.util.Instance;
-import rich.util.render.render3D.Render3D;
+import rich.util.render.Render3D;
 
 import java.awt.*;
 import java.util.*;

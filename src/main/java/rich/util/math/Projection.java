@@ -17,7 +17,7 @@ import org.lwjgl.opengl.GL11;
 import rich.IMinecraft;
 import rich.modules.impl.combat.aura.Angle;
 import rich.modules.impl.combat.aura.MathAngle;
-import rich.util.render.render3D.Render3D;
+import rich.util.render.Render3D;
 
 @UtilityClass
 public class Projection implements IMinecraft {

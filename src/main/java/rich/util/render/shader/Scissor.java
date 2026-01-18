@@ -1,4 +1,4 @@
-package rich.util.render;
+package rich.util.render.shader;
 
 import net.minecraft.client.MinecraftClient;
 import org.lwjgl.opengl.GL11;

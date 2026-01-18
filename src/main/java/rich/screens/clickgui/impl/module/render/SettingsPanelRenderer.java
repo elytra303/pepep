@@ -9,7 +9,7 @@ import rich.screens.clickgui.impl.settingsrender.MultiSelectComponent;
 import rich.screens.clickgui.impl.settingsrender.SelectComponent;
 import rich.util.interfaces.AbstractSettingComponent;
 import rich.util.render.Render2D;
-import rich.util.render.Scissor;
+import rich.util.render.shader.Scissor;
 import rich.util.render.font.Fonts;
 
 import java.awt.*;

@@ -3,7 +3,7 @@ package rich.screens.clickgui.impl.background.search;
 import net.minecraft.client.gui.DrawContext;
 import rich.modules.module.ModuleStructure;
 import rich.util.render.Render2D;
-import rich.util.render.Scissor;
+import rich.util.render.shader.Scissor;
 import rich.util.render.font.Fonts;
 
 import java.awt.*;

@@ -1,4 +1,4 @@
-package rich.util.render.render3D;
+package rich.util.render;
 
 import lombok.Setter;
 import lombok.experimental.UtilityClass;

@@ -39,7 +39,7 @@ import rich.util.network.Network;
 import rich.util.render.Render2D;
 import rich.util.render.font.Fonts;
 import rich.util.render.item.ItemRender;
-import rich.util.render.render3D.Render3D;
+import rich.util.render.Render3D;
 import rich.util.repository.friend.FriendUtils;
 import rich.util.string.PlayerInteractionHelper;
 

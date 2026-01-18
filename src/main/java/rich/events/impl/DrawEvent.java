@@ -6,7 +6,7 @@ import lombok.Getter;
 import lombok.experimental.FieldDefaults;
 import net.minecraft.client.gui.DrawContext;
 import rich.events.api.events.Event;
-import rich.util.render.DrawEngine;
+import rich.util.render.draw.DrawEngine;
 
 @Getter
 @AllArgsConstructor

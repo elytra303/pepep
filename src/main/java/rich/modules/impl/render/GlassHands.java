@@ -11,7 +11,7 @@ import rich.modules.module.category.ModuleCategory;
 import rich.modules.module.setting.implement.BooleanSetting;
 import rich.modules.module.setting.implement.ColorSetting;
 import rich.modules.module.setting.implement.SliderSettings;
-import rich.util.render.GlassHandsRenderer;
+import rich.util.render.shader.GlassHandsRenderer;
 
 @Getter
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)

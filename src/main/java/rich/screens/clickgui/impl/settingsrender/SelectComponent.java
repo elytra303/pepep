@@ -4,7 +4,7 @@ import net.minecraft.client.gui.DrawContext;
 import rich.modules.module.setting.implement.SelectSetting;
 import rich.util.interfaces.AbstractSettingComponent;
 import rich.util.render.Render2D;
-import rich.util.render.Scissor;
+import rich.util.render.shader.Scissor;
 import rich.util.render.font.Fonts;
 
 import java.awt.*;

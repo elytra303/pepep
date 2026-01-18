@@ -5,7 +5,7 @@ import rich.screens.clickgui.impl.configs.ConfigsRenderer;
 import rich.screens.clickgui.impl.configs.handler.ConfigAnimationHandler;
 import rich.screens.clickgui.impl.configs.handler.ConfigDataHandler;
 import rich.util.render.Render2D;
-import rich.util.render.Scissor;
+import rich.util.render.shader.Scissor;
 import rich.util.render.font.Fonts;
 
 import java.awt.*;

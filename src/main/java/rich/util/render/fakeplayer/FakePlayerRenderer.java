@@ -1,4 +1,4 @@
-package rich.util.render;
+package rich.util.render.fakeplayer;
 
 import com.mojang.blaze3d.opengl.GlConst;
 import com.mojang.blaze3d.opengl.GlStateManager;
@@ -12,7 +12,7 @@ import org.joml.Matrix4f;
 import rich.IMinecraft;
 import rich.modules.impl.player.FreeCam;
 import rich.util.ColorUtil;
-import rich.util.render.pipeline.ClientPipelines;
+import rich.util.render.сliemtpipeline.ClientPipelines;
 
 
 @UtilityClass

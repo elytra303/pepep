@@ -1,4 +1,4 @@
-package rich.util.render;
+package rich.util.render.draw;
 
 import net.minecraft.client.render.BufferBuilder;
 import net.minecraft.client.util.math.MatrixStack;

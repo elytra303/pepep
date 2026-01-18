@@ -4,8 +4,8 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.RenderTickCounter;
 import net.minecraft.client.render.Tessellator;
 import net.minecraft.client.util.Window;
-import rich.util.render.DrawEngine;
-import rich.util.render.DrawEngineImpl;
+import rich.util.render.draw.DrawEngine;
+import rich.util.render.draw.DrawEngineImpl;
 
 /**
  *  © 2026 Copyright Rich Client 2.0

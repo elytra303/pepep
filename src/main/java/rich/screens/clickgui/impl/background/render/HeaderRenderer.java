@@ -3,7 +3,7 @@ package rich.screens.clickgui.impl.background.render;
 import rich.modules.module.category.ModuleCategory;
 import rich.screens.clickgui.impl.background.search.SearchHandler;
 import rich.util.render.Render2D;
-import rich.util.render.Scissor;
+import rich.util.render.shader.Scissor;
 import rich.util.render.font.Fonts;
 
 import java.awt.*;

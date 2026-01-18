@@ -16,7 +16,7 @@ import rich.modules.module.setting.implement.ColorSetting;
 import rich.modules.module.setting.implement.SliderSettings;
 import rich.util.ColorUtil;
 import rich.util.config.impl.blockesp.BlockESPConfig;
-import rich.util.render.render3D.Render3D;
+import rich.util.render.Render3D;
 import rich.util.string.chat.ChatMessage;
 
 import java.util.HashMap;

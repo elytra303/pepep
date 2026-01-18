@@ -24,8 +24,7 @@ import rich.util.animations.GuiAnimation;
 import rich.util.interfaces.AbstractSettingComponent;
 import rich.util.math.FrameRateCounter;
 import rich.util.render.Render2D;
-import rich.util.render.Scissor;
-import rich.util.render.font.Fonts;
+import rich.util.render.shader.Scissor;
 import rich.util.render.gif.GifRender;
 
 import java.awt.*;
