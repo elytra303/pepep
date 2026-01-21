@@ -81,8 +81,8 @@ public class HitEffect extends ModuleStructure {
     private class WaveEffect {
         private final BlockPos centerPos;
         private final long startTime;
-        private final long duration = 500;
-        private final int maxRadius = 7;
+        private final long duration = 475;
+        private final int maxRadius = 8;
         private Map<Long, Integer> reachableBlocks;
         private boolean calculated = false;
 
@@ -211,16 +211,14 @@ public class HitEffect extends ModuleStructure {
 
                 if (localAlpha > 0.02f) {
                     int baseColor = colorSetting.getColor();
-                    int color = ColorUtil.setAlpha(baseColor, (int) (localAlpha * 255));
-
-                    float lineWidth = 1.5f + (1.0f - localAlpha) * 2.0f;
+                    int color = ColorUtil.setAlpha(baseColor, (int) (localAlpha * 75));
 
                     try {
                         Render3D.drawShapeAlternative(
                                 pos,
                                 shape,
                                 color,
-                                lineWidth,
+                                1f,
                                 true,
                                 true
                         );

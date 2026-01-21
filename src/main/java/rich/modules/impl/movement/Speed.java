@@ -72,7 +72,7 @@ public class Speed extends ModuleStructure {
         int collisions = 0;
 
         for (Entity ent : mc.world.getEntities())
-            if (ent != mc.player && (!(ent instanceof ArmorStandEntity)) && (ent instanceof LivingEntity || ent instanceof BoatEntity) && mc.player.getBoundingBox().expand(0.15f).intersects(ent.getBoundingBox()))
+            if (ent != mc.player && (!(ent instanceof ArmorStandEntity)) && (ent instanceof LivingEntity || ent instanceof BoatEntity) && mc.player.getBoundingBox().expand(0.5f).intersects(ent.getBoundingBox()))
                 collisions++;
         double[] motion = MoveUtil.forward(0.07 * collisions);
         mc.player.addVelocity(motion[0], 0, motion[1]);

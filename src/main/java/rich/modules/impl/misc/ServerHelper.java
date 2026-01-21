@@ -5,10 +5,17 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.experimental.FieldDefaults;
 import lombok.experimental.NonFinal;
+import net.minecraft.component.DataComponentTypes;
+import net.minecraft.component.type.LoreComponent;
+import net.minecraft.component.type.PotionContentsComponent;
+import net.minecraft.entity.effect.StatusEffect;
+import net.minecraft.entity.effect.StatusEffectInstance;
+import net.minecraft.entity.effect.StatusEffects;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.network.packet.c2s.play.*;
+import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.screen.slot.Slot;
 import net.minecraft.screen.slot.SlotActionType;
 import net.minecraft.text.Text;
@@ -79,15 +86,49 @@ public class ServerHelper extends ModuleStructure {
         IDLE, SLOWING_DOWN, WAITING_STOP, SWAP_TO_ITEM, USE_ITEM, SWAP_BACK, SPEEDING_UP
     }
 
+    private static class EffectRequirement {
+        RegistryEntry<StatusEffect> effect;
+        int minAmplifier;
+
+        EffectRequirement(RegistryEntry<StatusEffect> effect, int minAmplifier) {
+            this.effect = effect;
+            this.minAmplifier = minAmplifier;
+        }
+    }
+
     private static class ItemInfo {
-        String searchName;
+        List<String> loreKeywords;
+        String nameFallback;
         Item item;
         String displayName;
+        boolean funTimeOnly;
+        List<EffectRequirement> effectRequirements;
 
-        ItemInfo(String searchName, Item item, String displayName) {
-            this.searchName = searchName;
+        ItemInfo(List<String> loreKeywords, String nameFallback, Item item, String displayName, boolean funTimeOnly) {
+            this.loreKeywords = loreKeywords;
+            this.nameFallback = nameFallback;
             this.item = item;
             this.displayName = displayName;
+            this.funTimeOnly = funTimeOnly;
+            this.effectRequirements = null;
+        }
+
+        ItemInfo(List<String> loreKeywords, String nameFallback, Item item, String displayName, boolean funTimeOnly, List<EffectRequirement> effectRequirements) {
+            this.loreKeywords = loreKeywords;
+            this.nameFallback = nameFallback;
+            this.item = item;
+            this.displayName = displayName;
+            this.funTimeOnly = funTimeOnly;
+            this.effectRequirements = effectRequirements;
+        }
+
+        ItemInfo(String nameFallback, Item item, String displayName) {
+            this.loreKeywords = null;
+            this.nameFallback = nameFallback;
+            this.item = item;
+            this.displayName = displayName;
+            this.funTimeOnly = false;
+            this.effectRequirements = null;
         }
     }
 
@@ -113,9 +154,9 @@ public class ServerHelper extends ModuleStructure {
         keyBindings.add(new KeyBind(Items.FIRE_CHARGE, new BindSetting("Взрывная штучка", "Клавиша взрывной штучки")
                 .visible(() -> mode.isSelected("HolyWorld")), 5));
         keyBindings.add(new KeyBind(Items.SNOWBALL, new BindSetting("Снежок заморозка", "Клавиша снежка")
-                .visible(() -> mode.isSelected("HolyWorld") || mode.isSelected("FunTime")), 0));
+                .visible(() -> mode.isSelected("HolyWorld") || mode.isSelected("FunTime")), 7));
         keyBindings.add(new KeyBind(Items.PHANTOM_MEMBRANE, new BindSetting("Божья аура", "Клавиша божьей ауры")
-                .visible(() -> mode.isSelected("FunTime")), 0));
+                .visible(() -> mode.isSelected("FunTime")), 2));
         keyBindings.add(new KeyBind(Items.NETHERITE_SCRAP, new BindSetting("Трапка", "Клавиша трапки")
                 .visible(() -> mode.isSelected("FunTime")), 0));
         keyBindings.add(new KeyBind(Items.DRIED_KELP, new BindSetting("Пласт", "Клавиша пласта")
@@ -138,52 +179,148 @@ public class ServerHelper extends ModuleStructure {
                 .visible(() -> mode.isSelected("HolyWorld")), 0));
         keyBindings.add(new KeyBind(Items.PINK_SHULKER_BOX, new BindSetting("Рюкзак 4 уровня", "Клавиша рюкзака 4 уровня")
                 .visible(() -> mode.isSelected("HolyWorld")), 0));
-        keyBindings.add(new KeyBind(Items.SPLASH_POTION, new BindSetting("Зелье отрыжки", "Клавиша зелья отрыжки")
+
+        keyBindings.add(new KeyBind(Items.SPLASH_POTION, new BindSetting("Хлопушка", "Клавиша хлопушки")
                 .visible(() -> mode.isSelected("FunTime")), 0));
-        keyBindings.add(new KeyBind(Items.SPLASH_POTION, new BindSetting("Зелье серной кислоты", "Клавиша зелья серной кислоты")
+        keyBindings.add(new KeyBind(Items.SPLASH_POTION, new BindSetting("Святая вода", "Клавиша святой воды")
                 .visible(() -> mode.isSelected("FunTime")), 0));
-        keyBindings.add(new KeyBind(Items.SPLASH_POTION, new BindSetting("Зелье вспышки", "Клавиша зелья вспышки")
+        keyBindings.add(new KeyBind(Items.SPLASH_POTION, new BindSetting("Зелье Гнева", "Клавиша зелья гнева")
                 .visible(() -> mode.isSelected("FunTime")), 0));
-        keyBindings.add(new KeyBind(Items.SPLASH_POTION, new BindSetting("Зелье мочи Флеша", "Клавиша зелья мочи Флеша")
+        keyBindings.add(new KeyBind(Items.SPLASH_POTION, new BindSetting("Зелье Палладина", "Клавиша зелья палладина")
                 .visible(() -> mode.isSelected("FunTime")), 0));
-        keyBindings.add(new KeyBind(Items.SPLASH_POTION, new BindSetting("Зелье победителя", "Клавиша зелья победителя")
+        keyBindings.add(new KeyBind(Items.SPLASH_POTION, new BindSetting("Зелье Ассасина", "Клавиша зелья ассасина")
                 .visible(() -> mode.isSelected("FunTime")), 0));
-        keyBindings.add(new KeyBind(Items.SPLASH_POTION, new BindSetting("Зелье агента", "Клавиша зелья агента")
+        keyBindings.add(new KeyBind(Items.SPLASH_POTION, new BindSetting("Зелье Радиации", "Клавиша зелья радиации")
                 .visible(() -> mode.isSelected("FunTime")), 0));
-        keyBindings.add(new KeyBind(Items.SPLASH_POTION, new BindSetting("Зелье медика", "Клавиша зелья медика")
-                .visible(() -> mode.isSelected("FunTime")), 0));
-        keyBindings.add(new KeyBind(Items.SPLASH_POTION, new BindSetting("Зелье киллера", "Клавиша зелья киллера")
+        keyBindings.add(new KeyBind(Items.SPLASH_POTION, new BindSetting("Снотворное", "Клавиша снотворного")
                 .visible(() -> mode.isSelected("FunTime")), 0));
 
         keyBindings.forEach(bind -> setup(bind.setting));
 
-        itemConfig.put("disorientation", new ItemInfo("дезориентация", Items.ENDER_EYE, "Дезориентация"));
-        itemConfig.put("sugar", new ItemInfo("явная", Items.SUGAR, "Явная пыль"));
-        itemConfig.put("bojaura", new ItemInfo("божья аура", Items.PHANTOM_MEMBRANE, "Божья аура"));
-        itemConfig.put("snow", new ItemInfo("снежок заморозка", Items.SNOWBALL, "Снежок заморозка"));
-        itemConfig.put("plast", new ItemInfo("пласт", Items.DRIED_KELP, "Пласт"));
-        itemConfig.put("trap", new ItemInfo("трапка", Items.NETHERITE_SCRAP, "Трапка"));
-        itemConfig.put("fireSwirl", new ItemInfo("огненный смерч", Items.FIRE_CHARGE, "Огненный смерч"));
-        itemConfig.put("otriga", new ItemInfo("отрыжки", Items.SPLASH_POTION, "Зелье отрыжки"));
-        itemConfig.put("serka", new ItemInfo("серная", Items.SPLASH_POTION, "Зелье серной кислоты"));
-        itemConfig.put("vspihka", new ItemInfo("вспышка", Items.SPLASH_POTION, "Зелье вспышки"));
-        itemConfig.put("mochaflesha", new ItemInfo("моча флеша", Items.SPLASH_POTION, "Зелье мочи Флеша"));
-        itemConfig.put("pobedilka", new ItemInfo("победителя", Items.SPLASH_POTION, "Зелье победителя"));
-        itemConfig.put("agent", new ItemInfo("агента", Items.SPLASH_POTION, "Зелье агента"));
-        itemConfig.put("medik", new ItemInfo("медика", Items.SPLASH_POTION, "Зелье медика"));
-        itemConfig.put("killer", new ItemInfo("киллера", Items.SPLASH_POTION, "Зелье киллера"));
-        itemConfig.put("antiflight", new ItemInfo("анти полет", Items.FIREWORK_STAR, "Анти полет"));
-        itemConfig.put("expscroll", new ItemInfo("свиток опыта", Items.FLOWER_BANNER_PATTERN, "Свиток опыта"));
-        itemConfig.put("dtrap", new ItemInfo("взрывная трапка", Items.PRISMARINE_SHARD, "Взрывная трапка"));
-        itemConfig.put("trap_holy", new ItemInfo("трапка", Items.POPPED_CHORUS_FRUIT, "Обычная трапка"));
-        itemConfig.put("stan", new ItemInfo("стан", Items.NETHER_STAR, "Стан"));
-        itemConfig.put("ditem", new ItemInfo("взрывная штучка", Items.FIRE_CHARGE, "Взрывная штучка"));
-        itemConfig.put("tikva", new ItemInfo("светильник джейка", Items.JACK_O_LANTERN, "Светильник Джека"));
-        itemConfig.put("exp", new ItemInfo("пузырь опыта", Items.EXPERIENCE_BOTTLE, "Пузырь опыта"));
-        itemConfig.put("shulker1", new ItemInfo("рюкзак (i уровень)", Items.PINK_SHULKER_BOX, "Рюкзак 1 уровня"));
-        itemConfig.put("shulker2", new ItemInfo("рюкзак (ii уровень)", Items.BLUE_SHULKER_BOX, "Рюкзак 2 уровня"));
-        itemConfig.put("shulker3", new ItemInfo("рюкзак (iii уровень)", Items.RED_SHULKER_BOX, "Рюкзак 3 уровня"));
-        itemConfig.put("shulker4", new ItemInfo("рюкзак (iv уровень)", Items.PINK_SHULKER_BOX, "Рюкзак 4 уровня"));
+        itemConfig.put("sugar", new ItemInfo(
+                List.of("световая вспышка", "радиус: 10 блоков", "свечение", "слепота"),
+                "явная пыль", Items.SUGAR, "Явная пыль", true));
+
+        itemConfig.put("disorientation", new ItemInfo(
+                List.of("чем ближе цель, тем дольше длительность эффектов"),
+                "дезориентация", Items.ENDER_EYE, "Дезориентация", true));
+
+        itemConfig.put("trap", new ItemInfo(
+                List.of("нерушимая клетка", "длительность: 15 секунд"),
+                "трапка", Items.NETHERITE_SCRAP, "Трапка", true));
+
+        itemConfig.put("plast", new ItemInfo(
+                List.of("нерушимая стена", "вертикальный:", "горизонтальный:"),
+                "пласт", Items.DRIED_KELP, "Пласт", true));
+
+        itemConfig.put("fireSwirl", new ItemInfo(
+                List.of("огненная волна", "радиус: 10 блоков", "поджог"),
+                "огненный смерч", Items.FIRE_CHARGE, "Огненный смерч", true));
+
+        itemConfig.put("snow", new ItemInfo(
+                List.of("ледяная сфера", "радиус: 7 блоков", "заморозка", "слабость"),
+                "снежок заморозка", Items.SNOWBALL, "Снежок заморозка", true));
+
+        itemConfig.put("bojaura", new ItemInfo(
+                List.of("божественная аура", "радиус: 2 блока", "снятие всех эффектов", "невидимость"),
+                "божья аура", Items.PHANTOM_MEMBRANE, "Божья аура", true));
+
+        itemConfig.put("hlopushka", new ItemInfo(
+                null, "хлопушка", Items.SPLASH_POTION, "Хлопушка", true,
+                List.of(
+                        new EffectRequirement(StatusEffects.SLOWNESS, 9),
+                        new EffectRequirement(StatusEffects.SPEED, 4),
+                        new EffectRequirement(StatusEffects.BLINDNESS, 9),
+                        new EffectRequirement(StatusEffects.GLOWING, 0)
+                )));
+
+        itemConfig.put("holywater", new ItemInfo(
+                null, "святая вода", Items.SPLASH_POTION, "Святая вода", true,
+                List.of(
+                        new EffectRequirement(StatusEffects.REGENERATION, 2),
+                        new EffectRequirement(StatusEffects.INVISIBILITY, 1),
+                        new EffectRequirement(StatusEffects.INSTANT_HEALTH, 1)
+                )));
+
+        itemConfig.put("gnev", new ItemInfo(
+                null, "зелье гнева", Items.SPLASH_POTION, "Зелье Гнева", true,
+                List.of(
+                        new EffectRequirement(StatusEffects.STRENGTH, 4),
+                        new EffectRequirement(StatusEffects.SLOWNESS, 3)
+                )));
+
+        itemConfig.put("paladin", new ItemInfo(
+                null, "зелье палладина", Items.SPLASH_POTION, "Зелье Палладина", true,
+                List.of(
+                        new EffectRequirement(StatusEffects.RESISTANCE, 0),
+                        new EffectRequirement(StatusEffects.FIRE_RESISTANCE, 0),
+                        new EffectRequirement(StatusEffects.INVISIBILITY, 0),
+                        new EffectRequirement(StatusEffects.HEALTH_BOOST, 2)
+                )));
+
+        itemConfig.put("assassin", new ItemInfo(
+                null, "зелье ассасина", Items.SPLASH_POTION, "Зелье Ассасина", true,
+                List.of(
+                        new EffectRequirement(StatusEffects.STRENGTH, 3),
+                        new EffectRequirement(StatusEffects.SPEED, 2),
+                        new EffectRequirement(StatusEffects.HASTE, 0),
+                        new EffectRequirement(StatusEffects.INSTANT_DAMAGE, 1)
+                )));
+
+        itemConfig.put("radiation", new ItemInfo(
+                null, "зелье радиации", Items.SPLASH_POTION, "Зелье Радиации", true,
+                List.of(
+                        new EffectRequirement(StatusEffects.POISON, 1),
+                        new EffectRequirement(StatusEffects.WITHER, 1),
+                        new EffectRequirement(StatusEffects.SLOWNESS, 2),
+                        new EffectRequirement(StatusEffects.HUNGER, 4),
+                        new EffectRequirement(StatusEffects.GLOWING, 0)
+                )));
+
+        itemConfig.put("snotvornoe", new ItemInfo(
+                null, "снотворное", Items.SPLASH_POTION, "Снотворное", true,
+                List.of(
+                        new EffectRequirement(StatusEffects.WEAKNESS, 1),
+                        new EffectRequirement(StatusEffects.MINING_FATIGUE, 1),
+                        new EffectRequirement(StatusEffects.WITHER, 2),
+                        new EffectRequirement(StatusEffects.BLINDNESS, 0)
+                )));
+
+        itemConfig.put("antiflight", new ItemInfo(
+                "анти полет", Items.FIREWORK_STAR, "Анти полет"));
+
+        itemConfig.put("expscroll", new ItemInfo(
+                "свиток опыта", Items.FLOWER_BANNER_PATTERN, "Свиток опыта"));
+
+        itemConfig.put("dtrap", new ItemInfo(
+                "взрывная трапка", Items.PRISMARINE_SHARD, "Взрывная трапка"));
+
+        itemConfig.put("trap_holy", new ItemInfo(
+                "трапка", Items.POPPED_CHORUS_FRUIT, "Обычная трапка"));
+
+        itemConfig.put("stan", new ItemInfo(
+                "стан", Items.NETHER_STAR, "Стан"));
+
+        itemConfig.put("ditem", new ItemInfo(
+                "взрывная", Items.FIRE_CHARGE, "Взрывная штучка"));
+
+        itemConfig.put("tikva", new ItemInfo(
+                "светильник джека", Items.JACK_O_LANTERN, "Светильник Джека"));
+
+        itemConfig.put("exp", new ItemInfo(
+                "пузырь опыта", Items.EXPERIENCE_BOTTLE, "Пузырь опыта"));
+
+        itemConfig.put("shulker1", new ItemInfo(
+                "рюкзак (i уровень)", Items.PINK_SHULKER_BOX, "Рюкзак 1 уровня"));
+
+        itemConfig.put("shulker2", new ItemInfo(
+                "рюкзак (ii уровень)", Items.BLUE_SHULKER_BOX, "Рюкзак 2 уровня"));
+
+        itemConfig.put("shulker3", new ItemInfo(
+                "рюкзак (iii уровень)", Items.RED_SHULKER_BOX, "Рюкзак 3 уровня"));
+
+        itemConfig.put("shulker4", new ItemInfo(
+                "рюкзак (iv уровень)", Items.PINK_SHULKER_BOX, "Рюкзак 4 уровня"));
 
         itemConfig.keySet().forEach(key -> {
             lastKeyStates.put(key, false);
@@ -329,7 +466,7 @@ public class ServerHelper extends ModuleStructure {
         originalSlot = mc.player.getInventory().getSelectedSlot();
         originalSourceSlot = slot.id;
         targetSlot = slot.id;
-        pendingItemKey = info.searchName;
+        pendingItemKey = info.displayName;
 
         boolean needsSwap = !(slot.id >= 0 && slot.id < 9) && !(slot.id >= 36 && slot.id < 45);
 
@@ -500,6 +637,8 @@ public class ServerHelper extends ModuleStructure {
                         case "Пласт" -> Render3D.drawPlastShape(playerPos, smooth, lineColor, fillColor);
                         case "Взрывная трапка" -> drawItemCube(playerPos, smooth, 3.99F, lineColor, fillColor);
                         case "Стан" -> drawItemCube(playerPos, smooth, 15.01F, lineColor, fillColor);
+                        case "Снежок заморозка" -> Render3D.drawRadiusCircle(MathUtils.interpolate(mc.player), 7, validDistance(7) ? ColorUtil.getFriendColor() : lineColor);
+                        case "Божья аура" -> Render3D.drawRadiusCircle(MathUtils.interpolate(mc.player), 2, validDistance(2) ? ColorUtil.getFriendColor() : lineColor);
                     }
                 });
     }
@@ -524,13 +663,139 @@ public class ServerHelper extends ModuleStructure {
     }
 
     @Native(type = Native.Type.VMProtectBeginMutation)
+    private List<String> getLore(ItemStack stack) {
+        List<String> lore = new ArrayList<>();
+        if (stack == null || stack.isEmpty()) return lore;
+
+        try {
+            LoreComponent loreComponent = stack.get(DataComponentTypes.LORE);
+            if (loreComponent != null) {
+                for (Text text : loreComponent.lines()) {
+                    String line = getCleanName(text);
+                    if (!line.isEmpty()) {
+                        lore.add(line);
+                    }
+                }
+            }
+        } catch (Exception ignored) {}
+
+        return lore;
+    }
+
+    @Native(type = Native.Type.VMProtectBeginMutation)
+    private boolean matchesLore(ItemStack stack, List<String> keywords) {
+        if (keywords == null || keywords.isEmpty()) return false;
+
+        List<String> lore = getLore(stack);
+        if (lore.isEmpty()) return false;
+
+        String fullLore = String.join(" ", lore).toLowerCase();
+
+        int matchCount = 0;
+        for (String keyword : keywords) {
+            if (fullLore.contains(keyword.toLowerCase())) {
+                matchCount++;
+            }
+        }
+        return matchCount >= Math.min(2, keywords.size());
+    }
+
+    @Native(type = Native.Type.VMProtectBeginMutation)
+    private Map<RegistryEntry<StatusEffect>, Integer> getPotionEffects(ItemStack stack) {
+        Map<RegistryEntry<StatusEffect>, Integer> effects = new HashMap<>();
+        if (stack == null || stack.isEmpty()) return effects;
+
+        PotionContentsComponent potionContents = stack.get(DataComponentTypes.POTION_CONTENTS);
+        if (potionContents == null) return effects;
+
+        for (StatusEffectInstance effect : potionContents.customEffects()) {
+            effects.put(effect.getEffectType(), effect.getAmplifier());
+        }
+
+        return effects;
+    }
+
+    @Native(type = Native.Type.VMProtectBeginMutation)
+    private boolean matchesPotionEffects(ItemStack stack, List<EffectRequirement> requirements) {
+        if (requirements == null || requirements.isEmpty()) return false;
+        if (stack.getItem() != Items.SPLASH_POTION && stack.getItem() != Items.LINGERING_POTION) return false;
+
+        Map<RegistryEntry<StatusEffect>, Integer> effects = getPotionEffects(stack);
+        if (effects.isEmpty()) return false;
+
+        int matchCount = 0;
+        for (EffectRequirement req : requirements) {
+            Integer amplifier = effects.get(req.effect);
+            if (amplifier != null && amplifier >= req.minAmplifier) {
+                matchCount++;
+            }
+        }
+
+        return matchCount >= Math.min(2, requirements.size());
+    }
+
+    @Native(type = Native.Type.VMProtectBeginMutation)
     private Slot findSlotByItem(ItemInfo info) {
-        return InventoryUtils.findSlot(s ->
-                s.getStack().getItem().equals(info.item) &&
-                        getCleanName(s.getStack().getName()).contains(info.searchName.toLowerCase()));
+        if (mode.isSelected("FunTime") && info.funTimeOnly) {
+            if (info.effectRequirements != null && !info.effectRequirements.isEmpty()) {
+                Slot effectMatch = InventoryUtils.findSlot(s -> {
+                    ItemStack stack = s.getStack();
+                    if (stack.isEmpty() || !stack.getItem().equals(info.item)) return false;
+                    return matchesPotionEffects(stack, info.effectRequirements);
+                });
+
+                if (effectMatch != null) {
+                    return effectMatch;
+                }
+            }
+
+            if (info.loreKeywords != null && !info.loreKeywords.isEmpty()) {
+                Slot loreMatch = InventoryUtils.findSlot(s -> {
+                    ItemStack stack = s.getStack();
+                    if (stack.isEmpty() || !stack.getItem().equals(info.item)) return false;
+                    return matchesLore(stack, info.loreKeywords);
+                });
+
+                if (loreMatch != null) {
+                    return loreMatch;
+                }
+            }
+
+            if (info.nameFallback != null && !info.nameFallback.isEmpty()) {
+                return InventoryUtils.findSlot(s -> {
+                    ItemStack stack = s.getStack();
+                    if (stack.isEmpty() || !stack.getItem().equals(info.item)) return false;
+                    List<String> lore = getLore(stack);
+                    if (!lore.isEmpty()) {
+                        String fullLore = String.join(" ", lore).toLowerCase();
+                        return fullLore.contains(info.nameFallback.toLowerCase());
+                    }
+                    return getCleanName(stack.getName()).contains(info.nameFallback.toLowerCase());
+                });
+            }
+
+            return null;
+        }
+
+        if (info.nameFallback != null && !info.nameFallback.isEmpty()) {
+            return InventoryUtils.findSlot(s -> {
+                ItemStack stack = s.getStack();
+                if (stack.isEmpty() || !stack.getItem().equals(info.item)) return false;
+                return getCleanName(stack.getName()).contains(info.nameFallback.toLowerCase());
+            });
+        }
+
+        return null;
     }
 
     private Slot findSlotByBinding(KeyBind bind) {
+        String key = getKeyFromBinding(bind.setting.getName());
+        if (key != null) {
+            ItemInfo info = itemConfig.get(key);
+            if (info != null) {
+                return findSlotByItem(info);
+            }
+        }
         return InventoryUtils.findSlot(s -> s.getStack().getItem().equals(bind.item));
     }
 
@@ -560,14 +825,13 @@ public class ServerHelper extends ModuleStructure {
             case "Рюкзак 2 уровня" -> "shulker2";
             case "Рюкзак 3 уровня" -> "shulker3";
             case "Рюкзак 4 уровня" -> "shulker4";
-            case "Зелье отрыжки" -> "otriga";
-            case "Зелье серной кислоты" -> "serka";
-            case "Зелье вспышки" -> "vspihka";
-            case "Зелье мочи Флеша" -> "mochaflesha";
-            case "Зелье победителя" -> "pobedilka";
-            case "Зелье агента" -> "agent";
-            case "Зелье медика" -> "medik";
-            case "Зелье киллера" -> "killer";
+            case "Хлопушка" -> "hlopushka";
+            case "Святая вода" -> "holywater";
+            case "Зелье Гнева" -> "gnev";
+            case "Зелье Палладина" -> "paladin";
+            case "Зелье Ассасина" -> "assassin";
+            case "Зелье Радиации" -> "radiation";
+            case "Снотворное" -> "snotvornoe";
             default -> null;
         };
     }

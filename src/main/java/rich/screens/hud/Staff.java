@@ -22,7 +22,7 @@ import java.util.regex.Pattern;
 public class Staff extends AbstractHudElement {
 
     private static final Pattern NAME_PATTERN = Pattern.compile("^\\w{3,16}$");
-    private static final Pattern DIGIT_ONLY_PATTERN = Pattern.compile("^\\d{1,3}$");
+    private static final Pattern DIGIT_ONLY_PATTERN = Pattern.compile("^\\d{1,4}$");
     private static final Identifier STEVE_SKIN = Identifier.of("minecraft", "textures/entity/player/wide/steve.png");
 
     private static class StaffInfo {

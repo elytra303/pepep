@@ -95,7 +95,7 @@ public class FTAngle extends RotateConstructor {
         currentJitterPitch += (targetJitterPitch - currentJitterPitch) * jitterSmoothSpeed;
 
         if (entity != null) {
-            float speed = attackHandler.canAttack(aura.getConfig(), 0) ? 0.85f : random.nextBoolean() ? 0.1F : 0.2F;
+            float speed = attackHandler.canAttack(aura.getConfig(), 0) ? 0.9f : random.nextBoolean() ? 0.1F : 0.2F;
 
             float lineYaw = (Math.abs(yawDelta / rotationDifference) * 180);
             float linePitch = (Math.abs(pitchDelta / rotationDifference) * 180);
@@ -103,7 +103,7 @@ public class FTAngle extends RotateConstructor {
             float moveYaw = MathHelper.clamp(yawDelta, -lineYaw, lineYaw);
             float movePitch = MathHelper.clamp(pitchDelta, -linePitch, linePitch);
 
-            float lerpSpeed = randomLerp(speed, speed + 0.2F);
+            float lerpSpeed = randomLerp(speed, speed + 0.6F);
 
             float newYaw = MathHelper.lerp(lerpSpeed, currentAngle.getYaw(), currentAngle.getYaw() + moveYaw) + currentJitterYaw;
             float newPitch = MathHelper.lerp(lerpSpeed, currentAngle.getPitch(), currentAngle.getPitch() + movePitch) + currentJitterPitch;
@@ -111,10 +111,10 @@ public class FTAngle extends RotateConstructor {
             return new Angle(newYaw, MathHelper.clamp(newPitch, -90, 90));
 
         } else {
-            float speed = attackTimer.finished(550) ? (random.nextBoolean() ? 0.4F : 0.2F) : -0.2F;
+            float speed = attackTimer.finished(650) ? (random.nextBoolean() ? 0.85F : 0.2F) : -0.2F;
 
-            float yawJitter = !attackTimer.finished(1000) ? currentJitterYaw : 0;
-            float pitchJitter = !attackTimer.finished(1000) ? currentJitterPitch : 0;
+            float yawJitter = !attackTimer.finished(2000) ? currentJitterYaw : 0;
+            float pitchJitter = !attackTimer.finished(2000) ? currentJitterPitch : 0;
 
             float lineYaw = (Math.abs(yawDelta / rotationDifference) * 180);
             float linePitch = (Math.abs(pitchDelta / rotationDifference) * 180);
