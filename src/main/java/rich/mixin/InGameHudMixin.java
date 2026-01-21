@@ -1,11 +1,15 @@
 package rich.mixin;
 
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.hud.InGameHud;
 import net.minecraft.client.gui.screen.ChatScreen;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.render.RenderTickCounter;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.ItemStack;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -15,9 +19,9 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import rich.IMinecraft;
 import rich.Initialization;
-import rich.client.draggables.Drag;
 import rich.events.api.EventManager;
 import rich.events.impl.DrawEvent;
+import rich.events.impl.HotbarItemRenderEvent;
 import rich.modules.impl.render.Hud;
 import rich.screens.clickgui.ClickGui;
 import rich.util.render.Render2D;
@@ -28,6 +32,33 @@ public abstract class InGameHudMixin implements IMinecraft {
     @Shadow
     @Final
     private MinecraftClient client;
+
+    @Unique
+    private int richCurrentHotbarIndex = 0;
+
+    @Inject(method = "renderHotbar", at = @At("HEAD"))
+    private void onRenderHotbarStart(DrawContext context, RenderTickCounter tickCounter, CallbackInfo ci) {
+        richCurrentHotbarIndex = 0;
+    }
+
+    @WrapOperation(
+            method = "renderHotbar",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/client/gui/hud/InGameHud;renderHotbarItem(Lnet/minecraft/client/gui/DrawContext;IILnet/minecraft/client/render/RenderTickCounter;Lnet/minecraft/entity/player/PlayerEntity;Lnet/minecraft/item/ItemStack;I)V"
+            )
+    )
+    private void onRenderHotbarItem(InGameHud instance, DrawContext context, int x, int y, RenderTickCounter tickCounter, PlayerEntity player, ItemStack stack, int seed, Operation<Void> original) {
+        int hotbarIndex = richCurrentHotbarIndex;
+
+        if (richCurrentHotbarIndex < 9) {
+            richCurrentHotbarIndex++;
+        }
+
+        HotbarItemRenderEvent event = new HotbarItemRenderEvent(stack, hotbarIndex);
+        EventManager.callEvent(event);
+        original.call(instance, context, x, y, tickCounter, player, event.getStack(), seed);
+    }
 
     @Inject(method = "render", at = @At("TAIL"))
     public void onRenderCustomHud(DrawContext context, RenderTickCounter tickCounter, CallbackInfo ci) {

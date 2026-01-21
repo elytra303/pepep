@@ -29,6 +29,8 @@ public class ModuleRepository {
                 new HitEffect(),
                 new Esp(),
                 new BlockESP(),
+                new AutoTool(),
+                new AuctionHelper(),
                 new GlassHands(),
                 new MaceTarget(),
                 new TriggerBot(),

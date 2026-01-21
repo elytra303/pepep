@@ -65,7 +65,9 @@ public class AutoGApple extends ModuleStructure {
         }
 
         if (canEat()) {
-            swapToGappleSlot();
+            if (!hasGappleInOffhand()) {
+                swapToGappleSlot();
+            }
             startEating();
         } else if (isEating && !shouldContinueEating()) {
             stopEating();
@@ -79,7 +81,7 @@ public class AutoGApple extends ModuleStructure {
 
     private boolean canEat() {
         if (mc.player.isDead()) return false;
-        if (!hasGappleInHotbar()) return false;
+        if (!hasGapple()) return false;
         if (mc.player.getItemCooldownManager().isCoolingDown(Items.GOLDEN_APPLE.getDefaultStack())) return false;
 
         float health = getEffectiveHealth();
@@ -102,6 +104,11 @@ public class AutoGApple extends ModuleStructure {
         return health;
     }
 
+    private boolean hasGappleInOffhand() {
+        ItemStack offhandStack = mc.player.getOffHandStack();
+        return offhandStack.getItem() == Items.GOLDEN_APPLE;
+    }
+
     private boolean hasGappleInHotbar() {
         for (int i = 0; i < 9; i++) {
             ItemStack stack = mc.player.getInventory().getStack(i);
@@ -110,6 +117,10 @@ public class AutoGApple extends ModuleStructure {
             }
         }
         return false;
+    }
+
+    private boolean hasGapple() {
+        return hasGappleInOffhand() || hasGappleInHotbar();
     }
 
     private int findGappleInHotbar() {

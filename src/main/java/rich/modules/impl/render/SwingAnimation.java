@@ -21,11 +21,11 @@ import rich.modules.module.setting.implement.SliderSettings;
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class SwingAnimation extends ModuleStructure {
     SelectSetting swingType = new SelectSetting("Тип взмаха", "Выберите тип взмаха")
-            .value("Swipe", "Down", "Smooth", "Smooth 2", "Power", "Feast", "Twist", "Default");
+            .value("Chop", "Swipe", "Down", "Smooth", "Smooth 2", "Power", "Feast", "Twist", "Default");
     SliderSettings hitStrengthSetting = new SliderSettings("Сила взмаха", "Сила анимации взмаха")
-            .setValue(1.0F).range(0.5F, 3.0F).setValue(0.5F);
+            .range(0.5F, 3.0F).setValue(1.0F);
     SliderSettings swingSpeedSetting = new SliderSettings("Длительность взмаха", "Длительность анимации удара")
-            .setValue(1.0F).range(0.5F, 4.0F).setValue(0.5F);
+            .range(0.5F, 4.0F).setValue(1.0F);
 
     BooleanSetting onlySwing = new BooleanSetting("Только при взмахе", "Показывает анимацию только при взмахе")
             .setValue(false);
@@ -68,6 +68,20 @@ public class SwingAnimation extends ModuleStructure {
             if (onlyAura.isValue() ? Aura.getInstance().isState() && Aura.getInstance().target != null : true) {
                 if (onlySwing.isValue() ? mc.player.handSwingTicks != 0 : true) {
                     switch (swingType.getSelected()) {
+                        case "Chop" -> {
+                            matrix.translate(0.56F * i, -0.44F, -0.72F);
+                            matrix.translate(0.0F, 0.33F * -0.6F, 0.0F);
+                            matrix.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(45.0F * i));
+                            float f = MathHelper.sin(swingProgress * swingProgress * (float) Math.PI);
+                            float f2 = MathHelper.sin(MathHelper.sqrt(swingProgress) * (float) Math.PI);
+                            matrix.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(f2 * -20.0F * i * strength));
+                            matrix.multiply(RotationAxis.POSITIVE_X.rotationDegrees(f2 * -80.0F * strength));
+                            matrix.translate(0.4F, 0.2F, 0.2F);
+                            matrix.translate(-0.5F, 0.08F, 0.0F);
+                            matrix.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(20.0F));
+                            matrix.multiply(RotationAxis.POSITIVE_X.rotationDegrees(-80.0F));
+                            matrix.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(20.0F));
+                        }
                         case "Twist" -> {
                             matrix.translate(i * 0.56F, -0.36F, -0.72F);
                             matrix.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(80 * i));

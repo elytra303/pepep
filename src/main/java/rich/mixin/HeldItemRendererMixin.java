@@ -12,6 +12,7 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.util.Arm;
 import net.minecraft.util.Hand;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -20,13 +21,34 @@ import rich.events.api.EventManager;
 import rich.events.impl.GlassHandsRenderEvent;
 import rich.events.impl.HandAnimationEvent;
 import rich.events.impl.HandOffsetEvent;
+import rich.events.impl.HeldItemUpdateEvent;
+import rich.events.impl.ItemRendererEvent;
 import rich.modules.impl.render.GlassHands;
 
 @Mixin(HeldItemRenderer.class)
 public abstract class HeldItemRendererMixin {
 
+    @Shadow
+    private ItemStack mainHand;
+
+    @Shadow
+    private ItemStack offHand;
+
     @Unique
     private boolean richCustomAnimation = false;
+
+    @Inject(method = "updateHeldItems", at = @At("TAIL"))
+    private void onUpdateHeldItems(CallbackInfo ci) {
+        HeldItemUpdateEvent event = new HeldItemUpdateEvent(this.mainHand, this.offHand);
+        EventManager.callEvent(event);
+
+        if (event.getMainHand() != this.mainHand) {
+            this.mainHand = event.getMainHand();
+        }
+        if (event.getOffHand() != this.offHand) {
+            this.offHand = event.getOffHand();
+        }
+    }
 
     @Inject(method = "renderItem(FLnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/command/OrderedRenderCommandQueue;Lnet/minecraft/client/network/ClientPlayerEntity;I)V", at = @At("HEAD"))
     private void onRenderItemPre(float tickProgress, MatrixStack matrices, OrderedRenderCommandQueue orderedRenderCommandQueue, ClientPlayerEntity player, int light, CallbackInfo ci) {
@@ -37,8 +59,6 @@ public abstract class HeldItemRendererMixin {
         }
     }
 
-
-
     @Inject(method = "renderItem(FLnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/command/OrderedRenderCommandQueue;Lnet/minecraft/client/network/ClientPlayerEntity;I)V", at = @At("TAIL"))
     private void onRenderItemPost(float tickProgress, MatrixStack matrices, OrderedRenderCommandQueue orderedRenderCommandQueue, ClientPlayerEntity player, int light, CallbackInfo ci) {
         GlassHands glassHands = GlassHands.getInstance();
@@ -46,6 +66,13 @@ public abstract class HeldItemRendererMixin {
             GlassHandsRenderEvent event = new GlassHandsRenderEvent(GlassHandsRenderEvent.Phase.POST, matrices, tickProgress);
             EventManager.callEvent(event);
         }
+    }
+
+    @WrapOperation(method = "renderItem(FLnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/command/OrderedRenderCommandQueue;Lnet/minecraft/client/network/ClientPlayerEntity;I)V", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/render/item/HeldItemRenderer;renderFirstPersonItem(Lnet/minecraft/client/network/AbstractClientPlayerEntity;FFLnet/minecraft/util/Hand;FLnet/minecraft/item/ItemStack;FLnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/command/OrderedRenderCommandQueue;I)V"))
+    private void itemRenderHook(HeldItemRenderer instance, AbstractClientPlayerEntity player, float tickDelta, float pitch, Hand hand, float swingProgress, ItemStack item, float equipProgress, MatrixStack matrices, OrderedRenderCommandQueue orderedRenderCommandQueue, int light, Operation<Void> original) {
+        ItemRendererEvent event = new ItemRendererEvent(player, item, hand);
+        EventManager.callEvent(event);
+        original.call(instance, event.getPlayer(), tickDelta, pitch, event.getHand(), swingProgress, event.getStack(), equipProgress, matrices, orderedRenderCommandQueue, light);
     }
 
     @Inject(method = "renderFirstPersonItem", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/util/math/MatrixStack;push()V", shift = At.Shift.AFTER))

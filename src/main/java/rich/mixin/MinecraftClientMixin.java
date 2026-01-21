@@ -19,6 +19,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import rich.Initialization;
 import rich.events.api.EventManager;
 import rich.events.impl.GameLeftEvent;
+import rich.events.impl.HotBarUpdateEvent;
 import rich.events.impl.SetScreenEvent;
 import rich.modules.impl.combat.NoInteract;
 import rich.modules.impl.render.Hud;
@@ -126,6 +127,13 @@ public abstract class MinecraftClientMixin {
         String username = userProfile.profile("username");
         String role = userProfile.profile("role");
         cir.setReturnValue(String.format("Rich Modern (%s - %s)", role, username));
+    }
+
+    @Inject(method = "handleInputEvents", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/network/ClientPlayerEntity;getInventory()Lnet/minecraft/entity/player/PlayerInventory;"), cancellable = true)
+    public void handleInputEventsHook(CallbackInfo ci) {
+        HotBarUpdateEvent event = new HotBarUpdateEvent();
+        EventManager.callEvent(event);
+        if (event.isCancelled()) ci.cancel();
     }
 
     @Inject(method = "doItemUse", at = @At(value = "INVOKE", target = "Lnet/minecraft/util/Hand;values()[Lnet/minecraft/util/Hand;"), cancellable = true)

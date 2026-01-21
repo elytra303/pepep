@@ -9,6 +9,7 @@ import rich.events.api.EventHandler;
 import rich.events.impl.InputEvent;
 import rich.events.impl.TickEvent;
 import rich.modules.impl.combat.Aura;
+import rich.modules.impl.combat.AutoTotem;
 import rich.modules.impl.combat.aura.AngleConnection;
 import rich.modules.module.ModuleStructure;
 import rich.modules.module.category.ModuleCategory;
@@ -60,10 +61,20 @@ public class TargetStrafe extends ModuleStructure {
         return Instance.get(TargetStrafe.class);
     }
 
+    private boolean isAutoTotemBlocking() {
+        AutoTotem autoTotem = Instance.get(AutoTotem.class);
+        if (autoTotem == null) return false;
+        if (!autoTotem.isState()) return false;
+        return autoTotem.getExecutor().isBlocking() || autoTotem.getExecutor().isRunning();
+    }
+
     @EventHandler
     @Native(type = Native.Type.VMProtectBeginUltra)
     public void onInput(InputEvent event) {
         if (mc.player == null || mc.world == null) return;
+
+        if (isAutoTotemBlocking()) return;
+
         LivingEntity target = Aura.target;
         if (target == null || !target.isAlive()) return;
 
@@ -185,6 +196,8 @@ public class TargetStrafe extends ModuleStructure {
     @Native(type = Native.Type.VMProtectBeginUltra)
     public void onTick(TickEvent event) {
         if (mc.player == null || mc.world == null) return;
+
+        if (isAutoTotemBlocking()) return;
 
         LivingEntity target = Aura.target;
         if (target == null || !target.isAlive()) return;

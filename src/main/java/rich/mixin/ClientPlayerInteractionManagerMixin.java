@@ -5,6 +5,8 @@ import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.screen.slot.SlotActionType;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.Hand;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -12,6 +14,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import rich.events.api.EventManager;
 import rich.events.api.types.EventType;
+import rich.events.impl.BlockBreakingEvent;
 import rich.events.impl.ClickSlotEvent;
 import rich.events.impl.UsingItemEvent;
 
@@ -37,6 +40,11 @@ public class ClientPlayerInteractionManagerMixin {
         UsingItemEvent event = new UsingItemEvent(EventType.START);
         EventManager.callEvent(event);
         if (event.isCancelled()) cir.setReturnValue(ActionResult.PASS);
+    }
+
+    @Inject(method = "updateBlockBreakingProgress", at = @At(value = "HEAD"))
+    private void injectBlockBreaking(BlockPos pos, Direction direction, CallbackInfoReturnable<Boolean> cir) {
+        EventManager.callEvent(new BlockBreakingEvent(pos, direction));
     }
 
     @Inject(method = "clickSlot", at = @At("HEAD"), cancellable = true)
