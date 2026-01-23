@@ -3,6 +3,7 @@
   "package": "rich.mixin",
   "compatibilityLevel": "JAVA_21",
   "client": [
+    "AccessibilityOnboardingScreenMixin",
     "BlockOutlineMixin",
     "CameraMixin",
     "ChatInputSuggestorMixin",
@@ -37,7 +38,9 @@
     "MultiplayerServerListWidgetMixin",
     "PlayerListHudMixin",
     "ScreenMixin",
+    "SplashOverlayMixin",
     "StatusEffectFogModifierMixin",
+    "TitleScreenMixin",
     "WindowMixin",
     "WorldRendererMixin"
   ],

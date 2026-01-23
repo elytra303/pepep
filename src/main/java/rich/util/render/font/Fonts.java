@@ -17,6 +17,10 @@ public class Fonts {
     public static final Font REGULAR = register("regular", "regular");
     public static final Font TEST = register("test", "test");
 
+    public static final Font INTER = register("inter", "inter");
+    public static final Font REGULARNEW = register("regularnew", "regularnew");
+    public static final Font MAINMENUSCREEN = register("mainmenuicons", "mainmenuicons");
+
     private static Font register(String name, String path) {
         FONT_REGISTRY.put(name, path);
         return new Font(name);

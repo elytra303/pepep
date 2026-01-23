@@ -1,6 +1,5 @@
 package rich.util.render;
 
-import com.mojang.blaze3d.opengl.GlStateManager;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.texture.Sprite;
@@ -16,6 +15,8 @@ public class Render2D {
     private static boolean savedDepthTest = false;
     private static boolean savedDepthMask = false;
     private static boolean savedBlend = false;
+
+    private static final Identifier BACKGROUND_TEXTURE = Identifier.of("minecraft", "textures/menu/backmenu.png");
 
     public static void beginOverlay() {
         inOverlayMode = true;
@@ -72,6 +73,31 @@ public class Render2D {
 
     public static void depthMask(boolean mask) {
         GL11.glDepthMask(mask);
+    }
+
+    public static void backgroundImage(float opacity) {
+        backgroundImage(opacity, 1.0f);
+    }
+
+    public static void backgroundImage(float opacity, float zoom) {
+        MinecraftClient client = MinecraftClient.getInstance();
+        int screenWidth = client.getWindow().getScaledWidth();
+        int screenHeight = client.getWindow().getScaledHeight();
+
+        float zoomedWidth = screenWidth * zoom;
+        float zoomedHeight = screenHeight * zoom;
+        float offsetX = (screenWidth - zoomedWidth) / 2f;
+        float offsetY = (screenHeight - zoomedHeight) / 2f;
+
+        int alpha = (int) (opacity * 255);
+        int color = (alpha << 24) | 0xFFFFFF;
+        texture(BACKGROUND_TEXTURE, offsetX, offsetY, zoomedWidth, zoomedHeight, color);
+    }
+
+    public static void backgroundImage(float x, float y, float width, float height, float opacity) {
+        int alpha = (int) (opacity * 255);
+        int color = (alpha << 24) | 0xFFFFFF;
+        texture(BACKGROUND_TEXTURE, x, y, width, height, color);
     }
 
     public static void rect(float x, float y, float width, float height, int color) {
@@ -308,5 +334,8 @@ public class Render2D {
 
     public static boolean isInOverlayMode() {
         return inOverlayMode;
+    }
+
+    public static void cleanup() {
     }
 }

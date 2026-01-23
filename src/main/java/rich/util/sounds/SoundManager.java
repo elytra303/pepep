@@ -5,6 +5,7 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.experimental.FieldDefaults;
 import lombok.experimental.UtilityClass;
+import net.minecraft.client.sound.PositionedSoundInstance;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
 import net.minecraft.sound.SoundCategory;
@@ -30,6 +31,7 @@ public class SoundManager implements IMinecraft {
     public SoundEvent ON = SoundEvent.of(Identifier.of("minecraft:on"));
     public SoundEvent CRIME = SoundEvent.of(Identifier.of("minecraft:crime"));
     public SoundEvent METALLIC = SoundEvent.of(Identifier.of("minecraft:metallic"));
+    public SoundEvent WELCOME = SoundEvent.of(Identifier.of("minecraft:welcome"));
 
     public void init() {
         Registry.register(Registries.SOUND_EVENT, KOLOKOLNIA_KILL.id(), KOLOKOLNIA_KILL);
@@ -43,6 +45,7 @@ public class SoundManager implements IMinecraft {
         Registry.register(Registries.SOUND_EVENT, ON.id(), ON);
         Registry.register(Registries.SOUND_EVENT, CRIME.id(), CRIME);
         Registry.register(Registries.SOUND_EVENT, METALLIC.id(), METALLIC);
+        Registry.register(Registries.SOUND_EVENT, WELCOME.id(), WELCOME);
     }
 
     public void playSound(SoundEvent sound) {
@@ -53,5 +56,9 @@ public class SoundManager implements IMinecraft {
         if (!PlayerInteractionHelper.nullCheck()) {
             mc.world.playSound(mc.player, mc.player.getBlockPos(), sound, SoundCategory.BLOCKS, volume, pitch);
         }
+    }
+
+    public void playSoundDirect(SoundEvent sound, float volume, float pitch) {
+        mc.getSoundManager().play(PositionedSoundInstance.ui(sound, pitch, volume));
     }
 }

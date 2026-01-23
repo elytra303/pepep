@@ -53,5 +53,10 @@
     "sounds": [
       "minecraft:metallic"
     ]
-  }
+  },
+  "welcome": {
+  "sounds": [
+    "minecraft:welcome"
+  ]
+}
 }
