@@ -10,28 +10,19 @@ public class Pressing implements IMinecraft {
 
     long lastClickTime = System.currentTimeMillis();
 
-    private static final long MINIMUM_COOLDOWN_MS = 550;
-    private static final long MACE_COOLDOWN_MS = 50;
-
-    public boolean isCooldownComplete(boolean dynamicCooldown, int ticks) {
+    public boolean isCooldownComplete(int ticks) {
         if (mc.player == null) return false;
 
         if (isHoldingMace()) {
-            return lastClickPassed() >= MACE_COOLDOWN_MS;
+            return lastClickPassed() >= 50;
         }
 
         float cooldownProgress = mc.player.getAttackCooldownProgress(ticks);
-        boolean minimumDelayPassed = lastClickPassed() >= MINIMUM_COOLDOWN_MS;
-
-        if (isWeapon()) {
-            return cooldownProgress >= 0.9F && minimumDelayPassed;
-        }
-
-        return minimumDelayPassed;
+        return cooldownProgress >= 0.93F;
     }
 
     public boolean isMaceFastAttack() {
-        return isHoldingMace() && lastClickPassed() >= MACE_COOLDOWN_MS;
+        return isHoldingMace() && lastClickPassed() >= 50;
     }
 
     public long lastClickPassed() {

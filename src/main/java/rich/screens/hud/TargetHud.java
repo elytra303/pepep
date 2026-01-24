@@ -9,8 +9,10 @@ import net.minecraft.util.Identifier;
 import rich.client.draggables.AbstractHudElement;
 import rich.modules.impl.combat.Aura;
 import rich.util.ColorUtil;
+import rich.util.network.Network;
 import rich.util.render.Render2D;
 import rich.util.render.font.Fonts;
+import rich.util.string.PlayerInteractionHelper;
 import rich.util.timer.StopWatch;
 
 import java.awt.*;
@@ -59,6 +61,26 @@ public class TargetHud extends AbstractHudElement {
 
     private float snapToStep(float value, float step) {
         return Math.round(value / step) * step;
+    }
+
+    private float getHealth(LivingEntity entity) {
+        if (entity.isInvisible() && !Network.isSpookyTime() && !Network.isCopyTime()) {
+            return entity.getMaxHealth();
+        }
+        return entity.getHealth();
+    }
+
+    private String getHealthString(float health) {
+        if (lastTarget != null && lastTarget.isInvisible() && !Network.isSpookyTime() && !Network.isCopyTime()) {
+            return "??";
+        }
+        if (health >= 100) {
+            return String.valueOf((int) health);
+        } else if (health >= 10) {
+            return String.format("%.1f", health);
+        } else {
+            return String.format("%.2f", health);
+        }
     }
 
     @Override
@@ -152,11 +174,11 @@ public class TargetHud extends AbstractHudElement {
         float contentX = faceX + faceSize + 6;
         float nameY = y + 13;
 
-        float hp = lastTarget.getHealth();
+        float hp = getHealth(lastTarget);
         float maxHp = lastTarget.getMaxHealth();
         float absorp = lastTarget.getAbsorptionAmount();
 
-        boolean isInvisible = lastTarget.isInvisible();
+        boolean isInvisible = lastTarget.isInvisible() && !Network.isSpookyTime() && !Network.isCopyTime();
 
         float targetDisplayHealth;
         if (isInvisible) {
@@ -167,7 +189,7 @@ public class TargetHud extends AbstractHudElement {
         displayedHealth = lerp(displayedHealth, targetDisplayHealth, deltaTime, 5f);
         float snappedHealth = snapToStep(displayedHealth, 0.25f);
 
-        String hpStr = isInvisible ? "??" : getHealthString(snappedHealth);
+        String hpStr = getHealthString(snappedHealth);
 
         String name = lastTarget.getName().getString();
         float hpWidth = Fonts.BOLD.getWidth(hpStr, 5.5f);
@@ -236,7 +258,7 @@ public class TargetHud extends AbstractHudElement {
         }
 
         float absorptionPercent = Math.max(0, Math.min(1, absorptionAnimation));
-        if (absorptionPercent > 0.01f) {
+        if (absorptionPercent > 0.01f && !Network.isFunTime()) {
             long elapsed = System.currentTimeMillis() - startTime;
             float waveSpeed = 1200f;
             float wavePhase = (elapsed % (long) waveSpeed) / waveSpeed * (float) Math.PI * 2f;
@@ -255,16 +277,6 @@ public class TargetHud extends AbstractHudElement {
             }
 
             Render2D.gradientRect(barX, barY, barWidth * absorptionPercent, barHeight, goldColors, barRadius);
-        }
-    }
-
-    private String getHealthString(float health) {
-        if (health >= 100) {
-            return String.valueOf((int) health);
-        } else if (health >= 10) {
-            return String.format("%.1f", health);
-        } else {
-            return String.format("%.2f", health);
         }
     }
 }

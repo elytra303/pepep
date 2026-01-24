@@ -2,7 +2,9 @@ package rich.modules.impl.movement;
 
 import antidaunleak.api.annotation.Native;
 import lombok.Getter;
+import net.minecraft.network.packet.c2s.play.ClientCommandC2SPacket;
 import rich.events.api.EventHandler;
+import rich.events.impl.PacketEvent;
 import rich.events.impl.TickEvent;
 import rich.modules.module.ModuleStructure;
 import rich.modules.module.category.ModuleCategory;
@@ -14,9 +16,12 @@ public class AutoSprint extends ModuleStructure {
         return Instance.get(AutoSprint.class);
     }
 
-    public static volatile boolean sprintBlocked = false;
-    public static volatile int sprintBlockTicks = 0;
-    private static final int MAX_BLOCK_TICKS = 10;
+    private static volatile boolean serverSprintState = false;
+    private static volatile boolean sprintBlocked = false;
+    private static volatile int blockTicksElapsed = 0;
+    private static volatile boolean attackPending = false;
+    private static final int MIN_BLOCK_TICKS = 1;
+    private static final int MAX_BLOCK_TICKS = 8;
 
     @Getter
     private final BooleanSetting noReset = new BooleanSetting("Не сбрасывать спринт", "Don't reset sprint for crits")
@@ -27,32 +32,84 @@ public class AutoSprint extends ModuleStructure {
         setup(noReset);
     }
 
+    @EventHandler
+    @Native(type = Native.Type.VMProtectBeginMutation)
+    public void onPacket(PacketEvent event) {
+        if (event.getType() != PacketEvent.Type.SEND) return;
+        if (!(event.getPacket() instanceof ClientCommandC2SPacket packet)) return;
+
+        if (packet.getMode() == ClientCommandC2SPacket.Mode.START_SPRINTING) {
+            if (serverSprintState) {
+                event.cancel();
+                return;
+            }
+            serverSprintState = true;
+        } else if (packet.getMode() == ClientCommandC2SPacket.Mode.STOP_SPRINTING) {
+            if (!serverSprintState) {
+                event.cancel();
+                return;
+            }
+            serverSprintState = false;
+        }
+    }
+
+    public static boolean isServerSprinting() {
+        return serverSprintState;
+    }
+
+    public static void resetServerState() {
+        serverSprintState = false;
+    }
+
     @Native(type = Native.Type.VMProtectBeginMutation)
     public static void blockSprint() {
         if (mc.player == null) return;
+
         sprintBlocked = true;
-        sprintBlockTicks = 0;
-        mc.player.setSprinting(false);
+        blockTicksElapsed = 0;
+        attackPending = true;
+
+        if (mc.player.isSprinting()) {
+            mc.player.setSprinting(false);
+        }
     }
 
     @Native(type = Native.Type.VMProtectBeginMutation)
     public static void unblockSprint() {
         sprintBlocked = false;
-        sprintBlockTicks = 0;
+        blockTicksElapsed = 0;
+        attackPending = false;
     }
 
     public static boolean isBlocked() {
         return sprintBlocked;
     }
 
-    @Native(type = Native.Type.VMProtectBeginMutation)
-    public static void tickBlockTimeout() {
-        if (!sprintBlocked) return;
+    public static boolean isReadyForAttack() {
+        return sprintBlocked && blockTicksElapsed >= MIN_BLOCK_TICKS;
+    }
 
-        sprintBlockTicks++;
-        if (sprintBlockTicks > MAX_BLOCK_TICKS) {
-            unblockSprint();
-        }
+    public static boolean isAttackPending() {
+        return attackPending;
+    }
+
+    public static void cancelPending() {
+        attackPending = false;
+        unblockSprint();
+    }
+
+    public static boolean hasAnyMovementInput() {
+        if (mc.player == null) return false;
+
+        return mc.player.input.playerInput.forward() ||
+                mc.player.input.playerInput.backward() ||
+                mc.player.input.playerInput.left() ||
+                mc.player.input.playerInput.right();
+    }
+
+    public static boolean hasStrafingInput() {
+        if (mc.player == null) return false;
+        return mc.player.input.playerInput.left() || mc.player.input.playerInput.right();
     }
 
     @EventHandler
@@ -60,9 +117,13 @@ public class AutoSprint extends ModuleStructure {
     public void onTick(TickEvent e) {
         if (mc.player == null) return;
 
-        tickBlockTimeout();
-
         if (sprintBlocked) {
+            blockTicksElapsed++;
+
+            if (blockTicksElapsed > MAX_BLOCK_TICKS) {
+                unblockSprint();
+            }
+
             if (mc.player.isSprinting()) {
                 mc.player.setSprinting(false);
             }
@@ -78,9 +139,7 @@ public class AutoSprint extends ModuleStructure {
         boolean sneaking = mc.player.isSneaking() && !mc.player.isSwimming();
         boolean canSprint = !horizontal && mc.player.forwardSpeed > 0;
 
-        if (sneaking) {
-            return;
-        }
+        if (sneaking) return;
 
         if (canSprint && !mc.player.isSprinting()) {
             mc.player.setSprinting(true);
@@ -91,5 +150,6 @@ public class AutoSprint extends ModuleStructure {
     @Native(type = Native.Type.VMProtectBeginMutation)
     public void deactivate() {
         unblockSprint();
+        resetServerState();
     }
 }

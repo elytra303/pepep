@@ -21,7 +21,7 @@ public class AutoGApple extends ModuleStructure {
     final SliderSettings healthThreshold = new SliderSettings("Здоровье", "Порог здоровья для еды")
             .range(3.0f, 20.0f).setValue(16.0f);
 
-    final BooleanSetting smartMode = new BooleanSetting("Умный", "Не есть если надета элитра")
+    final BooleanSetting smartMode = new BooleanSetting("Умный", "Есть из хотбара, иначе только с левой руки")
             .setValue(true);
 
     final BooleanSetting goldenHearts = new BooleanSetting("Золотые сердца", "Учитывать absorption")
@@ -57,32 +57,36 @@ public class AutoGApple extends ModuleStructure {
     }
 
     private void handleEating() {
-        if (smartMode.isValue() && hasElytraEquipped()) {
-            if (isEating) {
-                stopEating();
-            }
-            return;
-        }
-
         if (canEat()) {
-            if (!hasGappleInOffhand()) {
-                swapToGappleSlot();
+            if (smartMode.isValue()) {
+                if (!hasGappleInHand()) {
+                    swapToGappleSlot();
+                }
+                startEating();
+            } else {
+                if (hasGappleInOffhand()) {
+                    startEating();
+                }
             }
-            startEating();
         } else if (isEating && !shouldContinueEating()) {
             stopEating();
         }
     }
 
-    private boolean hasElytraEquipped() {
-        ItemStack chestItem = mc.player.getEquippedStack(EquipmentSlot.CHEST);
-        return chestItem.getItem() == Items.ELYTRA;
+    private boolean hasGappleInHand() {
+        ItemStack mainHand = mc.player.getMainHandStack();
+        return mainHand.getItem() == Items.GOLDEN_APPLE;
     }
 
     private boolean canEat() {
         if (mc.player.isDead()) return false;
-        if (!hasGapple()) return false;
         if (mc.player.getItemCooldownManager().isCoolingDown(Items.GOLDEN_APPLE.getDefaultStack())) return false;
+
+        if (smartMode.isValue()) {
+            if (!hasGapple()) return false;
+        } else {
+            if (!hasGappleInOffhand()) return false;
+        }
 
         float health = getEffectiveHealth();
         return health <= healthThreshold.getValue();

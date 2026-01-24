@@ -32,6 +32,7 @@ import rich.modules.module.setting.implement.ColorSetting;
 import rich.modules.module.setting.implement.MultiSelectSetting;
 import rich.modules.module.setting.implement.SelectSetting;
 import rich.modules.module.setting.implement.SliderSettings;
+import rich.util.ColorUtil;
 import rich.util.Instance;
 import rich.util.math.Projection;
 import rich.util.modules.esp.RwPrefix;
@@ -335,26 +336,33 @@ public class Esp extends ModuleStructure {
         int height = 67;
         int color = ((BlockItem) itemStack.getItem()).getBlock().getDefaultMapColor().color | 0xFF000000;
 
-        float drawX = (float) (Projection.centerX(vec) - (double) width / 4);
-        float drawY = (float) (vec.w + 2);
+        float scale = 0.5F;
+        float scaledWidth = width * scale;
+        float scaledHeight = height * scale;
 
-        context.getMatrices().pushMatrix();
-        context.getMatrices().translate(drawX, drawY);
-        context.getMatrices().scale(0.5F, 0.5F);
+        float drawX = (float) Projection.centerX(vec) - scaledWidth / 2;
+        float drawY = (float) vec.y - scaledHeight - 2;
 
-        Render2D.texture(TEXTURE, 0, 0, width, height, color);
+        Render2D.texture(TEXTURE, drawX, drawY, scaledWidth, scaledHeight, color);
+        Render2D.blur(drawX, drawY, 1, 1, 0f, 0, ColorUtil.rgba(0, 0, 0, 0));
 
-        int posX = 7;
-        int posY = 6;
+        float itemScale = scale;
+        float itemStartX = drawX + 7 * scale;
+        float itemStartY = drawY + 6 * scale;
+        float itemSize = 18 * scale;
+
+        int col = 0;
+        int row = 0;
         for (ItemStack stack : stacks) {
-            ItemRender.drawItemWithContext(context, stack, posX, posY, 1F, 1F);
-            posX += 18;
-            if (posX >= 165) {
-                posY += 18;
-                posX = 7;
+            float itemX = itemStartX + col * itemSize;
+            float itemY = itemStartY + row * itemSize;
+            ItemRender.drawItemWithContext(context, stack, itemX, itemY, itemScale, 1F);
+            col++;
+            if (col >= 9) {
+                row++;
+                col = 0;
             }
         }
-        context.getMatrices().popMatrix();
     }
 
     private void drawText(DrawContext context, String text, double startX, double startY, float size) {

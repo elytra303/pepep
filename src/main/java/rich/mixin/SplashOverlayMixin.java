@@ -15,7 +15,6 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import rich.screens.loading.Loading;
-import rich.screens.menu.MainMenuScreen;
 
 @Mixin(SplashOverlay.class)
 public abstract class SplashOverlayMixin {
@@ -35,6 +34,10 @@ public abstract class SplashOverlayMixin {
 
     @Inject(method = "render", at = @At("HEAD"), cancellable = true)
     private void onRender(DrawContext context, int mouseX, int mouseY, float deltaTicks, CallbackInfo ci) {
+        if (this.reloading) {
+            return;
+        }
+
         ci.cancel();
 
         if (loadingScreen == null) {
@@ -45,7 +48,7 @@ public abstract class SplashOverlayMixin {
         int height = context.getScaledWindowHeight();
         long currentTime = Util.getMeasuringTimeMs();
 
-        if (this.reloading && this.reloadStartTime == -1L) {
+        if (this.reloadStartTime == -1L) {
             this.reloadStartTime = currentTime;
         }
 
@@ -66,9 +69,6 @@ public abstract class SplashOverlayMixin {
 
         if (loadingScreen.isReadyToClose()) {
             this.client.setOverlay((Overlay) null);
-            if (!(this.client.currentScreen instanceof MainMenuScreen)) {
-                this.client.setScreen(new MainMenuScreen());
-            }
             loadingScreen.reset();
             loadingScreen = null;
             resourcesMarkedComplete = false;

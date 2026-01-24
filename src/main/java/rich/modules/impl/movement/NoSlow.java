@@ -31,7 +31,7 @@ public class NoSlow extends ModuleStructure {
     private final Script script = new Script();
     private boolean finish;
 
-    public final SelectSetting itemMode = new SelectSetting("Режим предмета", "Выберите режим обхода").value("Grim Old", "в", "Funtime");
+    public final SelectSetting itemMode = new SelectSetting("Режим предмета", "Выберите режим обхода").value("Grim Old", "ReallyWorld", "SpookyTime", "Funtime");
 
     public NoSlow() {
         super("NoSlow", "No Slow", ModuleCategory.MOVEMENT);
@@ -39,6 +39,7 @@ public class NoSlow extends ModuleStructure {
     }
 
     private int ticks = 0;
+    private int cycleCounter = 0;
 
     private boolean isOnSnowOrCarpet() {
         if (mc.player == null || mc.world == null) return false;
@@ -65,15 +66,30 @@ public class NoSlow extends ModuleStructure {
 
     @EventHandler
     public void onUpdate(TickEvent event) {
-        if (mc.player.getActiveHand() == Hand.MAIN_HAND || mc.player.getActiveHand() == Hand.OFF_HAND) {
-            ticks++;
+        if (mc.player == null) return;
+
+        if (itemMode.isSelected("ReallyWorld") || itemMode.isSelected("SpookyTime")) {
+            if (!mc.player.isUsingRiptide()) {
+                if (mc.player.isUsingItem()) {
+                    ticks++;
+                } else {
+                    ticks = 0;
+                    cycleCounter = 0;
+                }
+            }
         } else {
-            ticks = 0;
+            if (mc.player.getActiveHand() == Hand.MAIN_HAND || mc.player.getActiveHand() == Hand.OFF_HAND) {
+                ticks++;
+            } else {
+                ticks = 0;
+            }
         }
     }
 
     @EventHandler
     public void onUsingItem(UsingItemEvent e) {
+        if (mc.player == null) return;
+
         Hand first = mc.player.getActiveHand();
         Hand second = first.equals(Hand.MAIN_HAND) ? Hand.OFF_HAND : Hand.MAIN_HAND;
 
@@ -96,37 +112,56 @@ public class NoSlow extends ModuleStructure {
                     e.cancel();
                 }
             }
-            case "SpookyTime" -> {
-                if (ticks > 1F && mc.player.getItemUseTime() > 2) {
+            case "ReallyWorld" -> {
+                int[] thresholds;
+
+                if (mc.player.isJumping()) {
+                    thresholds = new int[]{2, 2, 2};
+                } else {
+                    thresholds = new int[]{2, 3, 3};
+                }
+
+                int threshold = thresholds[cycleCounter % thresholds.length];
+
+                if (ticks >= threshold) {
                     e.cancel();
                     ticks = 0;
+                    cycleCounter++;
+                }
+            }
+            case "SpookyTime" -> {
+                int[] thresholds = new int[]{2, 2, 2};
+                int threshold = thresholds[cycleCounter % 2];
+                if (ticks >= threshold) {
+                    e.cancel();
+                    ticks = 0;
+                    cycleCounter++;
                 }
             }
             case "Funtime" -> {
                 if (ticks > 0F && mc.player.getItemUseTime() > 1F) {
-
                     boolean mainHandCrossbow = mc.player.getMainHandStack().getItem() instanceof CrossbowItem;
-                boolean offHandCrossbow = mc.player.getOffHandStack().getItem() instanceof CrossbowItem;
+                    boolean offHandCrossbow = mc.player.getOffHandStack().getItem() instanceof CrossbowItem;
 
-                if (mainHandCrossbow || offHandCrossbow) {
-                    if (ticks > 0F && mc.player.getItemUseTime() > 1) {
+                    if (mainHandCrossbow || offHandCrossbow) {
+                        if (ticks > 0F && mc.player.getItemUseTime() > 1) {
+                            e.cancel();
+                            ticks = 0;
+                        }
+                    } else if (mc.player.isOnGround() && isOnSnowOrCarpet()) {
+                        mc.player.networkHandler.sendPacket(new PlayerActionC2SPacket(
+                                PlayerActionC2SPacket.Action.ABORT_DESTROY_BLOCK,
+                                mc.player.getBlockPos().up(),
+                                Direction.DOWN
+                        ));
+                        mc.player.setVelocity(
+                                mc.player.getVelocity().x,
+                                mc.player.getVelocity().y,
+                                mc.player.getVelocity().z
+                        );
                         e.cancel();
                         ticks = 0;
                     }
-                } else if (mc.player.isOnGround() && isOnSnowOrCarpet()) {
-                    mc.player.networkHandler.sendPacket(new PlayerActionC2SPacket(
-                            PlayerActionC2SPacket.Action.ABORT_DESTROY_BLOCK,
-                            mc.player.getBlockPos().up(),
-                            Direction.DOWN
-                    ));
-                    mc.player.setVelocity(
-                            mc.player.getVelocity().x,
-                            mc.player.getVelocity().y,
-                            mc.player.getVelocity().z
-                    );
-                    e.cancel();
-                    ticks = 0;
-                }
                 }
             }
         }

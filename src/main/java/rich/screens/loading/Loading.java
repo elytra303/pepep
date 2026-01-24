@@ -20,8 +20,8 @@ public class Loading {
             "Almost ready"
     };
 
-    private static final long TEXT_DISPLAY_DURATION = 1500L;
-    private static final long LAST_TEXT_DISPLAY_DURATION = 3000L;
+    private static final long TEXT_DISPLAY_DURATION = 2200L;
+    private static final long LAST_TEXT_DISPLAY_DURATION = 2500L;
     private static final long TEXT_TRANSITION_DURATION = 400L;
 
     private static final float ZOOM_LEVEL = 1.08f;
@@ -184,14 +184,14 @@ public class Loading {
 
     private void renderLogo(int width, int height, float opacity) {
         float centerX = width / 2f;
-        float centerY = height / 2f - 25;
+        float centerY = height / 2f - 20;
         renderLogoText(centerX, centerY, opacity);
     }
 
     private void renderLogoText(float centerX, float centerY, float opacity) {
         int textAlpha = (int) (opacity * 255);
         float fontSize = 40f;
-        float breathe = (float) Math.sin(pulseTime * 1.2f) * 1.3f;
+        float breathe = (float) Math.sin(pulseTime * 1.3f) * 1.3f;
 
         String text = "A";
         float textWidth = Fonts.ICONS.getWidth(text, fontSize);

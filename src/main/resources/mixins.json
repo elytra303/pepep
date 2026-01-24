@@ -30,6 +30,7 @@
     "LightmapTextureManagerMixin",
     "LivingEntityRendererMixin",
     "MinecraftClientMixin",
+    "MixinBuiltChunk",
     "MixinClientPlayerInteractionManager",
     "MixinItemEntityRenderer",
     "MixinPlayerEntityRenderer",

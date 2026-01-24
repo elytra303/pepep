@@ -16,6 +16,7 @@ import rich.events.api.EventManager;
 import rich.events.impl.ChatEvent;
 import rich.events.impl.GameLeftEvent;
 import rich.events.impl.WorldChangeEvent;
+import rich.screens.account.SkinFetcher;
 
 @Mixin(ClientPlayNetworkHandler.class)
 public class ClientPlayNetworkHandlerMixin implements IMinecraft {
@@ -25,6 +26,7 @@ public class ClientPlayNetworkHandlerMixin implements IMinecraft {
 
     @Unique
     private boolean worldNotNull;
+
 
     @Inject(method = "sendChatMessage", at = @At("HEAD"), cancellable = true)
     private void onSendChatMessage(String message, CallbackInfo ci) {

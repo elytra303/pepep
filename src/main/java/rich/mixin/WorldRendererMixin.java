@@ -1,6 +1,8 @@
 package rich.mixin;
 
+import net.minecraft.client.gl.DynamicUniforms;
 import net.minecraft.client.render.Camera;
+import net.minecraft.client.render.SectionRenderState;
 import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.render.WorldRenderer;
 import net.minecraft.client.render.state.WorldRenderState;
@@ -8,18 +10,26 @@ import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.effect.StatusEffects;
+import org.joml.Matrix4f;
+import org.joml.Matrix4fc;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.ModifyArg;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import rich.IMinecraft;
 import rich.events.api.EventManager;
 import rich.events.impl.Event3D;
+import rich.modules.impl.render.ChunkAnimator;
 import rich.modules.impl.render.NoRender;
 
 @Mixin(WorldRenderer.class)
 public class WorldRendererMixin implements IMinecraft {
+
+    @Unique
+    private float rich$currentVisibility = 0f;
 
     @Inject(method = "renderBlockDamage", at = @At("TAIL"))
     private void onRenderBlockDamage(MatrixStack matrices, VertexConsumerProvider.Immediate immediate, WorldRenderState renderStates, CallbackInfo ci) {
@@ -27,6 +37,36 @@ public class WorldRendererMixin implements IMinecraft {
             Event3D event = new Event3D(matrices, immediate);
             EventManager.callEvent(event);
         }
+    }
+
+    @ModifyArg(
+            method = "renderBlockLayers",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Ljava/util/List;add(Ljava/lang/Object;)Z",
+                    ordinal = 0
+            ),
+            index = 0
+    )
+    private Object modifyChunkSectionsValue(Object value) {
+        if (value instanceof DynamicUniforms.ChunkSectionsValue original) {
+            ChunkAnimator chunkAnimator = ChunkAnimator.getInstance();
+            if (chunkAnimator != null && chunkAnimator.isState()) {
+                float visibility = original.visibility();
+                float animOffset = (1.0f - visibility) * 100f;
+                int newY = original.y() - (int) animOffset;
+                return new DynamicUniforms.ChunkSectionsValue(
+                        original.modelView(),
+                        original.x(),
+                        newY,
+                        original.z(),
+                        original.visibility(),
+                        original.textureAtlasWidth(),
+                        original.textureAtlasHeight()
+                );
+            }
+        }
+        return value;
     }
 
     @Inject(method = "hasBlindnessOrDarkness", at = @At("HEAD"), cancellable = true)
