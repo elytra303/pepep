@@ -28,7 +28,7 @@ public class TapeMouse extends ModuleStructure {
 
     public TapeMouse() {
         super("TapeMouse", "Tape Mouse", ModuleCategory.COMBAT);
-        setup(modeClick, delayForClick);
+        settings(modeClick, delayForClick);
     }
 
     @EventHandler

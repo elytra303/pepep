@@ -50,7 +50,7 @@ public class AutoDuel extends ModuleStructure {
 
     public AutoDuel() {
         super("AutoDuel", "Auto Duel", ModuleCategory.MISC);
-        setup(mode, slowTime, babki, money);
+        settings(mode, slowTime, babki, money);
     }
 
     @Override

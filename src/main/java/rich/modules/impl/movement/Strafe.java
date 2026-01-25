@@ -30,7 +30,7 @@ public class Strafe extends ModuleStructure {
 
     public Strafe() {
         super("Strafe", "Strafe", ModuleCategory.MOVEMENT);
-        setup(mode, speed);
+        settings(mode, speed);
     }
 
     public static Strafe getInstance() {

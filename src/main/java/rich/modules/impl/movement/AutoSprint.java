@@ -29,7 +29,7 @@ public class AutoSprint extends ModuleStructure {
 
     public AutoSprint() {
         super("AutoSprint", ModuleCategory.MOVEMENT);
-        setup(noReset);
+        settings(noReset);
     }
 
     @EventHandler

@@ -37,7 +37,7 @@ public class ChestStealer extends ModuleStructure {
 
     public ChestStealer() {
         super("ChestStealer", "Chest Stealer", ModuleCategory.PLAYER);
-        setup(modeSetting, delaySetting, itemSettings);
+        settings(modeSetting, delaySetting, itemSettings);
     }
 
     @EventHandler

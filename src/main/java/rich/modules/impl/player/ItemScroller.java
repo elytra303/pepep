@@ -27,7 +27,7 @@ public class ItemScroller extends ModuleStructure {
 
     public ItemScroller() {
         super("ItemScroller", "Item Scroller", ModuleCategory.PLAYER);
-        setup(scrollerSetting);
+        settings(scrollerSetting);
     }
 
     @EventHandler

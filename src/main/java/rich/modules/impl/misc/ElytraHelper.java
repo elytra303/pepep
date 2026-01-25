@@ -83,7 +83,7 @@ public class ElytraHelper extends ModuleStructure {
 
     public ElytraHelper() {
         super("ElytraHelper", "Elytra Helper", ModuleCategory.MISC);
-        setup(modeSetting, swapBind, fireworkBind);
+        settings(modeSetting, swapBind, fireworkBind);
     }
 
     @EventHandler

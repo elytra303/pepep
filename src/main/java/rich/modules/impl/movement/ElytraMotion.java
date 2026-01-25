@@ -35,7 +35,7 @@ public class ElytraMotion extends ModuleStructure {
 
     public ElytraMotion() {
         super("ElytraMotion", "Elytra Motion", ModuleCategory.MOVEMENT);
-        setup();
+        this.settings();
     }
 
     @EventHandler

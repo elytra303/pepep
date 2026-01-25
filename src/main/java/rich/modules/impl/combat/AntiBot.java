@@ -23,7 +23,6 @@ import rich.modules.module.setting.implement.SelectSetting;
 import rich.util.Instance;
 
 import java.util.*;
-import java.util.stream.StreamSupport;
 
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class AntiBot extends ModuleStructure {
@@ -47,7 +46,7 @@ public class AntiBot extends ModuleStructure {
 
     public AntiBot() {
         super("AntiBot", "Anti Bot", ModuleCategory.COMBAT);
-        setup(mode);
+        settings(mode);
     }
 
     @EventHandler

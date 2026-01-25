@@ -23,6 +23,7 @@ import rich.events.api.EventManager;
 import rich.events.impl.DrawEvent;
 import rich.events.impl.HotbarItemRenderEvent;
 import rich.modules.impl.render.Hud;
+import rich.modules.impl.render.NoRender;
 import rich.screens.clickgui.ClickGui;
 import rich.util.render.Render2D;
 
@@ -58,6 +59,30 @@ public abstract class InGameHudMixin implements IMinecraft {
         HotbarItemRenderEvent event = new HotbarItemRenderEvent(stack, hotbarIndex);
         EventManager.callEvent(event);
         original.call(instance, context, x, y, tickCounter, player, event.getStack(), seed);
+    }
+
+    @Inject(method = "renderNauseaOverlay", at = @At("HEAD"), cancellable = true)
+    private void onRenderNauseaOverlay(DrawContext context, float nauseaStrength, CallbackInfo ci) {
+        NoRender noRender = NoRender.getInstance();
+        if (noRender != null && noRender.isState() && noRender.modeSetting.isSelected("Nausea")) {
+            ci.cancel();
+        }
+    }
+
+    @Inject(method = "renderScoreboardSidebar(Lnet/minecraft/client/gui/DrawContext;Lnet/minecraft/client/render/RenderTickCounter;)V", at = @At("HEAD"), cancellable = true)
+    private void onRenderScoreboard(DrawContext context, RenderTickCounter tickCounter, CallbackInfo ci) {
+        NoRender noRender = NoRender.getInstance();
+        if (noRender != null && noRender.isState() && noRender.modeSetting.isSelected("Scoreboard")) {
+            ci.cancel();
+        }
+    }
+
+    @Inject(method = "renderBossBarHud", at = @At("HEAD"), cancellable = true)
+    private void onRenderBossBar(DrawContext context, RenderTickCounter tickCounter, CallbackInfo ci) {
+        NoRender noRender = NoRender.getInstance();
+        if (noRender != null && noRender.isState() && noRender.modeSetting.isSelected("BossBar")) {
+            ci.cancel();
+        }
     }
 
     @Inject(method = "render", at = @At("TAIL"))

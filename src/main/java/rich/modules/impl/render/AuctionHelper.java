@@ -8,7 +8,6 @@ import net.minecraft.client.gui.screen.ingame.GenericContainerScreen;
 import net.minecraft.item.ItemStack;
 import net.minecraft.network.packet.s2c.play.ScreenHandlerSlotUpdateS2CPacket;
 import net.minecraft.screen.slot.Slot;
-import org.joml.Matrix3x2fStack;
 import rich.events.api.EventHandler;
 import rich.events.impl.HandledScreenEvent;
 import rich.events.impl.PacketEvent;
@@ -45,7 +44,7 @@ public class AuctionHelper extends ModuleStructure {
 
     public AuctionHelper() {
         super("AuctionHelper", "Auction Helper", ModuleCategory.RENDER);
-        setup(filterThorns, showPricePerItem);
+        settings(filterThorns, showPricePerItem);
     }
 
     @Override

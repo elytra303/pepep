@@ -42,7 +42,7 @@ public class Jesus extends ModuleStructure {
 
     public Jesus() {
         super("Jesus", ModuleCategory.MOVEMENT);
-        setup(mode, funtimeSpeed);
+        settings(mode, funtimeSpeed);
     }
 
     @Override

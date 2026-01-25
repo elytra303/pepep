@@ -48,7 +48,7 @@ public class GlassHands extends ModuleStructure {
 
     public GlassHands() {
         super("GlassHands", "Делает руки и предметы стеклянными", ModuleCategory.RENDER);
-        setup(blurRadius, blurIterations, saturation, enableTint, tintIntensity, tintColor, enableEdgeGlow, edgeGlowIntensity);
+        settings(blurRadius, blurIterations, saturation, enableTint, tintIntensity, tintColor, enableEdgeGlow, edgeGlowIntensity);
         instance = this;
     }
 

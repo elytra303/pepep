@@ -147,6 +147,15 @@ public abstract class GameRendererMixin {
         }
     }
 
+    @ModifyExpressionValue(method = "renderWorld", at = @At(value = "INVOKE", target = "Ljava/lang/Math;max(FF)F", ordinal = 0))
+    private float onNauseaDistortion(float original) {
+        NoRender noRender = NoRender.getInstance();
+        if (noRender != null && noRender.isState() && noRender.modeSetting.isSelected("Nausea")) {
+            return 0.0F;
+        }
+        return original;
+    }
+
     @Inject(method = "render", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/render/GuiRenderer;render(Lcom/mojang/blaze3d/buffers/GpuBufferSlice;)V", shift = At.Shift.AFTER))
     private void afterGuiRender(RenderTickCounter tickCounter, boolean tick, CallbackInfo ci) {
         if (client.world == null || client.player == null) return;

@@ -31,7 +31,7 @@ public class Speed extends ModuleStructure {
 
     public Speed() {
         super("Speed", "Speed", ModuleCategory.MOVEMENT);
-        setup(mode, speed);
+        settings(mode, speed);
     }
 
     @EventHandler

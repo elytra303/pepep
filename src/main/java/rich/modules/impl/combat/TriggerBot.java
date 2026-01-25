@@ -60,7 +60,7 @@ public class TriggerBot extends ModuleStructure {
 
     public TriggerBot() {
         super("TriggerBot", "Trigger Bot", ModuleCategory.COMBAT);
-        setup(attackRange, targetType, attackSetting, sprintReset, smartCrits);
+        settings(attackRange, targetType, attackSetting, sprintReset, smartCrits);
     }
 
     public static TriggerBot getInstance() {

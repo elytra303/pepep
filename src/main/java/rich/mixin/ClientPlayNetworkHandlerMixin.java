@@ -1,10 +1,15 @@
 package rich.mixin;
 
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ClientPlayNetworkHandler;
 import net.minecraft.client.world.ClientWorld;
-import net.minecraft.network.packet.s2c.play.EnterReconfigurationS2CPacket;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.network.packet.s2c.play.EntityStatusS2CPacket;
 import net.minecraft.network.packet.s2c.play.GameJoinS2CPacket;
 import net.minecraft.network.packet.s2c.play.PlayerRespawnS2CPacket;
+import net.minecraft.sound.SoundEvents;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
@@ -16,17 +21,21 @@ import rich.events.api.EventManager;
 import rich.events.impl.ChatEvent;
 import rich.events.impl.GameLeftEvent;
 import rich.events.impl.WorldChangeEvent;
-import rich.screens.account.SkinFetcher;
+import rich.modules.impl.render.Particles;
 
 @Mixin(ClientPlayNetworkHandler.class)
-public class ClientPlayNetworkHandlerMixin implements IMinecraft {
+public abstract class ClientPlayNetworkHandlerMixin implements IMinecraft {
 
     @Shadow
     private ClientWorld world;
 
+    @Shadow
+    private static ItemStack getActiveDeathProtector(PlayerEntity player) {
+        return null;
+    }
+
     @Unique
     private boolean worldNotNull;
-
 
     @Inject(method = "sendChatMessage", at = @At("HEAD"), cancellable = true)
     private void onSendChatMessage(String message, CallbackInfo ci) {
@@ -57,5 +66,26 @@ public class ClientPlayNetworkHandlerMixin implements IMinecraft {
     @Inject(method = "onPlayerRespawn", at = @At("RETURN"))
     private void onPlayerRespawn(PlayerRespawnS2CPacket packet, CallbackInfo ci) {
         EventManager.callEvent(WorldChangeEvent.get());
+    }
+
+    @Inject(method = "onEntityStatus", at = @At("HEAD"), cancellable = true)
+    private void onEntityStatus(EntityStatusS2CPacket packet, CallbackInfo ci) {
+        if (packet.getStatus() == 35) {
+            Entity entity = packet.getEntity(mc.world);
+            if (entity != null) {
+                Particles particlesMod = Particles.getInstance();
+                if (particlesMod != null && particlesMod.isState() && particlesMod.triggers.isSelected("Тотем")) {
+                    particlesMod.onTotemPop(entity);
+
+                    mc.world.playSoundClient(entity.getX(), entity.getY(), entity.getZ(), SoundEvents.ITEM_TOTEM_USE, entity.getSoundCategory(), 1.0F, 1.0F, false);
+
+                    if (entity == mc.player) {
+                        mc.gameRenderer.showFloatingItem(getActiveDeathProtector(mc.player));
+                    }
+
+                    ci.cancel();
+                }
+            }
+        }
     }
 }

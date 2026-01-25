@@ -22,7 +22,7 @@ public class HitBoxModule extends ModuleStructure {
 
     public HitBoxModule() {
         super("HitBox", "Hit Box", ModuleCategory.COMBAT);
-        setup(xzExpandSetting, yExpandSetting);
+        settings(xzExpandSetting, yExpandSetting);
     }
 
     @EventHandler

@@ -16,7 +16,7 @@ public class SeeInvisible extends ModuleStructure {
 
     public SeeInvisible() {
         super("SeeInvisible", "See Invisible", ModuleCategory.RENDER);
-        setup(alphaSetting);
+        settings(alphaSetting);
     }
 
     @EventHandler

@@ -26,7 +26,7 @@ public class ClientSounds extends ModuleStructure {
 
     public ClientSounds() {
         super("ClientSounds", ModuleCategory.MISC);
-        setup(soundType, volume);
+        settings(soundType, volume);
     }
 
     @EventHandler

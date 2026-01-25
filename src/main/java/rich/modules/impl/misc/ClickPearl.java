@@ -53,7 +53,7 @@ public class ClickPearl extends ModuleStructure {
 
     public ClickPearl() {
         super("ClickPearl", "Click Pearl", ModuleCategory.MISC);
-        setup(modeSetting, keySetting);
+        settings(modeSetting, keySetting);
     }
 
     @EventHandler

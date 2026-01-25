@@ -64,7 +64,7 @@ public class WindJump extends ModuleStructure {
 
     public WindJump() {
         super("WindJump", "Wind Jump", ModuleCategory.MISC);
-        setup(modeSetting, keySetting);
+        settings(modeSetting, keySetting);
     }
 
     @EventHandler

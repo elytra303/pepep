@@ -12,7 +12,7 @@ public class ChunkAnimator extends ModuleStructure {
     public ChunkAnimator() {
         super("Chunk Animator", "Анимирует появляющиеся чанки", ModuleCategory.RENDER);
         instance = this;
-        setup(speed);
+        settings(speed);
     }
 
     public static ChunkAnimator getInstance() {

@@ -25,6 +25,6 @@ public class ChinaHat extends ModuleStructure {
     public ChinaHat() {
         super("ChinaHat", "China Hat", ModuleCategory.RENDER);
         instance = this;
-        setup(color1, color2);
+        settings(color1, color2);
     }
 }

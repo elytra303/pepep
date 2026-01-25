@@ -29,7 +29,7 @@ public class HitSound extends ModuleStructure {
 
     public HitSound() {
         super("HitSound", ModuleCategory.COMBAT);
-        setup(soundType, volume);
+        settings(soundType, volume);
     }
 
     @EventHandler

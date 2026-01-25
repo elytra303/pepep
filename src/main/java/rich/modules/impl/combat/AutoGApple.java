@@ -4,7 +4,6 @@ import antidaunleak.api.annotation.Native;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.experimental.FieldDefaults;
-import net.minecraft.entity.EquipmentSlot;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import rich.events.api.EventHandler;
@@ -35,7 +34,7 @@ public class AutoGApple extends ModuleStructure {
 
     public AutoGApple() {
         super("AutoGApple", "Auto GApple", ModuleCategory.COMBAT);
-        setup(healthThreshold, smartMode, goldenHearts, returnSlot);
+        settings(healthThreshold, smartMode, goldenHearts, returnSlot);
     }
 
     @Override

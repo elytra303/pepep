@@ -40,7 +40,7 @@ public class AutoTool extends ModuleStructure {
 
     public AutoTool() {
         super("AutoTool", "Auto Tool", ModuleCategory.PLAYER);
-        setup(silentSwap);
+        settings(silentSwap);
     }
 
     @Override

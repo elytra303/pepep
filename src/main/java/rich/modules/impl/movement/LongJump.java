@@ -7,10 +7,7 @@ import lombok.experimental.FieldDefaults;
 import lombok.experimental.NonFinal;
 import net.minecraft.block.ShulkerBoxBlock;
 import net.minecraft.block.SlimeBlock;
-import net.minecraft.client.gl.ShaderProgram;
 import net.minecraft.client.gui.screen.ingame.ShulkerBoxScreen;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.vehicle.BoatEntity;
 import net.minecraft.util.math.BlockPos;
 import rich.events.api.EventHandler;
 import rich.events.impl.TickEvent;
@@ -34,7 +31,7 @@ public class LongJump extends ModuleStructure {
 
     public LongJump() {
         super("LongJump", "Long Jump", ModuleCategory.MOVEMENT);
-        setup(modeSetting);
+        settings(modeSetting);
     }
 
     @EventHandler

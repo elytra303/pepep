@@ -19,7 +19,7 @@ public class ClickFriend extends ModuleStructure {
 
     public ClickFriend() {
         super("ClickFriend", "Click Friend", ModuleCategory.MISC);
-        setup(friendBind);
+        settings(friendBind);
     }
 
     @EventHandler

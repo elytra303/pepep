@@ -33,7 +33,7 @@ public class CameraSettings extends ModuleStructure {
 
     public CameraSettings() {
         super("CameraSettings", "Camera Settings", ModuleCategory.RENDER);
-        setup(clipSetting, distanceSetting, zoomSetting);
+        settings(clipSetting, distanceSetting, zoomSetting);
     }
 
     @EventHandler

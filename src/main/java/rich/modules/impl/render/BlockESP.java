@@ -37,7 +37,7 @@ public class BlockESP extends ModuleStructure {
 
     public BlockESP() {
         super("BlockESP", "Block ESP", ModuleCategory.RENDER);
-        setup(color, range, notifyInChat);
+        settings(color, range, notifyInChat);
     }
 
     public Set<String> getBlocksToHighlight() {

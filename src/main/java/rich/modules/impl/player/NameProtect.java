@@ -19,7 +19,7 @@ public class NameProtect extends ModuleStructure {
 
     public NameProtect() {
         super("NameProtect","Name Protect", ModuleCategory.PLAYER);
-        setup(friendsSetting);
+        settings(friendsSetting);
     }
 
     @EventHandler

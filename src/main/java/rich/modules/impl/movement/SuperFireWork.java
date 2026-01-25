@@ -28,7 +28,7 @@ public class SuperFireWork extends ModuleStructure {
 
     public SuperFireWork() {
         super("SuperFireWork", "Super FireWork", ModuleCategory.MOVEMENT);
-        setup(modeSetting, customSpeedSetting);
+        settings(modeSetting, customSpeedSetting);
     }
 
     @EventHandler

@@ -35,7 +35,7 @@ public class SwingAnimation extends ModuleStructure {
 
     public SwingAnimation() {
         super("SwingAnimation", "Swing Animation", ModuleCategory.RENDER);
-        setup(swingType, hitStrengthSetting, swingSpeedSetting, onlySwing, onlyAura);
+        settings(swingType, hitStrengthSetting, swingSpeedSetting, onlySwing, onlyAura);
     }
 
     @EventHandler

@@ -60,7 +60,7 @@ public class Spider extends ModuleStructure {
 
     public Spider() {
         super("Spider", ModuleCategory.MOVEMENT);
-        setup(mode);
+        settings(mode);
     }
 
     private Block getBlockState(BlockPos blockPos) {

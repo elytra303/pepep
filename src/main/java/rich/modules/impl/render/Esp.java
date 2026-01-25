@@ -89,7 +89,7 @@ public class Esp extends ModuleStructure {
 
     public Esp() {
         super("Esp", "Esp", ModuleCategory.RENDER);
-        setup(entityType, playerSetting, boxType, boxColor, friendColor, flatBoxOutline, boxAlpha);
+        settings(entityType, playerSetting, boxType, boxColor, friendColor, flatBoxOutline, boxAlpha);
     }
 
     @EventHandler

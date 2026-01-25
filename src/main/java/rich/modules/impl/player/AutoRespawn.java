@@ -18,7 +18,7 @@ public class AutoRespawn extends ModuleStructure {
 
     public AutoRespawn() {
         super("AutoRespawn", "Auto Respawn", ModuleCategory.PLAYER);
-        setup(modeSetting);
+        settings(modeSetting);
     }
 
     @EventHandler

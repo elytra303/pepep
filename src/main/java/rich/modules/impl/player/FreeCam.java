@@ -38,7 +38,7 @@ public class FreeCam extends ModuleStructure {
 
     public FreeCam() {
         super("FreeCam", "Free Cam", ModuleCategory.PLAYER);
-        setup(speedSetting, freezeSetting, reloadChunksSetting, toggleOnLogSetting);
+        settings(speedSetting, freezeSetting, reloadChunksSetting, toggleOnLogSetting);
     }
 
     @Override

@@ -111,7 +111,7 @@ public class ItemParser extends ModuleStructure {
     public ItemParser() {
         super("Item Parser", "Парсинг информации о предметах", ModuleCategory.MISC);
         instance = this;
-        setup(showInChat, saveToFile);
+        settings(showInChat, saveToFile);
     }
 
     public static ItemParser getInstance() {

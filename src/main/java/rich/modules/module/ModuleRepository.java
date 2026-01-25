@@ -12,108 +12,114 @@ import rich.modules.impl.player.*;
 import rich.modules.impl.render.*;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class ModuleRepository {
     List<ModuleStructure> moduleStructures = new ArrayList<>();
     List<ModuleStructure> hiddenModules = new ArrayList<>();
+    Set<Class<? extends ModuleStructure>> registeredClasses = new HashSet<>();
 
     public void setup() {
-
-        //                new ItemParser(),
-
-        register(
-                new Hud(),
-                new Aura(),
-                new HitEffect(),
-                new Esp(),
-                new BlockESP(),
-                new AutoTool(),
-                new RegionExploit(),
-                new AuctionHelper(),
-                new GlassHands(),
-                new ChunkAnimator(),
-                new MaceTarget(),
-                new TriggerBot(),
-                new BowSpammer(),
-                new AutoTotem(),
-                new TapeMouse(),
-                new ElytraHelper(),
-                new ChinaHat(),
-                new AutoPotion(),
-                new Jesus(),
-                new ClientSounds(),
-                new AutoGApple(),
-                new ServerHelper(),
-                new WindJump(),
-                new TargetESP(),
-                new BlockOverlay(),
-                new HitSound(),
-                new ClickPearl(),
-                new JumpCircle(),
-                new ItemScroller(),
-                new TargetStrafe(),
-                new AutoLeave(),
-                new Strafe(),
-                new AutoDuel(),
-                new NoWeb(),
-//                new AutoCrystal(),
-                new AutoTpAccept(),
-                new Spider(),
-                new ClickFriend(),
-                new FreeLook(),
-                new Fly(),
-                new ElytraMotion(),
-                new FullBright(),
-                new CameraSettings(),
-                new ItemPhysic(),
-                new NoDelay(),
-                new ServerRPSpoofer(),
-                new SeeInvisible(),
-                new AutoPilot(),
-                new NoFallDamage(),
-                new NoRender(),
-                new ShiftTap(),
-                new HitBoxModule(),
-                new WaterSpeed(),
-                new NameProtect(),
-                new NoFriendDamage(),
-                new ProjectileHelper(),
-                new InventoryMove(),
-                new ChestStealer(),
-                new NoInteract(),
-                new AntiBot(),
-                new ViewModel(),
-                new SuperFireWork(),
-                new LongJump(),
-                new ElytraTarget(),
-                new FreeCam(),
-                new Speed(),
-                new NoEntityTrace(),
-                new AutoRespawn(),
-                new AutoSwap(),
-                new NoPush(),
-                new NoSlow(),
-                new Velocity(),
-                new SwingAnimation(),
-                new AutoSprint(),
-                new AutoBuy()
-        );
-
-        registerHidden(
-                new AutoParser()
-        );
+        builder()
+                .add(new Hud())
+                .add(new Aura())
+                .add(new HitEffect())
+                .add(new Esp())
+                .add(new BlockESP())
+                .add(new AutoTool())
+                .add(new RegionExploit())
+                .add(new WorldParticles())
+                .add(new Arrows())
+                .add(new Particles())
+                .add(new AuctionHelper())
+                .add(new GlassHands())
+                .add(new ChunkAnimator())
+                .add(new MaceTarget())
+                .add(new TriggerBot())
+                .add(new BowSpammer())
+                .add(new Ambience())
+                .add(new AutoTotem())
+                .add(new TapeMouse())
+                .add(new ElytraHelper())
+                .add(new ChinaHat())
+                .add(new AutoPotion())
+                .add(new Jesus())
+                .add(new ClientSounds())
+                .add(new AutoGApple())
+                .add(new ServerHelper())
+                .add(new WindJump())
+                .add(new TargetESP())
+                .add(new BlockOverlay())
+                .add(new HitSound())
+                .add(new ClickPearl())
+                .add(new JumpCircle())
+                .add(new ItemScroller())
+                .add(new TargetStrafe())
+                .add(new AutoLeave())
+                .add(new Strafe())
+                .add(new AutoDuel())
+                .add(new NoWeb())
+                .add(new AutoTpAccept())
+                .add(new Spider())
+                .add(new ClickFriend())
+                .add(new FreeLook())
+                .add(new Fly())
+                .add(new ElytraMotion())
+                .add(new FullBright())
+                .add(new CameraSettings())
+                .add(new ItemPhysic())
+                .add(new NoDelay())
+                .add(new ServerRPSpoofer())
+                .add(new SeeInvisible())
+                .add(new AutoPilot())
+                .add(new NoFallDamage())
+                .add(new NoRender())
+                .add(new ShiftTap())
+                .add(new HitBoxModule())
+                .add(new WaterSpeed())
+                .add(new NameProtect())
+                .add(new NoFriendDamage())
+                .add(new ProjectileHelper())
+                .add(new InventoryMove())
+                .add(new ChestStealer())
+                .add(new NoInteract())
+                .add(new AntiBot())
+                .add(new ViewModel())
+                .add(new SuperFireWork())
+                .add(new LongJump())
+                .add(new ElytraTarget())
+                .add(new FreeCam())
+                .add(new Speed())
+                .add(new NoEntityTrace())
+                .add(new AutoRespawn())
+                .add(new AutoSwap())
+                .add(new NoPush())
+                .add(new NoSlow())
+                .add(new Velocity())
+                .add(new SwingAnimation())
+                .add(new AutoSprint())
+                .add(new AutoBuy())
+                .hidden(new AutoParser());
     }
 
-    public void register(ModuleStructure... moduleStructure) {
-        moduleStructures.addAll(List.of(moduleStructure));
+    public ModuleBuilder builder() {
+        return new ModuleBuilder(this);
     }
 
-    public void registerHidden(ModuleStructure... moduleStructure) {
-        for (ModuleStructure module : moduleStructure) {
+    void registerModule(ModuleStructure module, boolean hidden) {
+        Class<? extends ModuleStructure> clazz = module.getClass();
+        if (registeredClasses.contains(clazz)) {
+            throw new DuplicateModuleException(clazz.getSimpleName());
+        }
+        registeredClasses.add(clazz);
+        if (hidden) {
             hiddenModules.add(module);
             module.setState(true);
+        } else {
+            moduleStructures.add(module);
         }
     }
 

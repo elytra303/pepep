@@ -54,7 +54,7 @@ public class TargetStrafe extends ModuleStructure {
 
     public TargetStrafe() {
         super("TargetStrafe", "Target Strafe", ModuleCategory.MOVEMENT);
-        setup(mode, type, typeMatrix, grimRadius, radius, speed, setting, directionMode);
+        settings(mode, type, typeMatrix, grimRadius, radius, speed, setting, directionMode);
     }
 
     public static TargetStrafe getInstance() {

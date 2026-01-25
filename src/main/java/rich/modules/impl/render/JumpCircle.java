@@ -54,7 +54,7 @@ public class JumpCircle extends ModuleStructure implements IMinecraft {
 
     public JumpCircle() {
         super("JumpCircle", "Jump Circle", ModuleCategory.RENDER);
-        setup(maxSize, speed, glow, color1, color2);
+        settings(maxSize, speed, glow, color1, color2);
     }
 
     @EventHandler

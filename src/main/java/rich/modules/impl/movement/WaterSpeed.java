@@ -33,7 +33,7 @@ public class WaterSpeed extends ModuleStructure {
 
     public WaterSpeed() {
         super("WaterSpeed", "Water Speed", ModuleCategory.MOVEMENT);
-        setup(modeSetting, iceBoost, iceBoostSpeed);
+        settings(modeSetting, iceBoost, iceBoostSpeed);
     }
 
     @EventHandler

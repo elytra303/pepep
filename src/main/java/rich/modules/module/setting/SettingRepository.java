@@ -12,7 +12,7 @@ public class SettingRepository implements Setupable {
     List<Setting> settings = Lists.newArrayList();
 
     @Override
-    public final void setup(Setting... setting) {
+    public final void settings(Setting... setting) {
         settings.addAll(Arrays.asList(setting));
     }
 

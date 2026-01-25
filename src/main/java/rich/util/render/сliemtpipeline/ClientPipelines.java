@@ -195,4 +195,87 @@ public class ClientPipelines {
                     .expectedBufferSize(4096)
                     .build()
     );
+
+    public static final RenderPipeline WORLD_PARTICLES_COLOR_PIPELINE = RenderPipelines.register(
+            RenderPipeline.builder(RenderPipelines.POSITION_COLOR_SNIPPET)
+                    .withLocation(Identifier.of("minecraft", "world_particles_color"))
+                    .withVertexFormat(VertexFormats.POSITION_COLOR, VertexFormat.DrawMode.QUADS)
+                    .withCull(false)
+                    .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
+                    .withDepthWrite(false)
+                    .withBlend(BlendFunction.LIGHTNING)
+                    .build()
+    );
+
+    public static final RenderLayer WORLD_PARTICLES_QUADS = RenderLayer.of(
+            "world_particles_cube",
+            RenderSetup.builder(WORLD_PARTICLES_COLOR_PIPELINE)
+                    .translucent()
+                    .expectedBufferSize(2048)
+                    .build()
+    );
+
+    public static final RenderPipeline WORLD_PARTICLES_LINES_PIPELINE = RenderPipelines.register(
+            RenderPipeline.builder(RenderPipelines.POSITION_COLOR_SNIPPET)
+                    .withLocation(Identifier.of("minecraft", "world_particles_lines"))
+                    .withVertexFormat(VertexFormats.POSITION_COLOR, VertexFormat.DrawMode.DEBUG_LINES)
+                    .withCull(false)
+                    .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
+                    .withDepthWrite(false)
+                    .withBlend(BlendFunction.LIGHTNING)
+                    .build()
+    );
+
+    public static final RenderLayer WORLD_PARTICLES_LINES = RenderLayer.of(
+            "world_particles_lines",
+            RenderSetup.builder(WORLD_PARTICLES_LINES_PIPELINE)
+                    .translucent()
+                    .expectedBufferSize(2048)
+                    .build()
+    );
+
+    public static final RenderPipeline WORLD_PARTICLES_GLOW_PIPELINE = RenderPipelines.register(
+            RenderPipeline.builder(RenderPipelines.POSITION_TEX_COLOR_SNIPPET)
+                    .withLocation(Identifier.of("minecraft", "world_particles_glow"))
+                    .withVertexFormat(VertexFormats.POSITION_TEXTURE_COLOR, VertexFormat.DrawMode.QUADS)
+                    .withCull(false)
+                    .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
+                    .withDepthWrite(false)
+                    .withBlend(BlendFunction.LIGHTNING)
+                    .withSampler("Sampler0")
+                    .build()
+    );
+
+    public static final Function<Identifier, RenderLayer> WORLD_PARTICLES_GLOW =
+            Util.memoize(texture -> {
+                RenderSetup setup = RenderSetup.builder(WORLD_PARTICLES_GLOW_PIPELINE)
+                        .texture("Sampler0", texture)
+                        .translucent()
+                        .expectedBufferSize(2048)
+                        .build();
+                return RenderLayer.of("world_particles_glow", setup);
+            });
+
+    public static final RenderPipeline GUI_ARROW_BLEND_PIPELINE = RenderPipelines.register(
+            RenderPipeline.builder(TRANSFORMS_AND_PROJECTION_SNIPPET)
+                    .withLocation("pipeline/gui_arrow_blend")
+                    .withVertexShader("core/position_tex_color")
+                    .withFragmentShader("core/position_tex_color")
+                    .withSampler("Sampler0")
+                    .withBlend(BlendFunction.LIGHTNING)
+                    .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
+                    .withCull(false)
+                    .withVertexFormat(VertexFormats.POSITION_TEXTURE_COLOR, VertexFormat.DrawMode.QUADS)
+                    .build()
+    );
+
+    public static final Function<Identifier, RenderLayer> GUI_ARROW_BLEND =
+            Util.memoize(texture -> {
+                RenderSetup setup = RenderSetup.builder(GUI_ARROW_BLEND_PIPELINE)
+                        .texture("Sampler0", texture)
+                        .translucent()
+                        .expectedBufferSize(256)
+                        .build();
+                return RenderLayer.of("gui_arrow_blend", setup);
+            });
 }

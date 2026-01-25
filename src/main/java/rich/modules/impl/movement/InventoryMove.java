@@ -73,7 +73,7 @@ public class InventoryMove extends ModuleStructure {
 
     public InventoryMove() {
         super("InventoryMove", "Inventory Move", ModuleCategory.MOVEMENT);
-        setup(mode, grimBypass);
+        settings(mode, grimBypass);
     }
 
     @Override

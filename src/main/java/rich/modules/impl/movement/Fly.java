@@ -39,7 +39,7 @@ public class Fly extends ModuleStructure {
 
     public Fly() {
         super("Fly", ModuleCategory.MOVEMENT);
-        setup(mode, speedXZ, speedY);
+        settings(mode, speedXZ, speedY);
     }
 
     @EventHandler

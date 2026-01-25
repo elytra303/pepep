@@ -77,7 +77,7 @@ public class MaceTarget extends ModuleStructure {
 
     public MaceTarget() {
         super("MaceTarget", "Mace Target", ModuleCategory.COMBAT);
-        setup(serverMode, modeSetting, height, targetType, autoEquipChest, predictMovement);
+        settings(serverMode, modeSetting, height, targetType, autoEquipChest, predictMovement);
 
         flightController = new FlightController(predictor);
         armorSwapHandler = new ArmorSwapHandler(this::buildSettings);

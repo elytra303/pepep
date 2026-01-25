@@ -139,7 +139,7 @@ public class ServerHelper extends ModuleStructure {
 
     @Native(type = Native.Type.VMProtectBeginMutation)
     public void initialize() {
-        setup(mode, swapMode, boxFillColor, boxLineColor);
+        settings(mode, swapMode, boxFillColor, boxLineColor);
 
         keyBindings.add(new KeyBind(Items.FIREWORK_STAR, new BindSetting("Анти полет", "Клавиша анти полета")
                 .visible(() -> mode.isSelected("ReallyWorld")), 0));
@@ -195,7 +195,7 @@ public class ServerHelper extends ModuleStructure {
         keyBindings.add(new KeyBind(Items.SPLASH_POTION, new BindSetting("Снотворное", "Клавиша снотворного")
                 .visible(() -> mode.isSelected("FunTime")), 0));
 
-        keyBindings.forEach(bind -> setup(bind.setting));
+        keyBindings.forEach(bind -> settings(bind.setting));
 
         itemConfig.put("sugar", new ItemInfo(
                 List.of("световая вспышка", "радиус: 10 блоков", "свечение", "слепота"),

@@ -41,7 +41,7 @@ public class Velocity extends ModuleStructure {
 
     public Velocity() {
         super("Velocity", ModuleCategory.COMBAT);
-        setup(mode);
+        settings(mode);
     }
 
     @EventHandler

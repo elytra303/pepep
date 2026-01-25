@@ -27,7 +27,7 @@ public class AutoLeave extends ModuleStructure {
 
     public AutoLeave() {
         super("AutoLeave", "Auto Leave", ModuleCategory.MISC);
-        setup(leaveType, triggerSetting, distanceSetting);
+        settings(leaveType, triggerSetting, distanceSetting);
     }
 
     @EventHandler

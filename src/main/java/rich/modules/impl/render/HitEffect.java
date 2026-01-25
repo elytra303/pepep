@@ -33,7 +33,7 @@ public class HitEffect extends ModuleStructure {
 
     public HitEffect() {
         super("HitEffect", "Hit Effect", ModuleCategory.RENDER);
-        setup(colorSetting);
+        settings(colorSetting);
     }
 
     public void addWave(BlockPos pos) {

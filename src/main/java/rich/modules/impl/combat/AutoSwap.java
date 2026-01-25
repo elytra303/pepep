@@ -7,7 +7,6 @@ import lombok.experimental.FieldDefaults;
 import net.minecraft.item.Item;
 import net.minecraft.item.Items;
 import net.minecraft.screen.slot.Slot;
-import net.minecraft.screen.slot.SlotActionType;
 import rich.events.api.EventHandler;
 import rich.events.impl.InputEvent;
 import rich.events.impl.KeyEvent;
@@ -102,7 +101,7 @@ public class AutoSwap extends ModuleStructure {
 
     public AutoSwap() {
         super("AutoSwap", "Auto Swap", ModuleCategory.COMBAT);
-        setup(
+        settings(
                 modeSetting, swapBind, firstItem, secondItem,
                 stopMovement, stopSprint, closeInventory,
                 preStopDelayMin, preStopDelayMax,

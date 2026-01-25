@@ -46,7 +46,7 @@ public class ProjectileHelper extends ModuleStructure {
 
     public ProjectileHelper() {
         super("ProjectileHelper", "Projectile Helper", ModuleCategory.COMBAT);
-        setup(searchDistance, targetType);
+        settings(searchDistance, targetType);
     }
 
     @Native(type = Native.Type.VMProtectBeginMutation)

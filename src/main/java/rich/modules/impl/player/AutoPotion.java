@@ -55,7 +55,7 @@ public class AutoPotion extends ModuleStructure {
 
     public AutoPotion() {
         super("AutoPotion", ModuleCategory.PLAYER);
-        setup(potions, autoOff);
+        settings(potions, autoOff);
     }
 
     @Override

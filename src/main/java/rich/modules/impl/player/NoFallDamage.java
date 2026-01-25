@@ -21,7 +21,7 @@ public class NoFallDamage extends ModuleStructure {
 
     public NoFallDamage() {
         super("NoFallDamage", "No Fall Damage", ModuleCategory.PLAYER);
-        setup(mode);
+        settings(mode);
     }
 
     @EventHandler

@@ -83,7 +83,7 @@ public class TargetESP extends ModuleStructure implements IMinecraft {
 
         crystalRotationSpeed.setValue(0.5f);
 
-        setup(mode, crystalRotationSpeed, color1, color2, color3);
+        settings(mode, crystalRotationSpeed, color1, color2, color3);
     }
 
     private float getDeltaTime() {

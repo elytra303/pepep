@@ -34,7 +34,7 @@ public class ViewModel extends ModuleStructure {
 
     public ViewModel() {
         super("ViewModel", "View Model", ModuleCategory.RENDER);
-        setup(mainHandXSetting, mainHandYSetting, mainHandZSetting,
+        settings(mainHandXSetting, mainHandYSetting, mainHandZSetting,
                 offHandXSetting, offHandYSetting, offHandZSetting);
     }
 

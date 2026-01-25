@@ -56,7 +56,7 @@ public class AutoBuy extends ModuleStructure {
         serverSwitchTime.setVisible(() -> mode.isSelected("Покупающий") && !serverType.isSelected("Выкл"));
         updateDelay.setVisible(() -> mode.isSelected("Покупающий"));
 
-        setup(mode, serverType, updateDelay, serverSwitchTime, notifications);
+        settings(mode, serverType, updateDelay, serverSwitchTime, notifications);
     }
 
     public static AutoBuy getInstance() {

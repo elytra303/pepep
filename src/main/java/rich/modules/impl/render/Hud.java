@@ -44,6 +44,6 @@ public class Hud extends ModuleStructure {
 
     public Hud() {
         super("Hud", ModuleCategory.RENDER);
-        setup(interfaceSettings, showBps, showTps);
+        settings(interfaceSettings, showBps, showTps);
     }
 }

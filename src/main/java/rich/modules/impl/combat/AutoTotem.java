@@ -82,7 +82,7 @@ public class AutoTotem extends ModuleStructure {
 
     public AutoTotem() {
         super("AutoTotem", "Auto Totem", ModuleCategory.COMBAT);
-        setup(swapMode, healthThreshold, triggers, options, crystalDistance, fallHeight, tntDistance, tntMinecartDistance, elytraHealth);
+        settings(swapMode, healthThreshold, triggers, options, crystalDistance, fallHeight, tntDistance, tntMinecartDistance, elytraHealth);
     }
 
     @Override

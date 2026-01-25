@@ -44,7 +44,7 @@ public class Aura extends ModuleStructure {
     }
 
     private final SelectSetting mode = new SelectSetting("Режим наводки", "Select aim mode")
-            .value("Matrix", "FunTime Snap", "Snap", "SpookyTime", "HolyWorld")
+            .value("Matrix", "FunTime Snap", "Snap", "SpookyTime")
             .selected("Matrix");
 
     private final SelectSetting moveFix = new SelectSetting("Коррекция движения", "Select move fix mode")
@@ -84,7 +84,7 @@ public class Aura extends ModuleStructure {
 
     public Aura() {
         super("Aura", ModuleCategory.COMBAT);
-        setup(mode, attackrange, lookrange, options, targetType, moveFix, resetSprintMode, checkCrit, smartCrits);
+        settings(mode, attackrange, lookrange, options, targetType, moveFix, resetSprintMode, checkCrit, smartCrits);
     }
 
     @NonFinal
@@ -229,7 +229,7 @@ public class Aura extends ModuleStructure {
                 }
             }
 
-            case "Matrix", "SpookyTime", "HolyWorld" -> {
+            case "Matrix", "SpookyTime" -> {
                 controller.rotateTo(rotation, target, 1, rotationConfig, TaskPriority.HIGH_IMPORTANCE_1, this);
             }
 
@@ -374,23 +374,10 @@ public class Aura extends ModuleStructure {
         }
         return switch (mode.getSelected()) {
             case "FunTime Snap" -> new FTAngle();
-            case "HolyWorld" -> new HWAngle();
             case "SpookyTime" -> new SPAngle();
             case "Snap" -> new SnapAngle();
             case "Matrix" -> new MatrixAngle();
             default -> new LinearConstructor();
         };
-    }
-
-    public boolean isResetSprintLegit() {
-        return resetSprintMode.isSelected("Легитный");
-    }
-
-    public boolean isResetSprintPacket() {
-        return resetSprintMode.isSelected("Интенсивный");
-    }
-
-    public boolean isRandomizeCrit() {
-        return options.isSelected("Рандомизация крита");
     }
 }

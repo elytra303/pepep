@@ -35,7 +35,7 @@ public class NoSlow extends ModuleStructure {
 
     public NoSlow() {
         super("NoSlow", "No Slow", ModuleCategory.MOVEMENT);
-        setup(itemMode);
+        settings(itemMode);
     }
 
     private int ticks = 0;

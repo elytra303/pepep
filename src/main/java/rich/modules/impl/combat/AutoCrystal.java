@@ -61,7 +61,7 @@ public class AutoCrystal extends ModuleStructure {
 
     public AutoCrystal() {
         super("AutoCrystal", "Auto Crystal", ModuleCategory.COMBAT);
-        setup(protections, itemRange, legitMode, swapDelay);
+        settings(protections, itemRange, legitMode, swapDelay);
     }
 
     @Override

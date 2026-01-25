@@ -17,7 +17,7 @@ public class NoPush extends ModuleStructure {
 
     public NoPush() {
         super("AntiPush", "Anti Push", ModuleCategory.PLAYER);
-        setup(ignoreSetting);
+        settings(ignoreSetting);
     }
 
     @EventHandler

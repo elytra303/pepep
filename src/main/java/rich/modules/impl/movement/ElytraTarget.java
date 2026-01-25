@@ -28,7 +28,7 @@ public class ElytraTarget extends ModuleStructure {
 
     public ElytraTarget() {
         super("ElytraTarget", "Elytra Target", ModuleCategory.MOVEMENT);
-        setup(elytraFindRange, elytraForward, forward);
+        settings(elytraFindRange, elytraForward, forward);
     }
 
     @EventHandler

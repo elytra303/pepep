@@ -29,7 +29,7 @@ public class AutoTpAccept extends ModuleStructure {
 
     public AutoTpAccept() {
         super("AutoTpAccept", "Auto Tp Accept", ModuleCategory.MISC);
-        setup(friendSetting);
+        settings(friendSetting);
     }
 
     @EventHandler

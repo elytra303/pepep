@@ -14,7 +14,7 @@ public class NoDelay extends ModuleStructure {
 
     public NoDelay() {
         super("NoDelay", "No Delay", ModuleCategory.PLAYER);
-        setup(ignoreSetting);
+        settings(ignoreSetting);
     }
 
     @EventHandler

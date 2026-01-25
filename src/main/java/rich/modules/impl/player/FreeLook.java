@@ -26,7 +26,7 @@ public class FreeLook extends ModuleStructure {
 
     public FreeLook() {
         super("FreeLook", "Free Look", ModuleCategory.RENDER);
-        setup(freeLookSetting);
+        settings(freeLookSetting);
         angle = null;
     }
 

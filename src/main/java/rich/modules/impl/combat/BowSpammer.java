@@ -25,7 +25,7 @@ public class BowSpammer extends ModuleStructure {
 
     public BowSpammer() {
         super("BowSpammer", "Bow Spammer", ModuleCategory.COMBAT);
-        setup(delay);
+        settings(delay);
     }
 
     @EventHandler

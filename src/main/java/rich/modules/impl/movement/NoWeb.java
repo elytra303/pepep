@@ -23,7 +23,7 @@ public class NoWeb extends ModuleStructure {
 
     public NoWeb() {
         super("NoWeb", "No Web", ModuleCategory.MOVEMENT);
-        setup(webMode);
+        settings(webMode);
     }
 
     @EventHandler

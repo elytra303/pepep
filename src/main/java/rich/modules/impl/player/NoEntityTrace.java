@@ -12,7 +12,7 @@ public class NoEntityTrace extends ModuleStructure {
 
     public NoEntityTrace() {
         super("NoEntityTrace", "No Entity Trace", ModuleCategory.PLAYER);
-        setup(noSword);
+        settings(noSword);
     }
 
     public static NoEntityTrace getInstance() {
