@@ -39,7 +39,7 @@ public class WorldParticles extends ModuleStructure {
 
     public SelectSetting mode = new SelectSetting("Режим", "Тип частиц")
             .value("3D Кубы", "Корона", "Куб", "Доллар", "Сердце", "Молния", "Линия", "Ромб", "Снежинка", "Звезда", "Звезда 2", "Треугольник", "Свечение", "Рандом")
-            .selected("3D Кубы");
+            .selected("Звезда");
 
     public SliderSettings cubeCount = new SliderSettings("Количество", "Количество частиц")
             .range(10.0f, 500.0f)
@@ -47,18 +47,18 @@ public class WorldParticles extends ModuleStructure {
 
     public SliderSettings lifeTime = new SliderSettings("Время жизни", "Время жизни (сек)")
             .range(2.0f, 60.0f)
-            .setValue(35.0f);
+            .setValue(10.0f);
 
     public SliderSettings size = new SliderSettings("Размер", "Размер частиц")
             .range(0.1f, 1.5f)
-            .setValue(0.5f);
+            .setValue(1.5f);
 
     public SliderSettings glowSize = new SliderSettings("Свечение", "Размер свечения")
             .range(0.1f, 5.0f)
-            .setValue(0.5f);
+            .setValue(3f);
 
     public BooleanSetting physics = new BooleanSetting("Физика", "Частицы падают вниз")
-            .setValue(true);
+            .setValue(false);
 
     public BooleanSetting randomColor = new BooleanSetting("Рандомный цвет", "Каждая частица имеет случайный цвет")
             .setValue(false);
@@ -67,11 +67,11 @@ public class WorldParticles extends ModuleStructure {
             .setValue(true);
 
     public BooleanSetting whiteCenter = new BooleanSetting("Белый центр", "Белый центр у текстурных частиц")
-            .setValue(true)
+            .setValue(false)
             .visible(() -> !mode.getSelected().equals("3D Кубы"));
 
     public ColorSetting cubeColor = new ColorSetting("Цвет", "Цвет частиц")
-            .value(0xFFFF6600)
+            .value(0xFF896148)
             .visible(() -> !randomColor.isValue());
 
     public WorldParticles() {

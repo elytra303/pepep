@@ -42,39 +42,39 @@ public class Particles extends ModuleStructure {
 
     public SelectSetting mode = new SelectSetting("Режим", "Тип партиклов")
             .value("Кубы", "Корона", "Куб", "Доллар", "Сердце", "Молния", "Линия", "Ромб", "Снежинка", "Звезда", "Звезда 2", "Треугольник", "Рандом")
-            .selected("Кубы");
+            .selected("Звезда");
 
     public SelectSetting glowMode = new SelectSetting("Свечение", "Тип эффекта свечения")
             .value("Bloom", "Bloom Sample", "Оба")
-            .selected("Оба");
+            .selected("Bloom Sample");
 
     public MultiSelectSetting triggers = new MultiSelectSetting("Триггеры", "Когда спавнить партиклы")
             .value("Удар", "Тотем", "Ходьба", "Бросаемый предмет")
             .selected("Удар", "Тотем", "Ходьба", "Бросаемый предмет");
 
     public SliderSettings amount = new SliderSettings("Количество", "Кол-во партиклов при ударе")
-            .range(10, 40).setValue(30);
+            .range(10, 40).setValue(40);
 
     public SliderSettings walkAmount = new SliderSettings("Кол-во при ходьбе", "Кол-во партиклов в секунду при ходьбе")
-            .range(10, 30).setValue(10).visible(() -> triggers.isSelected("Ходьба"));
+            .range(10, 30).setValue(30).visible(() -> triggers.isSelected("Ходьба"));
 
     public SliderSettings spread = new SliderSettings("Разброс", "Сила разброса частиц в стороны")
             .range(0.5f, 3.0f).setValue(1.0f);
 
     public SliderSettings speed = new SliderSettings("Скорость", "Скорость движения частиц")
-            .range(0.1f, 3.0f).setValue(1.0f);
+            .range(0.1f, 3.0f).setValue(2.0f);
 
     public SliderSettings lifeTime = new SliderSettings("Время жизни", "Время жизни частиц в секундах")
-            .range(0.5f, 10f).setValue(3.5f);
+            .range(0.5f, 10f).setValue(2.5f);
 
     public SliderSettings size = new SliderSettings("Размер", "Размер частиц")
-            .range(0.1f, 1.0f).setValue(0.2f);
+            .range(0.1f, 1.0f).setValue(1f);
 
     public BooleanSetting randomColor = new BooleanSetting("Рандомный цвет", "Каждый партикл получает случайный цвет")
             .setValue(false);
 
     public ColorSetting color = new ColorSetting("Цвет", "Цвет партиклов")
-            .value(0xFFFF0000)
+            .value(0xFF896148)
             .visible(() -> !randomColor.isValue());
 
     private static final float GLOW_SIZE = 7.5f;

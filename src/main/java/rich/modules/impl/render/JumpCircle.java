@@ -45,10 +45,10 @@ public class JumpCircle extends ModuleStructure implements IMinecraft {
             .setValue(true);
 
     final ColorSetting color1 = new ColorSetting("Цвет 1", "Первый цвет")
-            .value(ColorUtil.getColor(253, 237, 103, 255));
+            .value(ColorUtil.getColor(137, 97, 72, 255));
 
     final ColorSetting color2 = new ColorSetting("Цвет 2", "Второй цвет")
-            .value(ColorUtil.getColor(255, 253, 231, 255));
+            .value(ColorUtil.getColor(255, 255, 255, 255));
 
     private static final int SEGMENTS = 64;
 

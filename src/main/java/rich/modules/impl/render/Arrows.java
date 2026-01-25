@@ -37,15 +37,11 @@ public class Arrows extends ModuleStructure {
     private static final Identifier ARROW_TEXTURE = Identifier.of("minecraft", "textures/world/arrow.png");
 
     public SliderSettings arrowsDistance = new SliderSettings("Дистанция", "Дистанция от прицела")
-            .range(1.0f, 50.0f)
+            .range(1.0f, 20.0f)
             .setValue(25.0f);
 
-    public SliderSettings arrowScale = new SliderSettings("Размер", "Размер стрелки")
-            .range(1.0f, 1.5f)
-            .setValue(1.0f);
-
     public ColorSetting arrowColor = new ColorSetting("Цвет", "Цвет стрелок")
-            .value(0xFFFF6600);
+            .value(0xFF896148);
 
     private final SmoothAnimation animationStep = new SmoothAnimation();
     private final SmoothAnimation animatedYaw = new SmoothAnimation();
@@ -56,7 +52,7 @@ public class Arrows extends ModuleStructure {
 
     public Arrows() {
         super("Arrows", "Показывает стрелки в сторону игроков", ModuleCategory.RENDER);
-        settings(arrowsDistance, arrowScale, arrowColor);
+        settings(arrowsDistance, arrowColor);
     }
 
     @Override
@@ -169,7 +165,7 @@ public class Arrows extends ModuleStructure {
 
             int color = applyAlpha(arrowColor.getColor(), animValue);
 
-            drawArrow(context, (float) x2, (float) y2, angle, color, arrowScale.getValue());
+            drawArrow(context, (float) x2, (float) y2, angle, color, 1);
         }
     }
 

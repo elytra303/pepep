@@ -29,7 +29,7 @@ public class HitEffect extends ModuleStructure {
     final List<WaveEffect> waveEffects = Collections.synchronizedList(new ArrayList<>());
 
     public ColorSetting colorSetting = new ColorSetting("Цвет", "Выберите цвет для эффекта")
-            .setColor(new Color(255, 241, 118, 255).getRGB());
+            .setColor(new Color(137, 97, 72, 255).getRGB());
 
     public HitEffect() {
         super("HitEffect", "Hit Effect", ModuleCategory.RENDER);
