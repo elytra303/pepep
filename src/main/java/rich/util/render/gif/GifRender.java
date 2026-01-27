@@ -30,13 +30,13 @@ public class GifRender {
 
         for (int i = 1; i <= 100; i++) {
             String frameName = String.format("image%03d", i);
-            Identifier id = Identifier.of("minecraft", "images/gifs/avatar/" + frameName + ".png");
+            Identifier id = Identifier.of("rich", "images/gifs/avatar/" + frameName + ".png");
             avatarFrames.add(id);
         }
 
         for (int i = 0; i <= 16; i++) {
             String frameName = String.format("frame_%02d_delay-0.05s", i);
-            Identifier id = Identifier.of("minecraft", "images/gifs/back/" + frameName + ".png");
+            Identifier id = Identifier.of("rich", "images/gifs/back/" + frameName + ".png");
             backgroundFrames.add(id);
         }
 

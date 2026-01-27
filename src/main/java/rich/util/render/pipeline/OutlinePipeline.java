@@ -25,12 +25,13 @@ import java.util.OptionalInt;
 
 public class OutlinePipeline {
 
-    private static final Identifier PIPELINE_ID = Identifier.of("minecraft", "pipeline/outline");
-    private static final Identifier VERTEX_SHADER = Identifier.of("minecraft", "core/outline");
-    private static final Identifier FRAGMENT_SHADER = Identifier.of("minecraft", "core/outline");
+    private static final Identifier PIPELINE_ID = Identifier.of("rich", "pipeline/outline");
+    private static final Identifier VERTEX_SHADER = Identifier.of("rich", "core/outline");
+    private static final Identifier FRAGMENT_SHADER = Identifier.of("rich", "core/outline");
 
     private static final Vector3f MODEL_OFFSET = new Vector3f(0, 0, 0);
     private static final Matrix4f TEXTURE_MATRIX = new Matrix4f();
+    private static final float FIXED_GUI_SCALE = 2.0f;
 
     private static final RenderPipeline PIPELINE = RenderPipelines.register(
             RenderPipeline.builder(RenderPipelines.TRANSFORMS_AND_PROJECTION_SNIPPET)
@@ -83,12 +84,15 @@ public class OutlinePipeline {
 
         ensureInitialized();
 
-        float guiScale = (float) client.getWindow().getScaleFactor();
+        int framebufferWidth = client.getWindow().getFramebufferWidth();
+        int framebufferHeight = client.getWindow().getFramebufferHeight();
+        float fixedScreenWidth = framebufferWidth / FIXED_GUI_SCALE;
+        float fixedScreenHeight = framebufferHeight / FIXED_GUI_SCALE;
 
         prepareUniformData(x, y, width, height,
-                client.getWindow().getScaledWidth(),
-                client.getWindow().getScaledHeight(),
-                guiScale,
+                fixedScreenWidth,
+                fixedScreenHeight,
+                FIXED_GUI_SCALE,
                 colors, thicknesses, radii, smoothness);
 
         uploadAndDraw(client);
@@ -100,25 +104,21 @@ public class OutlinePipeline {
                                     int[] colors, float[] thicknesses, float[] radii, float smoothness) {
         dataBuffer.clear();
 
-        // vec4 rect
         dataBuffer.putFloat(x);
         dataBuffer.putFloat(y);
         dataBuffer.putFloat(width);
         dataBuffer.putFloat(height);
 
-        // vec4 screen (screenWidth, screenHeight, smoothness, guiScale)
         dataBuffer.putFloat(screenWidth);
         dataBuffer.putFloat(screenHeight);
         dataBuffer.putFloat(smoothness);
         dataBuffer.putFloat(guiScale);
 
-        // vec4 radii
         dataBuffer.putFloat(radii[0]);
         dataBuffer.putFloat(radii[1]);
         dataBuffer.putFloat(radii[2]);
         dataBuffer.putFloat(radii[3]);
 
-        // 8 colors
         for (int i = 0; i < 8; i++) {
             int color = i < colors.length ? colors[i] : colors[colors.length - 1];
             float a = ((color >> 24) & 0xFF) / 255.0f;
@@ -132,7 +132,6 @@ public class OutlinePipeline {
             dataBuffer.putFloat(a);
         }
 
-        // 8 thicknesses (2 vec4)
         for (int i = 0; i < 8; i++) {
             float t = i < thicknesses.length ? thicknesses[i] : thicknesses[thicknesses.length - 1];
             dataBuffer.putFloat(t);

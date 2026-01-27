@@ -20,7 +20,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public class FontAtlas {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("minecraft/Font");
+    private static final Logger LOGGER = LoggerFactory.getLogger("rich/Font");
 
     private final Identifier jsonId;
     private final Identifier textureId;

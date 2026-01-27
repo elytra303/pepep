@@ -28,9 +28,9 @@ import java.util.OptionalInt;
 
 public class GlassCompositePipeline {
 
-    private static final Identifier PIPELINE_ID = Identifier.of("minecraft", "pipeline/glass_composite");
-    private static final Identifier VERTEX_SHADER = Identifier.of("minecraft", "core/glass_composite");
-    private static final Identifier FRAGMENT_SHADER = Identifier.of("minecraft", "core/glass_composite");
+    private static final Identifier PIPELINE_ID = Identifier.of("rich", "pipeline/glass_composite");
+    private static final Identifier VERTEX_SHADER = Identifier.of("rich", "core/glass_composite");
+    private static final Identifier FRAGMENT_SHADER = Identifier.of("rich", "core/glass_composite");
 
     private static final BlendFunction REPLACE_BLEND = new BlendFunction(
             SourceFactor.ONE, DestFactor.ZERO,

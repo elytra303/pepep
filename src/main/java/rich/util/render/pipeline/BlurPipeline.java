@@ -30,9 +30,11 @@ import java.util.OptionalInt;
 
 public class BlurPipeline {
 
-    private static final Identifier PIPELINE_ID = Identifier.of("minecraft", "pipeline/blur");
-    private static final Identifier VERTEX_SHADER = Identifier.of("minecraft", "core/blur");
-    private static final Identifier FRAGMENT_SHADER = Identifier.of("minecraft", "core/blur");
+    private static final Identifier PIPELINE_ID = Identifier.of("rich", "pipeline/blur");
+    private static final Identifier VERTEX_SHADER = Identifier.of("rich", "core/blur");
+    private static final Identifier FRAGMENT_SHADER = Identifier.of("rich", "core/blur");
+
+    private static final float FIXED_GUI_SCALE = 2.0f;
 
     private static final RenderPipeline PIPELINE = RenderPipelines.register(
             RenderPipeline.builder(RenderPipelines.TRANSFORMS_AND_PROJECTION_SNIPPET)
@@ -64,6 +66,18 @@ public class BlurPipeline {
     private int lastHeight = 0;
 
     private boolean initialized = false;
+
+    private int getFixedScaledWidth() {
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client == null || client.getWindow() == null) return 960;
+        return (int) Math.ceil((double) client.getWindow().getFramebufferWidth() / FIXED_GUI_SCALE);
+    }
+
+    private int getFixedScaledHeight() {
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client == null || client.getWindow() == null) return 540;
+        return (int) Math.ceil((double) client.getWindow().getFramebufferHeight() / FIXED_GUI_SCALE);
+    }
 
     private void ensureInitialized() {
         if (initialized) return;
@@ -121,13 +135,14 @@ public class BlurPipeline {
 
         ensureCopyTexture(fbWidth, fbHeight);
 
-        float guiScale = (float) client.getWindow().getScaleFactor();
+        int fixedScreenWidth = getFixedScaledWidth();
+        int fixedScreenHeight = getFixedScaledHeight();
 
         prepareUniformData(x, y, width, height,
-                client.getWindow().getScaledWidth(),
-                client.getWindow().getScaledHeight(),
+                fixedScreenWidth,
+                fixedScreenHeight,
                 fbWidth, fbHeight,
-                guiScale, radius, radii, color);
+                FIXED_GUI_SCALE, radius, radii, color);
 
         CommandEncoder encoder = RenderSystem.getDevice().createCommandEncoder();
 

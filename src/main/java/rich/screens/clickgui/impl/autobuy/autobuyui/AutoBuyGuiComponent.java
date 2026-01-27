@@ -4,6 +4,7 @@ import lombok.Getter;
 import lombok.Setter;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.item.ItemStack;
+import org.joml.Matrix3x2fStack;
 import org.lwjgl.glfw.GLFW;
 import rich.IMinecraft;
 import rich.screens.clickgui.impl.autobuy.manager.AutoBuyManager;
@@ -23,6 +24,8 @@ import java.util.Map;
 @Getter
 @Setter
 public class AutoBuyGuiComponent implements IMinecraft {
+    private static final int FORCED_GUI_SCALE = 2;
+
     private float x, y, width, height;
     private float targetScroll = 0f;
     private float smoothScroll = 0f;
@@ -89,6 +92,18 @@ public class AutoBuyGuiComponent implements IMinecraft {
     }
 
     public AutoBuyGuiComponent() {
+    }
+
+    private int getCurrentGuiScale() {
+        int scale = mc.options.getGuiScale().getValue();
+        if (scale == 0) {
+            scale = mc.getWindow().calculateScaleFactor(0, mc.forcesUnicodeFont());
+        }
+        return scale;
+    }
+
+    private float getScaleFactor() {
+        return (float) getCurrentGuiScale() / (float) FORCED_GUI_SCALE;
     }
 
     public void position(float x, float y) {
@@ -168,9 +183,7 @@ public class AutoBuyGuiComponent implements IMinecraft {
 
     public void render(DrawContext context, float mouseX, float mouseY, float delta, int guiScale, float alphaMultiplier) {
         this.panelAlpha = alphaMultiplier;
-
-        int currentGuiScale = mc.getWindow().calculateScaleFactor(mc.options.getGuiScale().getValue(), mc.forcesUnicodeFont());
-        this.currentScale = (float) guiScale / currentGuiScale;
+        this.currentScale = 1f;
 
         long currentTime = System.currentTimeMillis();
         float deltaTime = Math.min((currentTime - lastUpdateTime) / 1000f, 0.1f);
@@ -213,13 +226,7 @@ public class AutoBuyGuiComponent implements IMinecraft {
         float clipW = width - 6;
         float clipH = height - 3;
 
-        int scaledClipX = (int) (clipX * currentScale);
-        int scaledClipY = (int) (clipY * currentScale);
-        int scaledClipX2 = (int) ((clipX + clipW) * currentScale);
-        int scaledClipY2 = (int) ((clipY + clipH) * currentScale);
-
-        context.enableScissor(scaledClipX, scaledClipY, scaledClipX2, scaledClipY2);
-        Scissor.enable(clipX, clipY, clipW, clipH, guiScale);
+        Scissor.enable(clipX, clipY, clipW, clipH, FORCED_GUI_SCALE);
 
         float contentOffsetX = slideOffsetX;
         float contentAlpha = alphaMultiplier * slideAlpha;
@@ -245,18 +252,47 @@ public class AutoBuyGuiComponent implements IMinecraft {
             currentY += 8f;
         }
 
-        for (PendingContextIcon icon : pendingContextIcons) {
-            ItemRender.drawItemWithContext(context, icon.stack, icon.x, icon.y, icon.scale, 1.0f);
-        }
-        pendingContextIcons.clear();
-
         for (PendingIcon icon : pendingIcons) {
             ItemRender.drawItem(icon.stack, icon.x, icon.y, 1.0f, 1.0f);
         }
         pendingIcons.clear();
 
         Scissor.disable();
+
+        float scaleFactor = getScaleFactor();
+
+        int scissorX1 = (int) (clipX * scaleFactor);
+        int scissorY1 = (int) (clipY * scaleFactor);
+        int scissorX2 = (int) ((clipX + clipW) * scaleFactor);
+        int scissorY2 = (int) ((clipY + clipH) * scaleFactor);
+
+        context.enableScissor(scissorX1, scissorY1, scissorX2, scissorY2);
+
+        for (PendingContextIcon icon : pendingContextIcons) {
+            drawItemWithScaleCompensation(context, icon.stack, icon.x, icon.y, icon.scale, 1.0f, scaleFactor);
+        }
+        pendingContextIcons.clear();
+
         context.disableScissor();
+    }
+
+    private void drawItemWithScaleCompensation(DrawContext context, ItemStack stack, float x, float y, float scale, float alpha, float scaleFactor) {
+        if (stack.isEmpty() || alpha <= 0.01f) return;
+
+        float size = 16 * scale;
+        float centerX = x + size / 2f;
+        float centerY = y + size / 2f;
+
+        Matrix3x2fStack matrices = context.getMatrices();
+        matrices.pushMatrix();
+
+        matrices.translate(centerX, centerY);
+        matrices.scale(scale * scaleFactor, scale * scaleFactor);
+        matrices.translate(-8, -8);
+
+        context.drawItem(stack, 0, 0);
+
+        matrices.popMatrix();
     }
 
     private boolean isInView(float itemY, float itemHeight, float clipY, float clipH) {
@@ -453,13 +489,8 @@ public class AutoBuyGuiComponent implements IMinecraft {
 
     private void queueItemIcon(AutoBuyableItem item, float iconX, float iconY, float iconSize) {
         ItemStack stack = item.createItemStack();
-
-        if (ItemRender.needsContextRender(stack)) {
-            float scale = iconSize / 16f;
-            pendingContextIcons.add(new PendingContextIcon(stack, iconX, iconY, scale));
-        } else {
-            pendingIcons.add(new PendingIcon(stack, iconX, iconY));
-        }
+        float scale = iconSize / 16f;
+        pendingContextIcons.add(new PendingContextIcon(stack, iconX, iconY, scale));
     }
 
     private void renderToggle(float tx, float ty, float tw, float th, float anim, float enabledAnim, float contentAlpha) {

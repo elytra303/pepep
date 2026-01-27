@@ -19,6 +19,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 
+@SuppressWarnings("unchecked")
 public class SkinManager {
 
     private static final Map<String, Identifier> SKIN_CACHE = new ConcurrentHashMap<>();

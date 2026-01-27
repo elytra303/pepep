@@ -11,9 +11,7 @@ import com.mojang.blaze3d.systems.CommandEncoder;
 import com.mojang.blaze3d.systems.RenderPass;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.textures.FilterMode;
-import com.mojang.blaze3d.textures.GpuTexture;
 import com.mojang.blaze3d.textures.GpuTextureView;
-import com.mojang.blaze3d.textures.TextureFormat;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import net.minecraft.client.gl.GpuSampler;
 import net.minecraft.client.gl.RenderPipelines;
@@ -30,9 +28,9 @@ import java.util.OptionalInt;
 
 public class MaskDiffPipeline {
 
-    private static final Identifier PIPELINE_ID = Identifier.of("minecraft", "pipeline/mask_diff");
-    private static final Identifier VERTEX_SHADER = Identifier.of("minecraft", "core/mask_diff");
-    private static final Identifier FRAGMENT_SHADER = Identifier.of("minecraft", "core/mask_diff");
+    private static final Identifier PIPELINE_ID = Identifier.of("rich", "pipeline/mask_diff");
+    private static final Identifier VERTEX_SHADER = Identifier.of("rich", "core/mask_diff");
+    private static final Identifier FRAGMENT_SHADER = Identifier.of("rich", "core/mask_diff");
 
     private static final BlendFunction REPLACE_BLEND = new BlendFunction(
             SourceFactor.ONE, DestFactor.ZERO,

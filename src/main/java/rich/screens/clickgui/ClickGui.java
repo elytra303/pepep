@@ -203,7 +203,7 @@ public class ClickGui extends Screen implements IMinecraft {
 
         int dimAlpha = (int) (125 * animValue);
         if (dimAlpha > 0) {
-            Render2D.rect(0, 0, screenWidth, screenHeight, new Color(0, 0, 0, dimAlpha).getRGB(), 0);
+            Render2D.rect(0, 0, 5000, 5000, new Color(0, 0, 0, dimAlpha).getRGB(), 0);
         }
 
         int guiScale = mc.getWindow().calculateScaleFactor(mc.options.getGuiScale().getValue(), mc.forcesUnicodeFont());

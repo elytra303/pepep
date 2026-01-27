@@ -18,6 +18,8 @@ import java.util.List;
 
 public class CoolDowns extends AbstractHudElement {
 
+    private static final int FORCED_GUI_SCALE = 2;
+
     private static class CoolDownInfo {
         Item item;
         long startTime;
@@ -289,7 +291,7 @@ public class CoolDowns extends AbstractHudElement {
             Render2D.outline(x, y, getWidth(), contentHeight, 0.35f, new Color(90, 90, 90, bgAlpha).getRGB(), 5);
         }
 
-        Scissor.enable(x, y, getWidth(), contentHeight);
+        Scissor.enable(x, y, getWidth(), contentHeight, FORCED_GUI_SCALE);
 
         Render2D.gradientRect(x + getWidth() - 22.5f, y + 5, 14, 12,
                 new int[]{

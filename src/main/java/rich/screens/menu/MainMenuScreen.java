@@ -32,8 +32,10 @@ import java.util.List;
 
 public class MainMenuScreen extends Screen {
 
-    private static final Identifier BACKGROUND_TEXTURE = Identifier.of("minecraft", "textures/menu/backmenu.png");
+    private static final Identifier BACKGROUND_TEXTURE = Identifier.of("rich", "textures/menu/backmenu.png");
     private static final Identifier STEVE_SKIN = Identifier.of("minecraft", "textures/entity/player/wide/steve.png");
+
+    private static final float FIXED_GUI_SCALE = 2.0f;
 
     private static final int BUTTON_SIZE = 42;
     private static final int BUTTON_SPACING = 16;
@@ -107,8 +109,22 @@ public class MainMenuScreen extends Screen {
         initialized = false;
     }
 
-    private float getScale() {
-        return 2f / (float) this.client.options.getGuiScale().getValue();
+    private int getFixedScaledWidth() {
+        return (int) Math.ceil((double) client.getWindow().getFramebufferWidth() / FIXED_GUI_SCALE);
+    }
+
+    private int getFixedScaledHeight() {
+        return (int) Math.ceil((double) client.getWindow().getFramebufferHeight() / FIXED_GUI_SCALE);
+    }
+
+    private float getScaleMultiplier() {
+        float currentScale = (float) client.getWindow().getScaleFactor();
+        return currentScale / FIXED_GUI_SCALE;
+    }
+
+    private float toFixedCoord(double coord) {
+        float currentScale = (float) client.getWindow().getScaleFactor();
+        return (float) (coord * currentScale / FIXED_GUI_SCALE);
     }
 
     private void unlock() {
@@ -225,8 +241,8 @@ public class MainMenuScreen extends Screen {
     }
 
     private void drawBackground(float zoom) {
-        int screenWidth = client.getWindow().getScaledWidth();
-        int screenHeight = client.getWindow().getScaledHeight();
+        int screenWidth = getFixedScaledWidth();
+        int screenHeight = getFixedScaledHeight();
 
         float zoomedWidth = screenWidth * zoom;
         float zoomedHeight = screenHeight * zoom;
@@ -278,14 +294,16 @@ public class MainMenuScreen extends Screen {
             welcomeSoundPlayed = true;
         }
 
-        float scale = getScale();
-        float scaledMouseX = mouseX / scale;
-        float scaledMouseY = mouseY / scale;
+        float scaledMouseX = toFixedCoord(mouseX);
+        float scaledMouseY = toFixedCoord(mouseY);
+
+        int fixedWidth = getFixedScaledWidth();
+        int fixedHeight = getFixedScaledHeight();
 
         boolean canInteractMain = currentView == View.MAIN_MENU && transitionPhase == TransitionPhase.NONE && menuProgress > 0.8f;
         boolean canInteractAlt = currentView == View.ALT_SCREEN && transitionPhase == TransitionPhase.NONE;
 
-        hoveredButton = canInteractMain ? getHoveredButton(scaledMouseX, scaledMouseY, scale, menuProgress) : -1;
+        hoveredButton = canInteractMain ? getHoveredButton(scaledMouseX, scaledMouseY, fixedWidth, fixedHeight, menuProgress) : -1;
         updateButtonAnimations(deltaTime);
 
         Render2D.beginOverlay();
@@ -293,46 +311,41 @@ public class MainMenuScreen extends Screen {
         drawBackground(currentZoom);
 
         if (mainAlpha > 0.01f) {
-            renderMainMenuContent(scale, scaledMouseX, scaledMouseY, menuProgress, mainAlpha, unlockTextAlpha, currentTime);
+            renderMainMenuContent(fixedWidth, fixedHeight, scaledMouseX, scaledMouseY, menuProgress, mainAlpha, unlockTextAlpha, currentTime);
         }
 
         if (altAlpha > 0.01f) {
-            renderAltScreenContent(scale, scaledMouseX, scaledMouseY, altAlpha, currentTime);
+            renderAltScreenContent(fixedWidth, fixedHeight, scaledMouseX, scaledMouseY, altAlpha, currentTime);
         }
 
         Render2D.blur(scaledMouseX, scaledMouseY, 1, 1, BLUR_RADIUS, 1, new Color(128, 128, 128, 0).getRGB());
 
-        Fonts.TEST.drawCentered("Rich Client © All Rights Reserved", this.width / scale / 2f, this.height / scale - 6, 5f, new Color(128, 128, 128, 128).getRGB());
+        Fonts.TEST.drawCentered("Rich Client © All Rights Reserved", fixedWidth / 2f, fixedHeight - 6, 5f, new Color(128, 128, 128, 128).getRGB());
 
         Render2D.blur(scaledMouseX, scaledMouseY, 1, 1, BLUR_RADIUS, 1, new Color(128, 128, 128, 0).getRGB());
 
         Render2D.endOverlay();
     }
 
-    private void renderMainMenuContent(float scale, float mouseX, float mouseY, float menuProgress, float alpha, float unlockTextAlpha, long currentTime) {
-        float scaledWidth = this.width / scale;
-        float scaledHeight = this.height / scale;
+    private void renderMainMenuContent(int screenWidth, int screenHeight, float mouseX, float mouseY, float menuProgress, float alpha, float unlockTextAlpha, long currentTime) {
         float slideOffset = (1f - alpha) * 20f;
 
         if (unlockTextAlpha > 0.01f && alpha > 0.5f) {
-            renderUnlockText(unlockTextAlpha * alpha, scale);
+            renderUnlockText(unlockTextAlpha * alpha, screenWidth, screenHeight);
         }
 
         if (menuProgress > 0.01f) {
-            renderTime(menuProgress * alpha, scale, menuProgress, slideOffset);
-            renderButtons(mouseX, mouseY, menuProgress * alpha, scale, menuProgress, slideOffset);
+            renderTime(menuProgress * alpha, screenWidth, screenHeight, menuProgress, slideOffset);
+            renderButtons(mouseX, mouseY, menuProgress * alpha, screenWidth, screenHeight, menuProgress, slideOffset);
         }
     }
 
-    private void renderAltScreenContent(float scale, float mouseX, float mouseY, float alpha, long currentTime) {
-        float scaledWidth = this.width / scale;
-        float scaledHeight = this.height / scale;
-
+    private void renderAltScreenContent(int screenWidth, int screenHeight, float mouseX, float mouseY, float alpha, long currentTime) {
         float totalWidth = LEFT_PANEL_WIDTH + GAP + RIGHT_PANEL_WIDTH;
         float totalHeight = LEFT_PANEL_TOP_HEIGHT + GAP + LEFT_PANEL_BOTTOM_HEIGHT;
 
-        float centerX = scaledWidth / 2f;
-        float centerY = scaledHeight / 2f;
+        float centerX = screenWidth / 2f;
+        float centerY = screenHeight / 2f;
 
         float startX = centerX - totalWidth / 2f;
         float startY = centerY - totalHeight / 2f;
@@ -358,17 +371,14 @@ public class MainMenuScreen extends Screen {
         float rightPanelX = startX + LEFT_PANEL_WIDTH + GAP;
         float rightPanelY = startY;
 
-        int guiScale = client.options.getGuiScale().getValue();
-        if (guiScale == 0) {
-            guiScale = client.getWindow().calculateScaleFactor(0, client.forcesUnicodeFont());
-        }
+        int guiScale = (int) FIXED_GUI_SCALE;
 
         List<AccountEntry> sortedAccounts = accountConfig.getSortedAccounts();
         float accountsListOffsetX = (1f - alpha) * SLIDE_DISTANCE;
 
         if (alpha > 0.01f) {
             accountRenderer.renderRightPanel(rightPanelX + accountsListOffsetX, rightPanelY, RIGHT_PANEL_WIDTH, RIGHT_PANEL_HEIGHT,
-                    alpha, sortedAccounts, scrollOffset, mouseX - accountsListOffsetX, mouseY, scale, guiScale);
+                    alpha, sortedAccounts, scrollOffset, mouseX - accountsListOffsetX, mouseY, 1f, guiScale);
         }
     }
 
@@ -385,13 +395,11 @@ public class MainMenuScreen extends Screen {
         exitButtonRedProgress = MathHelper.lerp(deltaTime * 8f, exitButtonRedProgress, targetRed);
     }
 
-    private void renderUnlockText(float opacity, float scale) {
+    private void renderUnlockText(float opacity, int screenWidth, int screenHeight) {
         if (opacity < 0.01f) return;
 
-        float scaledWidth = this.width / scale;
-        float scaledHeight = this.height / scale;
-        float centerX = scaledWidth / 2f;
-        float centerY = scaledHeight / 2f;
+        float centerX = screenWidth / 2f;
+        float centerY = screenHeight / 2f;
 
         String text = "Press any key to continue";
         float fontSize = 14f;
@@ -406,13 +414,11 @@ public class MainMenuScreen extends Screen {
         Fonts.REGULARNEW.drawCentered("▼", centerX, arrowY + arrowBounce, fontSize, withAlpha(0xFFFFFF, arrowAlpha));
     }
 
-    private void renderTime(float opacity, float scale, float menuProgress, float extraSlideOffset) {
-        float scaledWidth = this.width / scale;
-        float scaledHeight = this.height / scale;
-        float centerX = scaledWidth / 2f;
+    private void renderTime(float opacity, int screenWidth, int screenHeight, float menuProgress, float extraSlideOffset) {
+        float centerX = screenWidth / 2f;
 
         float slideOffset = (1f - menuProgress) * 40f + extraSlideOffset;
-        float centerY = scaledHeight / 2f - 55 + slideOffset;
+        float centerY = screenHeight / 2f - 55 + slideOffset;
 
         LocalTime now = LocalTime.now();
         String timeText = now.format(DateTimeFormatter.ofPattern("HH:mm"));
@@ -430,15 +436,12 @@ public class MainMenuScreen extends Screen {
         Fonts.BOLD.drawCentered(dateText, centerX, centerY + textHeight / 2f + 4, 12f, withAlpha(0xFFFFFF, dateAlpha));
     }
 
-    private void renderButtons(float mouseX, float mouseY, float opacity, float scale, float menuProgress, float extraSlideOffset) {
-        float scaledWidth = this.width / scale;
-        float scaledHeight = this.height / scale;
-
+    private void renderButtons(float mouseX, float mouseY, float opacity, int screenWidth, int screenHeight, float menuProgress, float extraSlideOffset) {
         float totalWidth = BUTTON_SIZE * 5 + BUTTON_SPACING * 4;
-        float startX = (scaledWidth - totalWidth) / 2f;
+        float startX = (screenWidth - totalWidth) / 2f;
 
         float slideOffset = (1f - menuProgress) * 60f + extraSlideOffset;
-        float centerY = scaledHeight / 2f + 30 + slideOffset;
+        float centerY = screenHeight / 2f + 30 + slideOffset;
 
         for (int i = 0; i < 5; i++) {
             float buttonDelay = i * 0.12f;
@@ -520,15 +523,12 @@ public class MainMenuScreen extends Screen {
         Fonts.MAINMENUSCREEN.draw(icon, centerX - iconWidth / 2f + 0.5f, centerY - iconHeight / 2f, iconSize, iconColor);
     }
 
-    private int getHoveredButton(float mouseX, float mouseY, float scale, float menuProgress) {
-        float scaledWidth = this.width / scale;
-        float scaledHeight = this.height / scale;
-
+    private int getHoveredButton(float mouseX, float mouseY, int screenWidth, int screenHeight, float menuProgress) {
         float totalWidth = BUTTON_SIZE * 5 + BUTTON_SPACING * 4;
-        float startX = (scaledWidth - totalWidth) / 2f;
+        float startX = (screenWidth - totalWidth) / 2f;
 
         float slideOffset = (1f - menuProgress) * 60f;
-        float centerY = scaledHeight / 2f + 30 + slideOffset;
+        float centerY = screenHeight / 2f + 30 + slideOffset;
 
         for (int i = 0; i < 5; i++) {
             float buttonX = startX + i * (BUTTON_SIZE + BUTTON_SPACING);
@@ -549,9 +549,8 @@ public class MainMenuScreen extends Screen {
     public boolean mouseClicked(Click click, boolean doubled) {
         if (transitionPhase != TransitionPhase.NONE) return false;
 
-        float scale = getScale();
-        float scaledMouseX = (float) click.x() / scale;
-        float scaledMouseY = (float) click.y() / scale;
+        float scaledMouseX = toFixedCoord(click.x());
+        float scaledMouseY = toFixedCoord(click.y());
 
         if (currentView == View.MAIN_MENU) {
             if (!isUnlocked) {
@@ -586,15 +585,14 @@ public class MainMenuScreen extends Screen {
     }
 
     private boolean handleAltScreenClick(float mouseX, float mouseY, Click click) {
-        float scale = getScale();
-        float scaledWidth = this.width / scale;
-        float scaledHeight = this.height / scale;
+        int screenWidth = getFixedScaledWidth();
+        int screenHeight = getFixedScaledHeight();
 
         float totalWidth = LEFT_PANEL_WIDTH + GAP + RIGHT_PANEL_WIDTH;
         float totalHeight = LEFT_PANEL_TOP_HEIGHT + GAP + LEFT_PANEL_BOTTOM_HEIGHT;
 
-        float centerX = scaledWidth / 2f;
-        float centerY = scaledHeight / 2f;
+        float centerX = screenWidth / 2f;
+        float centerY = screenHeight / 2f;
 
         float startX = centerX - totalWidth / 2f;
         float startY = centerY - totalHeight / 2f;
@@ -712,17 +710,16 @@ public class MainMenuScreen extends Screen {
     public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
         if (currentView != View.ALT_SCREEN || transitionPhase != TransitionPhase.NONE) return false;
 
-        float scale = getScale();
-        float scaledMouseX = (float) mouseX / scale;
-        float scaledMouseY = (float) mouseY / scale;
-        float scaledWidth = this.width / scale;
-        float scaledHeight = this.height / scale;
+        float scaledMouseX = toFixedCoord(mouseX);
+        float scaledMouseY = toFixedCoord(mouseY);
+        int screenWidth = getFixedScaledWidth();
+        int screenHeight = getFixedScaledHeight();
 
         float totalWidth = LEFT_PANEL_WIDTH + GAP + RIGHT_PANEL_WIDTH;
         float totalHeight = LEFT_PANEL_TOP_HEIGHT + GAP + LEFT_PANEL_BOTTOM_HEIGHT;
 
-        float centerX = scaledWidth / 2f;
-        float centerY = scaledHeight / 2f;
+        float centerX = screenWidth / 2f;
+        float centerY = screenHeight / 2f;
 
         float startX = centerX - totalWidth / 2f;
         float startY = centerY - totalHeight / 2f;

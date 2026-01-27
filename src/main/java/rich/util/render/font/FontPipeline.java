@@ -23,8 +23,6 @@ import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
 import org.lwjgl.system.MemoryUtil;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -34,15 +32,16 @@ import java.util.OptionalInt;
 
 public class FontPipeline {
 
-    private static final Identifier PIPELINE_ID = Identifier.of("minecraft", "pipeline/msdf");
-    private static final Identifier VERTEX_SHADER = Identifier.of("minecraft", "core/msdf");
-    private static final Identifier FRAGMENT_SHADER = Identifier.of("minecraft", "core/msdf");
+    private static final Identifier PIPELINE_ID = Identifier.of("rich", "pipeline/msdf");
+    private static final Identifier SHADER_ID = Identifier.of("rich", "core/msdf");
+
+    private static final float FIXED_GUI_SCALE = 2.0f;
 
     private static final RenderPipeline PIPELINE = RenderPipelines.register(
             RenderPipeline.builder(RenderPipelines.TRANSFORMS_AND_PROJECTION_SNIPPET)
                     .withLocation(PIPELINE_ID)
-                    .withVertexShader(VERTEX_SHADER)
-                    .withFragmentShader(FRAGMENT_SHADER)
+                    .withVertexShader(SHADER_ID)
+                    .withFragmentShader(SHADER_ID)
                     .withVertexFormat(VertexFormats.EMPTY, VertexFormat.DrawMode.TRIANGLES)
                     .withUniform("FontData", UniformType.UNIFORM_BUFFER)
                     .withSampler("Sampler0")
@@ -55,6 +54,7 @@ public class FontPipeline {
     private static final Vector4f COLOR_MODULATOR = new Vector4f(1f, 1f, 1f, 1f);
     private static final Vector3f MODEL_OFFSET = new Vector3f(0, 0, 0);
     private static final Matrix4f TEXTURE_MATRIX = new Matrix4f();
+
     private static final int[] LEGACY_COLORS = new int[32];
 
     static {
@@ -63,8 +63,7 @@ public class FontPipeline {
             int r = (i >> 2 & 1) * 170 + j;
             int g = (i >> 1 & 1) * 170 + j;
             int b = (i & 1) * 170 + j;
-            if (i == 6)
-                r += 85;
+            if (i == 6) r += 85;
             LEGACY_COLORS[i] = (255 << 24) | (r << 16) | (g << 8) | b;
             LEGACY_COLORS[i + 16] = ((r & 0xFCFCFC) >> 2 << 24) | (r << 16) | (g << 8) | b;
         }
@@ -109,9 +108,20 @@ public class FontPipeline {
         }
     }
 
+    private int getFixedScaledWidth() {
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client == null || client.getWindow() == null) return 960;
+        return (int) Math.ceil((double) client.getWindow().getFramebufferWidth() / FIXED_GUI_SCALE);
+    }
+
+    private int getFixedScaledHeight() {
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client == null || client.getWindow() == null) return 540;
+        return (int) Math.ceil((double) client.getWindow().getFramebufferHeight() / FIXED_GUI_SCALE);
+    }
+
     private void ensureInitialized() {
-        if (initialized)
-            return;
+        if (initialized) return;
 
         this.dataBuffer = MemoryUtil.memAlloc(BUFFER_SIZE);
 
@@ -119,7 +129,7 @@ public class FontPipeline {
         dummyData.putInt(0);
         dummyData.flip();
         this.dummyVertexBuffer = RenderSystem.getDevice().createBuffer(
-                () -> "minecraft:font_dummy_vertex",
+                () -> "rich:font_dummy_vertex",
                 GpuBuffer.USAGE_VERTEX,
                 dummyData);
         MemoryUtil.memFree(dummyData);
@@ -135,14 +145,11 @@ public class FontPipeline {
                          float outlineWidth, int outlineColor, float rotation) {
 
         MinecraftClient client = MinecraftClient.getInstance();
-        if (client.getFramebuffer() == null)
-            return;
-        if (text == null || text.isEmpty())
-            return;
+        if (client.getFramebuffer() == null) return;
+        if (text == null || text.isEmpty()) return;
 
         atlas.ensureLoaded();
-        if (atlas.getGlyphCount() == 0)
-            return;
+        if (atlas.getGlyphCount() == 0) return;
 
         ensureInitialized();
 
@@ -181,8 +188,7 @@ public class FontPipeline {
                         currentColor = (0xFF << 24) | Integer.parseInt(hex, 16);
                         i += charCount + 7;
                         continue;
-                    } catch (Exception ignored) {
-                    }
+                    } catch (Exception ignored) {}
                 }
                 int code = "0123456789abcdefklmnor".indexOf(Character.toLowerCase((char) nextCodePoint));
                 if (code >= 0) {
@@ -221,12 +227,10 @@ public class FontPipeline {
             float glyphH = glyph.height * scale;
 
             if (glyph.width > 0 && glyph.height > 0) {
-                float glyphScale = scale;
-
                 charBatch.add(new CharData(
                         glyphX, glyphY, glyphW, glyphH,
                         glyph.u0, glyph.v0, glyph.u1, glyph.v1,
-                        currentColor, rotationRad, pivotX, pivotY, glyphScale));
+                        currentColor, rotationRad, pivotX, pivotY, scale));
             }
 
             cursorX += glyph.xAdvance * scale;
@@ -247,14 +251,11 @@ public class FontPipeline {
                                            float outlineWidth, int outlineColor, float rotation, float pivotX, float pivotY) {
 
         MinecraftClient client = MinecraftClient.getInstance();
-        if (client.getFramebuffer() == null)
-            return;
-        if (text == null || text.isEmpty())
-            return;
+        if (client.getFramebuffer() == null) return;
+        if (text == null || text.isEmpty()) return;
 
         atlas.ensureLoaded();
-        if (atlas.getGlyphCount() == 0)
-            return;
+        if (atlas.getGlyphCount() == 0) return;
 
         ensureInitialized();
 
@@ -288,8 +289,7 @@ public class FontPipeline {
                         currentColor = (0xFF << 24) | Integer.parseInt(hex, 16);
                         i += charCount + 7;
                         continue;
-                    } catch (Exception ignored) {
-                    }
+                    } catch (Exception ignored) {}
                 }
                 int code = "0123456789abcdefklmnor".indexOf(Character.toLowerCase((char) nextCodePoint));
                 if (code >= 0) {
@@ -328,12 +328,10 @@ public class FontPipeline {
             float glyphH = glyph.height * scale;
 
             if (glyph.width > 0 && glyph.height > 0) {
-                float glyphScale = scale;
-
                 charBatch.add(new CharData(
                         glyphX, glyphY, glyphW, glyphH,
                         glyph.u0, glyph.v0, glyph.u1, glyph.v1,
-                        currentColor, rotationRad, pivotX, pivotY, glyphScale));
+                        currentColor, rotationRad, pivotX, pivotY, scale));
             }
 
             cursorX += glyph.xAdvance * scale;
@@ -384,11 +382,9 @@ public class FontPipeline {
 
         int size = dataBuffer.remaining();
         if (uniformBuffer == null || uniformBuffer.size() < size) {
-            if (uniformBuffer != null) {
-                uniformBuffer.close();
-            }
+            if (uniformBuffer != null) uniformBuffer.close();
             uniformBuffer = RenderSystem.getDevice().createBuffer(
-                    () -> "minecraft:font_uniform",
+                    () -> "rich:font_uniform",
                     GpuBuffer.USAGE_UNIFORM | GpuBuffer.USAGE_COPY_DST,
                     size);
         }
@@ -397,16 +393,13 @@ public class FontPipeline {
         encoder.writeToBuffer(uniformBuffer.slice(), dataBuffer);
 
         GpuBufferSlice dynamicTransforms = RenderSystem.getDynamicUniforms()
-                .write(RenderSystem.getModelViewMatrix(),
-                        COLOR_MODULATOR,
-                        MODEL_OFFSET,
-                        TEXTURE_MATRIX);
+                .write(RenderSystem.getModelViewMatrix(), COLOR_MODULATOR, MODEL_OFFSET, TEXTURE_MATRIX);
 
         GpuSampler sampler = RenderSystem.getSamplerCache().get(FilterMode.LINEAR);
         GpuTextureView textureView = RenderSystem.getDevice().createTextureView(gpuTexture);
 
         try (RenderPass renderPass = encoder.createRenderPass(
-                () -> "minecraft:font_pass",
+                () -> "rich:font_pass",
                 client.getFramebuffer().getColorAttachmentView(),
                 OptionalInt.empty(),
                 client.getFramebuffer().getDepthAttachmentView(),
@@ -431,9 +424,9 @@ public class FontPipeline {
     private void prepareUniformData(MinecraftClient client, FontAtlas atlas, float outlineWidth, int outlineColor) {
         dataBuffer.clear();
 
-        float screenWidth = client.getWindow().getScaledWidth();
-        float screenHeight = client.getWindow().getScaledHeight();
-        float guiScale = (float) client.getWindow().getScaleFactor();
+        float screenWidth = getFixedScaledWidth();
+        float screenHeight = getFixedScaledHeight();
+        float guiScale = FIXED_GUI_SCALE;
 
         dataBuffer.putFloat(screenWidth);
         dataBuffer.putFloat(screenHeight);
@@ -542,8 +535,7 @@ public class FontPipeline {
         float scale = size / atlas.getFontSize();
         int lines = 1;
         for (int i = 0; i < text.length(); i++) {
-            if (text.charAt(i) == '\n')
-                lines++;
+            if (text.charAt(i) == '\n') lines++;
         }
         return lines * atlas.getLineHeight() * scale;
     }

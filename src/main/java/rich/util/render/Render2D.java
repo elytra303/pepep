@@ -4,10 +4,16 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.texture.Sprite;
 import net.minecraft.util.Identifier;
+import org.joml.Matrix4f;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL14;
 import rich.Initialization;
 import rich.util.ColorUtil;
+import rich.util.render.pipeline.Arc2D;
+import rich.util.render.pipeline.ArcOutline2D;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class Render2D {
 
@@ -16,7 +22,31 @@ public class Render2D {
     private static boolean savedDepthMask = false;
     private static boolean savedBlend = false;
 
-    private static final Identifier BACKGROUND_TEXTURE = Identifier.of("minecraft", "textures/menu/backmenu.png");
+    private static final Identifier BACKGROUND_TEXTURE = Identifier.of("rich", "textures/menu/backmenu.png");
+
+    private static final List<Runnable> OVERRIDE_TASKS = new ArrayList<>();
+    private static final float Z_OVERRIDE = 0.0f;
+    private static final float FIXED_GUI_SCALE = 2.0f;
+
+    public static int getFixedScaledWidth() {
+        var window = MinecraftClient.getInstance().getWindow();
+        return (int) Math.ceil((double) window.getFramebufferWidth() / FIXED_GUI_SCALE);
+    }
+
+    public static int getFixedScaledHeight() {
+        var window = MinecraftClient.getInstance().getWindow();
+        return (int) Math.ceil((double) window.getFramebufferHeight() / FIXED_GUI_SCALE);
+    }
+
+    public static float getFixedGuiScale() {
+        return FIXED_GUI_SCALE;
+    }
+
+    public static float getScaleMultiplier() {
+        MinecraftClient client = MinecraftClient.getInstance();
+        float currentScale = (float) client.getWindow().getScaleFactor();
+        return FIXED_GUI_SCALE / currentScale;
+    }
 
     public static void beginOverlay() {
         inOverlayMode = true;
@@ -80,9 +110,8 @@ public class Render2D {
     }
 
     public static void backgroundImage(float opacity, float zoom) {
-        MinecraftClient client = MinecraftClient.getInstance();
-        int screenWidth = client.getWindow().getScaledWidth();
-        int screenHeight = client.getWindow().getScaledHeight();
+        int screenWidth = getFixedScaledWidth();
+        int screenHeight = getFixedScaledHeight();
 
         float zoomedWidth = screenWidth * zoom;
         float zoomedHeight = screenHeight * zoom;
@@ -332,10 +361,82 @@ public class Render2D {
                 .drawGlowOutline(x, y, width, height, color, thickness, radii, progress, baseAlpha);
     }
 
+    public static Matrix4f createProjection() {
+        int width = getFixedScaledWidth();
+        int height = getFixedScaledHeight();
+        return new Matrix4f().ortho(0, width, height, 0, -1000, 1000);
+    }
+
+    public static void arc(DrawContext context, float x, float y, float size, float thickness, float degree,
+                           float rotation, int color, boolean overrideContext) {
+        arc(createProjection(), x, y, size, thickness, degree, rotation, color, overrideContext);
+    }
+
+    public static void arc(DrawContext context, float x, float y, float size, float thickness, float degree,
+                           float rotation, boolean overrideContext, int... colors) {
+        arc(createProjection(), x, y, size, thickness, degree, rotation, overrideContext, colors);
+    }
+
+    public static void arc(Matrix4f matrix, float x, float y, float size, float thickness, float degree, float rotation,
+                           int color, boolean overrideContext) {
+        if (overrideContext) {
+            OVERRIDE_TASKS.add(() -> Arc2D.draw(matrix, x, y, size, thickness, degree, rotation, Z_OVERRIDE, color));
+            return;
+        }
+        Arc2D.draw(matrix, x, y, size, thickness, degree, rotation, Z_OVERRIDE, color);
+    }
+
+    public static void arc(Matrix4f matrix, float x, float y, float size, float thickness, float degree, float rotation,
+                           boolean overrideContext, int... colors) {
+        if (overrideContext) {
+            OVERRIDE_TASKS.add(() -> Arc2D.draw(matrix, x, y, size, thickness, degree, rotation, Z_OVERRIDE, colors));
+            return;
+        }
+        Arc2D.draw(matrix, x, y, size, thickness, degree, rotation, Z_OVERRIDE, colors);
+    }
+
+    public static void arc(float x, float y, float size, float thickness, float degree, float rotation, int color) {
+        Arc2D.draw(createProjection(), x, y, size, thickness, degree, rotation, Z_OVERRIDE, color);
+    }
+
+    public static void arc(float x, float y, float size, float thickness, float degree, float rotation, int... colors) {
+        Arc2D.draw(createProjection(), x, y, size, thickness, degree, rotation, Z_OVERRIDE, colors);
+    }
+
+    public static void arcOutline(float x, float y, float size, float arcThickness, float degree,
+                                  float rotation, float outlineThickness, int fillColor, int outlineColor) {
+        ArcOutline2D.draw(createProjection(), x, y, size, arcThickness, degree, rotation, outlineThickness, fillColor, outlineColor, Z_OVERRIDE);
+    }
+
+    public static void arcOutline(DrawContext context, float x, float y, float size, float arcThickness, float degree,
+                                  float rotation, float outlineThickness, int fillColor, int outlineColor, boolean overrideContext) {
+        Matrix4f matrix = createProjection();
+        if (overrideContext) {
+            OVERRIDE_TASKS.add(() -> ArcOutline2D.draw(matrix, x, y, size, arcThickness, degree, rotation, outlineThickness, fillColor, outlineColor, Z_OVERRIDE));
+            return;
+        }
+        ArcOutline2D.draw(matrix, x, y, size, arcThickness, degree, rotation, outlineThickness, fillColor, outlineColor, Z_OVERRIDE);
+    }
+
+    public static void arcOutline(Matrix4f matrix, float x, float y, float size, float arcThickness, float degree,
+                                  float rotation, float outlineThickness, int fillColor, int outlineColor) {
+        ArcOutline2D.draw(matrix, x, y, size, arcThickness, degree, rotation, outlineThickness, fillColor, outlineColor, Z_OVERRIDE);
+    }
+
+    public static void flushOverrideTasks() {
+        for (Runnable task : OVERRIDE_TASKS) {
+            task.run();
+        }
+        OVERRIDE_TASKS.clear();
+    }
+
     public static boolean isInOverlayMode() {
         return inOverlayMode;
     }
 
     public static void cleanup() {
+        OVERRIDE_TASKS.clear();
+        Arc2D.shutdown();
+        ArcOutline2D.shutdown();
     }
 }

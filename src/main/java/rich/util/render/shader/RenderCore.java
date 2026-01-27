@@ -21,6 +21,8 @@ public class RenderCore {
     private final MaskDiffPipeline maskDiffPipeline;
 
     private boolean fontsLoaded = false;
+    private boolean arcInitialized = false;
+    private boolean arcOutlineInitialized = false;
 
     public RenderCore() {
         this.rectPipeline = new RectPipeline();
@@ -32,7 +34,6 @@ public class RenderCore {
         this.glassCompositePipeline = new GlassCompositePipeline();
         this.glassHandsRenderer = new GlassHandsRenderer();
         this.maskDiffPipeline = new MaskDiffPipeline();
-
         this.fontRenderer = new FontRenderer();
     }
 
@@ -40,6 +41,18 @@ public class RenderCore {
         if (fontsLoaded) return;
         fontsLoaded = true;
         fontRenderer.loadAllFonts(Fonts.getRegistry());
+    }
+
+    private void ensureArcInitialized() {
+        if (arcInitialized) return;
+        arcInitialized = true;
+        Arc2D.init();
+    }
+
+    private void ensureArcOutlineInitialized() {
+        if (arcOutlineInitialized) return;
+        arcOutlineInitialized = true;
+        ArcOutline2D.init();
     }
 
     public void setupOverlayState() {
@@ -56,6 +69,14 @@ public class RenderCore {
 
     public void clearDepthBuffer() {
         GL11.glClear(GL11.GL_DEPTH_BUFFER_BIT);
+    }
+
+    public void initArc() {
+        ensureArcInitialized();
+    }
+
+    public void initArcOutline() {
+        ensureArcOutlineInitialized();
     }
 
     public RectPipeline getRectPipeline() {
@@ -114,5 +135,7 @@ public class RenderCore {
         glassHandsRenderer.close();
         maskDiffPipeline.close();
         fontRenderer.close();
+        Arc2D.shutdown();
+        ArcOutline2D.shutdown();
     }
 }

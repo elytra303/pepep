@@ -188,7 +188,7 @@ public class TargetESP extends ModuleStructure implements IMinecraft {
     }
 
     private void renderChain(MatrixStack stack, VertexConsumerProvider provider, LivingEntity target, float alpha, float deltaTime) {
-        VertexConsumer consumer = provider.getBuffer(ClientPipelines.CHAIN_ESP.apply(Identifier.of("minecraft", "images/world/chain.png")));
+        VertexConsumer consumer = provider.getBuffer(ClientPipelines.CHAIN_ESP.apply(Identifier.of("rich", "images/world/chain.png")));
 
         float animValue = (System.currentTimeMillis() % 360000) / 1000f * 60f;
 
@@ -255,7 +255,7 @@ public class TargetESP extends ModuleStructure implements IMinecraft {
     }
 
     private void renderRhomb(MatrixStack stack, VertexConsumerProvider provider, LivingEntity target, float alpha) {
-        VertexConsumer consumer = provider.getBuffer(ClientPipelines.ROMB_ESP.apply(Identifier.of("minecraft", "images/world/cube.png")));
+        VertexConsumer consumer = provider.getBuffer(ClientPipelines.ROMB_ESP.apply(Identifier.of("rich", "images/world/cube.png")));
 
         Quaternionf camRot = mc.gameRenderer.getCamera().getRotation();
 
@@ -286,7 +286,7 @@ public class TargetESP extends ModuleStructure implements IMinecraft {
     }
 
     private void renderGhost(MatrixStack stack, VertexConsumerProvider consumers, LivingEntity target, float alpha) {
-        VertexConsumer consumer = consumers.getBuffer(ClientPipelines.GHOSTS_ESP.apply(Identifier.of("minecraft", "images/particle/ghost-glow.png")));
+        VertexConsumer consumer = consumers.getBuffer(ClientPipelines.GHOSTS_ESP.apply(Identifier.of("rich", "images/particle/ghost-glow.png")));
 
         stack.translate(0, target.getHeight() * 0.5f, 0);
 
@@ -500,7 +500,7 @@ public class TargetESP extends ModuleStructure implements IMinecraft {
         }
 
         private void drawBloomEffect(MatrixStack stack, VertexConsumerProvider provider, int baseColor, float anim) {
-            VertexConsumer bloomConsumer = provider.getBuffer(ClientPipelines.BLOOM_ESP.apply(Identifier.of("minecraft", "images/particle/glow.png")));
+            VertexConsumer bloomConsumer = provider.getBuffer(ClientPipelines.BLOOM_ESP.apply(Identifier.of("rich", "images/particle/glow.png")));
 
             int bloomAlpha = (int) (0.3f * 60 * anim);
             int bloomColor = withAlpha(baseColor, bloomAlpha);

@@ -8,7 +8,7 @@ import rich.Initialization;
 
 public class FontInitializer {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("minecraft/FontInitializer");
+    private static final Logger LOGGER = LoggerFactory.getLogger("rich/FontInitializer");
     private static boolean registered = false;
     private static boolean initialized = false;
 

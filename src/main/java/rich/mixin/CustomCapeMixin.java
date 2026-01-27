@@ -15,7 +15,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 public class CustomCapeMixin {
 
     @Unique
-    private static final Identifier CAPE_ID = Identifier.of("minecraft", "capes/cape");
+    private static final Identifier CAPE_ID = Identifier.of("rich", "capes/cape");
     @Unique
     private static final AssetInfo.TextureAssetInfo CAPE_ASSET = new AssetInfo.TextureAssetInfo(CAPE_ID);
 

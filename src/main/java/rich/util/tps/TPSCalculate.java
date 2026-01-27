@@ -7,6 +7,11 @@ import rich.Initialization;
 import rich.events.api.EventHandler;
 import rich.events.impl.PacketEvent;
 
+/**
+ *  © 2025 Copyright Rich Client 2.0
+ *        All Rights Reserved ®
+ */
+
 @Getter
 public class TPSCalculate {
 

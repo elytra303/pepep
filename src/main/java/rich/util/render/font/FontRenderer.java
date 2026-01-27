@@ -9,7 +9,7 @@ import java.util.Map;
 
 public class FontRenderer {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("minecraft/FontRenderer");
+    private static final Logger LOGGER = LoggerFactory.getLogger("rich/FontRenderer");
 
     private final FontPipeline pipeline;
     private final Map<String, FontAtlas> fonts;
@@ -21,8 +21,8 @@ public class FontRenderer {
     }
 
     public void loadFont(String name, String path) {
-        Identifier jsonId = Identifier.of("minecraft", "fonts/" + path + ".json");
-        Identifier textureId = Identifier.of("minecraft", "fonts/" + path + ".png");
+        Identifier jsonId = Identifier.of("rich", "fonts/" + path + ".json");
+        Identifier textureId = Identifier.of("rich", "fonts/" + path + ".png");
         FontAtlas atlas = new FontAtlas(jsonId, textureId);
         fonts.put(name, atlas);
         LOGGER.info("Registered font: {} -> {}", name, path);

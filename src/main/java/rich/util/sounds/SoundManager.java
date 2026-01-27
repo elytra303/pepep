@@ -20,18 +20,18 @@ import rich.util.string.PlayerInteractionHelper;
 @UtilityClass
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class SoundManager implements IMinecraft {
-    public SoundEvent KOLOKOLNIA_KILL = SoundEvent.of(Identifier.of("minecraft:kolokolnia_kill"));
-    public SoundEvent MOAN1 = SoundEvent.of(Identifier.of("minecraft:moan1"));
-    public SoundEvent MOAN2 = SoundEvent.of(Identifier.of("minecraft:moan2"));
-    public SoundEvent MOAN3 = SoundEvent.of(Identifier.of("minecraft:moan3"));
-    public SoundEvent MOAN4 = SoundEvent.of(Identifier.of("minecraft:moan4"));
-    public SoundEvent MODULE_DISABLE = SoundEvent.of(Identifier.of("minecraft:module_disable"));
-    public SoundEvent MODULE_ENABLE = SoundEvent.of(Identifier.of("minecraft:module_enable"));
-    public SoundEvent OFF = SoundEvent.of(Identifier.of("minecraft:off"));
-    public SoundEvent ON = SoundEvent.of(Identifier.of("minecraft:on"));
-    public SoundEvent CRIME = SoundEvent.of(Identifier.of("minecraft:crime"));
-    public SoundEvent METALLIC = SoundEvent.of(Identifier.of("minecraft:metallic"));
-    public SoundEvent WELCOME = SoundEvent.of(Identifier.of("minecraft:welcome"));
+    public SoundEvent KOLOKOLNIA_KILL = SoundEvent.of(Identifier.of("rich:kolokolnia_kill"));
+    public SoundEvent MOAN1 = SoundEvent.of(Identifier.of("rich:moan1"));
+    public SoundEvent MOAN2 = SoundEvent.of(Identifier.of("rich:moan2"));
+    public SoundEvent MOAN3 = SoundEvent.of(Identifier.of("rich:moan3"));
+    public SoundEvent MOAN4 = SoundEvent.of(Identifier.of("rich:moan4"));
+    public SoundEvent MODULE_DISABLE = SoundEvent.of(Identifier.of("rich:module_disable"));
+    public SoundEvent MODULE_ENABLE = SoundEvent.of(Identifier.of("rich:module_enable"));
+    public SoundEvent OFF = SoundEvent.of(Identifier.of("rich:off"));
+    public SoundEvent ON = SoundEvent.of(Identifier.of("rich:on"));
+    public SoundEvent CRIME = SoundEvent.of(Identifier.of("rich:crime"));
+    public SoundEvent METALLIC = SoundEvent.of(Identifier.of("rich:metallic"));
+    public SoundEvent WELCOME = SoundEvent.of(Identifier.of("rich:welcome"));
 
     public void init() {
         Registry.register(Registries.SOUND_EVENT, KOLOKOLNIA_KILL.id(), KOLOKOLNIA_KILL);

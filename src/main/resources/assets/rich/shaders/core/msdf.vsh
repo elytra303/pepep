@@ -5,7 +5,7 @@ layout(std140) uniform FontData {
     vec4 outlineColor;
     vec4 atlasData;
     ivec4 charCount;
-    vec4 chars[256 * 4];
+    vec4 chars[1024];
 };
 
 out vec2 texCoord;

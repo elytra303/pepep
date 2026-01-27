@@ -16,6 +16,11 @@ import java.nio.ByteBuffer;
 import java.util.concurrent.*;
 import java.util.regex.Pattern;
 
+/**
+ *  © 2025 Copyright Rich Client 2.0
+ *        All Rights Reserved ®
+ */
+
 @Getter
 @UtilityClass
 public class ColorUtil {
@@ -80,6 +85,19 @@ public class ColorUtil {
     public final int BLACK = getColor(0);
     public final int HALF_BLACK = getColor(0,0.5F);
     public final int LIGHT_RED = getColor(255, 85, 85);
+
+    public static int applyAlpha(int color, int alpha) {
+        int r = (color >> 16) & 0xFF;
+        int g = (color >> 8) & 0xFF;
+        int b = color & 0xFF;
+        int originalAlpha = (color >> 24) & 0xFF;
+        int newAlpha = (originalAlpha * alpha) / 255;
+        return (newAlpha << 24) | (r << 16) | (g << 8) | b;
+    }
+
+    public static int applyAlpha(int color, float alpha) {
+        return applyAlpha(color, (int)(alpha * 255));
+    }
 
     public int red(int c) {return (c >> 16) & 0xFF;}
 
@@ -519,6 +537,32 @@ public class ColorUtil {
         int g = Math.min(255, (int) (((color >> 8) & 0xFF) * factor));
         int b = Math.min(255, (int) ((color & 0xFF) * factor));
         return (a << 24) | (r << 16) | (g << 8) | b;
+    }
+
+    public static int hsvToRgb(float h, float s, float v) {
+        float c = v * s;
+        float x = c * (1 - Math.abs((h * 6) % 2 - 1));
+        float m = v - c;
+
+        float r, g, b;
+        if (h < 1f/6f) { r = c; g = x; b = 0; }
+        else if (h < 2f/6f) { r = x; g = c; b = 0; }
+        else if (h < 3f/6f) { r = 0; g = c; b = x; }
+        else if (h < 4f/6f) { r = 0; g = x; b = c; }
+        else if (h < 5f/6f) { r = x; g = 0; b = c; }
+        else { r = c; g = 0; b = x; }
+
+        int ri = (int)((r + m) * 255);
+        int gi = (int)((g + m) * 255);
+        int bi = (int)((b + m) * 255);
+
+        return 0xFF000000 | (ri << 16) | (gi << 8) | bi;
+    }
+
+    public static int hsvToRgb(float h, float s, float v, float alpha) {
+        int rgb = hsvToRgb(h, s, v);
+        int a = (int)(alpha * 255);
+        return (a << 24) | (rgb & 0x00FFFFFF);
     }
 
     @Getter

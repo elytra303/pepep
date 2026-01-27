@@ -25,12 +25,13 @@ import java.util.OptionalInt;
 
 public class GlowOutlinePipeline {
 
-    private static final Identifier PIPELINE_ID = Identifier.of("minecraft", "pipeline/glow_outline");
-    private static final Identifier VERTEX_SHADER = Identifier.of("minecraft", "core/glow_outline");
-    private static final Identifier FRAGMENT_SHADER = Identifier.of("minecraft", "core/glow_outline");
+    private static final Identifier PIPELINE_ID = Identifier.of("rich", "pipeline/glow_outline");
+    private static final Identifier VERTEX_SHADER = Identifier.of("rich", "core/glow_outline");
+    private static final Identifier FRAGMENT_SHADER = Identifier.of("rich", "core/glow_outline");
 
     private static final Vector3f MODEL_OFFSET = new Vector3f(0, 0, 0);
     private static final Matrix4f TEXTURE_MATRIX = new Matrix4f();
+    private static final float FIXED_GUI_SCALE = 2.0f;
 
     private static final RenderPipeline PIPELINE = RenderPipelines.register(
             RenderPipeline.builder(RenderPipelines.TRANSFORMS_AND_PROJECTION_SNIPPET)
@@ -84,12 +85,15 @@ public class GlowOutlinePipeline {
 
         ensureInitialized();
 
-        float guiScale = (float) client.getWindow().getScaleFactor();
+        int framebufferWidth = client.getWindow().getFramebufferWidth();
+        int framebufferHeight = client.getWindow().getFramebufferHeight();
+        float fixedScreenWidth = framebufferWidth / FIXED_GUI_SCALE;
+        float fixedScreenHeight = framebufferHeight / FIXED_GUI_SCALE;
 
         prepareUniformData(x, y, width, height,
-                client.getWindow().getScaledWidth(),
-                client.getWindow().getScaledHeight(),
-                guiScale, color, thickness, radii, progress, baseAlpha);
+                fixedScreenWidth,
+                fixedScreenHeight,
+                FIXED_GUI_SCALE, color, thickness, radii, progress, baseAlpha);
 
         uploadAndDraw(client);
     }

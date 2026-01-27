@@ -42,7 +42,7 @@ public class ConfigListRenderer {
         dataHandler.updateScroll(0.016f);
         dataHandler.updateScrollFades(listH);
 
-        Scissor.enable(listX, listY - 8, listW, listH + 15, guiScale);
+        Scissor.enable(listX, listY - 8, listW, listH + 15, 2);
 
         float itemY = listY + (float) dataHandler.getScrollOffset();
 

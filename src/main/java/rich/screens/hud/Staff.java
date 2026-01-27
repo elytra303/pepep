@@ -23,7 +23,7 @@ public class Staff extends AbstractHudElement {
 
     private static final Pattern NAME_PATTERN = Pattern.compile("^\\w{3,16}$");
     private static final Pattern DIGIT_ONLY_PATTERN = Pattern.compile("^\\d{1,4}$");
-    private static final Identifier STEVE_SKIN = Identifier.of("minecraft", "textures/entity/player/wide/steve.png");
+    private static final Identifier STEVE_SKIN = Identifier.of("rich", "textures/entity/player/wide/steve.png");
 
     private static class StaffInfo {
         String name;
@@ -269,7 +269,7 @@ public class Staff extends AbstractHudElement {
             Render2D.outline(x, y, getWidth(), contentHeight, 0.35f, new Color(90, 90, 90, bgAlpha).getRGB(), 5);
         }
 
-        Scissor.enable(x, y, getWidth(), contentHeight);
+        Scissor.enable(x, y, getWidth(), contentHeight, 2);
 
         Render2D.gradientRect(x + getWidth() - 18.5f, y + 5, 14, 12,
                 new int[]{

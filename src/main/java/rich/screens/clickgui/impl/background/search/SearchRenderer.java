@@ -37,7 +37,7 @@ public class SearchRenderer {
             return;
         }
 
-        Scissor.enable(panelX + 3, panelY + 3, panelW - 6, panelH - 6, guiScale);
+        Scissor.enable(panelX + 3, panelY + 3, panelW - 6, panelH - 6, 2);
         renderResults(panelX, panelY, panelW, panelH, mouseX, mouseY, resultAlpha);
         Scissor.disable();
 

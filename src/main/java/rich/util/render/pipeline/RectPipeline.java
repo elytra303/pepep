@@ -25,12 +25,13 @@ import java.util.OptionalInt;
 
 public class RectPipeline {
 
-    private static final Identifier PIPELINE_ID = Identifier.of("minecraft", "pipeline/rect");
-    private static final Identifier VERTEX_SHADER = Identifier.of("minecraft", "core/rect");
-    private static final Identifier FRAGMENT_SHADER = Identifier.of("minecraft", "core/rect");
+    private static final Identifier PIPELINE_ID = Identifier.of("rich", "pipeline/rect");
+    private static final Identifier VERTEX_SHADER = Identifier.of("rich", "core/rect");
+    private static final Identifier FRAGMENT_SHADER = Identifier.of("rich", "core/rect");
 
     private static final Vector3f MODEL_OFFSET = new Vector3f(0, 0, 0);
     private static final Matrix4f TEXTURE_MATRIX = new Matrix4f();
+    private static final float FIXED_GUI_SCALE = 2.0f;
 
     private static final RenderPipeline PIPELINE = RenderPipelines.register(
             RenderPipeline.builder(RenderPipelines.TRANSFORMS_AND_PROJECTION_SNIPPET)
@@ -88,14 +89,17 @@ public class RectPipeline {
 
         ensureInitialized();
 
-        float guiScale = (float) client.getWindow().getScaleFactor();
+        int framebufferWidth = client.getWindow().getFramebufferWidth();
+        int framebufferHeight = client.getWindow().getFramebufferHeight();
+        float fixedScreenWidth = framebufferWidth / FIXED_GUI_SCALE;
+        float fixedScreenHeight = framebufferHeight / FIXED_GUI_SCALE;
 
         int[] colors9 = convertTo9Colors(colors);
 
         prepareUniformData(x, y, width, height,
-                client.getWindow().getScaledWidth(),
-                client.getWindow().getScaledHeight(),
-                guiScale, innerBlur,
+                fixedScreenWidth,
+                fixedScreenHeight,
+                FIXED_GUI_SCALE, innerBlur,
                 colors9, radii);
 
         uploadAndDraw(client);

@@ -1,62 +1,62 @@
 {
   "kolokolnia_kill": {
     "sounds": [
-      "minecraft:kolokolnia_kill"
+      "rich:kolokolnia_kill"
     ]
   },
   "moan1": {
     "sounds": [
-      "minecraft:moan1"
+      "rich:moan1"
     ]
   },
   "moan2": {
     "sounds": [
-      "minecraft:moan2"
+      "rich:moan2"
     ]
   },
   "moan3": {
     "sounds": [
-      "minecraft:moan3"
+      "rich:moan3"
     ]
   },
   "moan4": {
     "sounds": [
-      "minecraft:moan4"
+      "rich:moan4"
     ]
   },
   "module_disable": {
     "sounds": [
-      "minecraft:module_disable"
+      "rich:module_disable"
     ]
   },
   "module_enable": {
     "sounds": [
-      "minecraft:module_enable"
+      "rich:module_enable"
     ]
   },
   "off": {
     "sounds": [
-      "minecraft:off"
+      "rich:off"
     ]
   },
   "on": {
     "sounds": [
-      "minecraft:on"
+      "rich:on"
     ]
   },
   "crime": {
     "sounds": [
-      "minecraft:crime"
+      "rich:crime"
     ]
   },
   "metallic": {
     "sounds": [
-      "minecraft:metallic"
+      "rich:metallic"
     ]
   },
   "welcome": {
   "sounds": [
-    "minecraft:welcome"
+    "rich:welcome"
   ]
 }
 }

@@ -347,7 +347,7 @@ public class ColorComponent extends AbstractSettingComponent {
 
         if (expandAnimation < 0.3f || contentAlpha < 0.01f) return;
 
-        Scissor.enable(pickerX, pickerY, pickerWidth, visibleHeight);
+        Scissor.enable(pickerX, pickerY, pickerWidth, visibleHeight,2);
 
         float contentX = pickerX + SPACING;
         float contentY = pickerY + SPACING;

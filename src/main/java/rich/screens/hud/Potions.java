@@ -263,7 +263,7 @@ public class Potions extends AbstractHudElement {
             Render2D.outline(x, y, getWidth(), contentHeight, 0.35f, new Color(90, 90, 90, bgAlpha).getRGB(), 5);
         }
 
-        Scissor.enable(x, y, getWidth(), contentHeight);
+        Scissor.enable(x, y, getWidth(), contentHeight, 2);
 
         int effectsCount = activeEffectIds.isEmpty() ? 1 : activeEffectIds.size();
         String countText = String.valueOf(effectsCount);

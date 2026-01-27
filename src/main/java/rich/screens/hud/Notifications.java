@@ -15,6 +15,8 @@ import java.util.List;
 
 public class Notifications extends AbstractHudElement {
 
+    private static final int FORCED_GUI_SCALE = 2;
+
     private static Notifications instance;
 
     public static Notifications getInstance() {
@@ -28,6 +30,26 @@ public class Notifications extends AbstractHudElement {
     public Notifications() {
         super("Notifications", 0, 0, 110, 16, false);
         instance = this;
+    }
+
+    private int getCurrentGuiScale() {
+        int scale = mc.options.getGuiScale().getValue();
+        if (scale == 0) {
+            scale = mc.getWindow().calculateScaleFactor(0, mc.forcesUnicodeFont());
+        }
+        return scale;
+    }
+
+    private float getScaleFactor() {
+        return (float) getCurrentGuiScale() / (float) FORCED_GUI_SCALE;
+    }
+
+    private float getVirtualWidth() {
+        return mc.getWindow().getFramebufferWidth() / (float) FORCED_GUI_SCALE;
+    }
+
+    private float getVirtualHeight() {
+        return mc.getWindow().getFramebufferHeight() / (float) FORCED_GUI_SCALE;
     }
 
     @Override
@@ -58,12 +80,15 @@ public class Notifications extends AbstractHudElement {
 
     private void updatePosition() {
         if (mc.getWindow() == null) return;
-        int windowHeight = mc.getWindow().getScaledHeight();
-        int windowWidth = mc.getWindow().getScaledWidth();
-        int crosshairY = windowHeight / 2;
-        int crosshairX = windowWidth / 2;
-        this.setX(crosshairX - 60);
-        this.setY(crosshairY + 100);
+
+        float virtualWidth = getVirtualWidth();
+        float virtualHeight = getVirtualHeight();
+
+        float crosshairX = virtualWidth / 2f;
+        float crosshairY = virtualHeight / 2f;
+
+        this.setX((int) (crosshairX - 60));
+        this.setY((int) (crosshairY + 100));
     }
 
     public void addNotification(String text, long duration) {

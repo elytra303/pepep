@@ -30,8 +30,8 @@ public class JumpCircle extends ModuleStructure implements IMinecraft {
 
     private final List<Circle> circles = new ArrayList<>();
 
-    final Identifier circleTexture = Identifier.of("minecraft", "images/circle/circle.png");
-    final Identifier glowTexture = Identifier.of("minecraft", "images/particle/glow.png");
+    final Identifier circleTexture = Identifier.of("rich", "images/circle/circle.png");
+    final Identifier glowTexture = Identifier.of("rich", "images/particle/glow.png");
 
     final SliderSettings maxSize = new SliderSettings("Max Size", "Максимальный размер круга")
             .setValue(2f)

@@ -52,21 +52,21 @@ public class Particle implements IMinecraft {
             ParticleType.GLOW
     };
 
-    private static final Identifier TEXTURE_CROWN = Identifier.of("minecraft", "textures/world/crown.png");
-    private static final Identifier TEXTURE_CUBE_BLAST = Identifier.of("minecraft", "textures/world/cubeblast1.png");
-    private static final Identifier TEXTURE_DOLLAR = Identifier.of("minecraft", "textures/world/dollar.png");
-    private static final Identifier TEXTURE_HEART = Identifier.of("minecraft", "textures/world/heart.png");
-    private static final Identifier TEXTURE_LIGHTNING = Identifier.of("minecraft", "textures/world/lightning.png");
-    private static final Identifier TEXTURE_LINE = Identifier.of("minecraft", "textures/world/line.png");
-    private static final Identifier TEXTURE_RHOMBUS = Identifier.of("minecraft", "textures/world/rhombus.png");
-    private static final Identifier TEXTURE_SNOWFLAKE = Identifier.of("minecraft", "textures/world/snowflake.png");
-    private static final Identifier TEXTURE_STAR = Identifier.of("minecraft", "textures/world/star.png");
-    private static final Identifier TEXTURE_STAR_ALT = Identifier.of("minecraft", "textures/world/star1.png");
-    private static final Identifier TEXTURE_TRIANGLE = Identifier.of("minecraft", "textures/world/triangle.png");
-    private static final Identifier TEXTURE_GLOW = Identifier.of("minecraft", "textures/world/dashbloom.png");
+    private static final Identifier TEXTURE_CROWN = Identifier.of("rich", "textures/world/crown.png");
+    private static final Identifier TEXTURE_CUBE_BLAST = Identifier.of("rich", "textures/world/cubeblast1.png");
+    private static final Identifier TEXTURE_DOLLAR = Identifier.of("rich", "textures/world/dollar.png");
+    private static final Identifier TEXTURE_HEART = Identifier.of("rich", "textures/world/heart.png");
+    private static final Identifier TEXTURE_LIGHTNING = Identifier.of("rich", "textures/world/lightning.png");
+    private static final Identifier TEXTURE_LINE = Identifier.of("rich", "textures/world/line.png");
+    private static final Identifier TEXTURE_RHOMBUS = Identifier.of("rich", "textures/world/rhombus.png");
+    private static final Identifier TEXTURE_SNOWFLAKE = Identifier.of("rich", "textures/world/snowflake.png");
+    private static final Identifier TEXTURE_STAR = Identifier.of("rich", "textures/world/star.png");
+    private static final Identifier TEXTURE_STAR_ALT = Identifier.of("rich", "textures/world/star1.png");
+    private static final Identifier TEXTURE_TRIANGLE = Identifier.of("rich", "textures/world/triangle.png");
+    private static final Identifier TEXTURE_GLOW = Identifier.of("rich", "textures/world/dashbloom.png");
 
-    private static final Identifier GLOW_BLOOM = Identifier.of("minecraft", "textures/world/dashbloom.png");
-    private static final Identifier GLOW_BLOOM_SAMPLE = Identifier.of("minecraft", "textures/world/dashbloomsample.png");
+    private static final Identifier GLOW_BLOOM = Identifier.of("rich", "textures/world/dashbloom.png");
+    private static final Identifier GLOW_BLOOM_SAMPLE = Identifier.of("rich", "textures/world/dashbloomsample.png");
 
     double x, y, z;
     double prevX, prevY, prevZ;

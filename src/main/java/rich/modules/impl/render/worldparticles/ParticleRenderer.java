@@ -8,8 +8,8 @@ import rich.util.render.сliemtpipeline.ClientPipelines;
 
 public class ParticleRenderer {
 
-    private static final Identifier GLOW_TEXTURE = Identifier.of("minecraft", "textures/world/dashbloom.png");
-    private static final Identifier GLOW_TEXTURE_SECONDARY = Identifier.of("minecraft", "textures/world/dashbloomsample.png");
+    private static final Identifier GLOW_TEXTURE = Identifier.of("rich", "textures/world/dashbloom.png");
+    private static final Identifier GLOW_TEXTURE_SECONDARY = Identifier.of("rich", "textures/world/dashbloomsample.png");
 
     public static RenderLayer getQuadsLayer() {
         return ClientPipelines.WORLD_PARTICLES_QUADS;

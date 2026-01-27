@@ -1,5 +1,6 @@
 package rich.screens.loading;
 
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.util.Util;
 import net.minecraft.util.math.MathHelper;
 import rich.util.render.Render2D;
@@ -12,6 +13,7 @@ public class Loading {
     private static Loading instance;
 
     private static final int TEXT_COLOR_BRIGHT = 0xFFFFFFFF;
+    private static final float FIXED_GUI_SCALE = 2.0f;
 
     private static final String[] LOADING_TEXTS = {
             "Loading",
@@ -64,6 +66,18 @@ public class Loading {
         return instance;
     }
 
+    private int getFixedScaledWidth() {
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client == null || client.getWindow() == null) return 960;
+        return (int) Math.ceil((double) client.getWindow().getFramebufferWidth() / FIXED_GUI_SCALE);
+    }
+
+    private int getFixedScaledHeight() {
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client == null || client.getWindow() == null) return 540;
+        return (int) Math.ceil((double) client.getWindow().getFramebufferHeight() / FIXED_GUI_SCALE);
+    }
+
     public void render(int width, int height, float opacity) {
         long currentTime = Util.getMeasuringTimeMs();
 
@@ -78,6 +92,9 @@ public class Loading {
 
         updateAnimations(deltaTime, currentTime);
 
+        int fixedWidth = getFixedScaledWidth();
+        int fixedHeight = getFixedScaledHeight();
+
         Render2D.beginOverlay();
 
         Render2D.backgroundImage(backgroundAlpha * opacity, ZOOM_LEVEL);
@@ -85,8 +102,8 @@ public class Loading {
         float finalContentAlpha = contentAlpha * opacity;
 
         if (finalContentAlpha > 0.001f) {
-            renderLogo(width, height, finalContentAlpha);
-            renderLoadingText(width, height, finalContentAlpha, currentTime);
+            renderLogo(fixedWidth, fixedHeight, finalContentAlpha);
+            renderLoadingText(fixedWidth, fixedHeight, finalContentAlpha, currentTime);
         }
 
         Render2D.endOverlay();

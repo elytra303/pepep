@@ -9,6 +9,7 @@ import net.minecraft.item.ItemDisplayContext;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.util.math.random.Random;
+import org.joml.Matrix3x2fStack;
 import rich.util.render.Render2D;
 
 import java.util.Map;
@@ -18,6 +19,19 @@ public class ItemRender {
     private static final MinecraftClient mc = MinecraftClient.getInstance();
     private static final Map<String, CachedSprite> SPRITE_CACHE = new ConcurrentHashMap<>();
     private static final Random RANDOM = Random.create();
+    private static final int FORCED_GUI_SCALE = 2;
+
+    private static int getCurrentGuiScale() {
+        int scale = mc.options.getGuiScale().getValue();
+        if (scale == 0) {
+            scale = mc.getWindow().calculateScaleFactor(0, mc.forcesUnicodeFont());
+        }
+        return scale;
+    }
+
+    private static float getScaleCompensation() {
+        return (float) FORCED_GUI_SCALE / (float) getCurrentGuiScale();
+    }
 
     public static boolean isBlockItem(ItemStack stack) {
         return stack.getItem() instanceof BlockItem;
@@ -60,39 +74,45 @@ public class ItemRender {
     public static void drawBlockItem(DrawContext context, ItemStack stack, float x, float y, float scale, float alpha) {
         if (stack.isEmpty() || alpha <= 0.01f) return;
 
-        float size = 16 * scale;
+        float compensation = getScaleCompensation();
+        float finalScale = scale * compensation;
 
+        float size = 16 * scale;
         float centerX = x + size / 2f;
         float centerY = y + size / 2f;
 
-        context.getMatrices().pushMatrix();
+        Matrix3x2fStack matrices = context.getMatrices();
+        matrices.pushMatrix();
 
-        context.getMatrices().translate(centerX, centerY);
-        context.getMatrices().scale(scale, scale);
-        context.getMatrices().translate(-8, -8);
+        matrices.translate(centerX, centerY);
+        matrices.scale(finalScale, finalScale);
+        matrices.translate(-8, -8);
 
         context.drawItem(stack, 0, 0);
 
-        context.getMatrices().popMatrix();
+        matrices.popMatrix();
     }
 
     public static void drawItemWithContext(DrawContext context, ItemStack stack, float x, float y, float scale, float alpha) {
         if (stack.isEmpty() || alpha <= 0.01f) return;
 
-        float size = 16 * scale;
+        float compensation = getScaleCompensation();
+        float finalScale = scale * compensation;
 
+        float size = 16 * scale;
         float centerX = x + size / 2f;
         float centerY = y + size / 2f;
 
-        context.getMatrices().pushMatrix();
+        Matrix3x2fStack matrices = context.getMatrices();
+        matrices.pushMatrix();
 
-        context.getMatrices().translate(centerX, centerY);
-        context.getMatrices().scale(scale, scale);
-        context.getMatrices().translate(-8, -8);
+        matrices.translate(centerX, centerY);
+        matrices.scale(finalScale, finalScale);
+        matrices.translate(-8, -8);
 
         context.drawItem(stack, 0, 0);
 
-        context.getMatrices().popMatrix();
+        matrices.popMatrix();
     }
 
     public static void drawItemCentered(ItemStack stack, float centerX, float centerY, float scale, float alpha) {
@@ -100,6 +120,13 @@ public class ItemRender {
         float x = centerX - size / 2f;
         float y = centerY - size / 2f;
         drawItem(stack, x, y, scale, alpha);
+    }
+
+    public static void drawItemCenteredWithContext(DrawContext context, ItemStack stack, float centerX, float centerY, float scale, float alpha) {
+        float size = 16 * scale;
+        float x = centerX - size / 2f;
+        float y = centerY - size / 2f;
+        drawItemWithContext(context, stack, x, y, scale, alpha);
     }
 
     private static Sprite getSpriteForStack(ItemStack stack) {

@@ -198,7 +198,7 @@ public class ClientPipelines {
 
     public static final RenderPipeline WORLD_PARTICLES_COLOR_PIPELINE = RenderPipelines.register(
             RenderPipeline.builder(RenderPipelines.POSITION_COLOR_SNIPPET)
-                    .withLocation(Identifier.of("minecraft", "world_particles_color"))
+                    .withLocation(Identifier.of("rich", "world_particles_color"))
                     .withVertexFormat(VertexFormats.POSITION_COLOR, VertexFormat.DrawMode.QUADS)
                     .withCull(false)
                     .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
@@ -217,7 +217,7 @@ public class ClientPipelines {
 
     public static final RenderPipeline WORLD_PARTICLES_LINES_PIPELINE = RenderPipelines.register(
             RenderPipeline.builder(RenderPipelines.POSITION_COLOR_SNIPPET)
-                    .withLocation(Identifier.of("minecraft", "world_particles_lines"))
+                    .withLocation(Identifier.of("rich", "world_particles_lines"))
                     .withVertexFormat(VertexFormats.POSITION_COLOR, VertexFormat.DrawMode.DEBUG_LINES)
                     .withCull(false)
                     .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
@@ -236,7 +236,7 @@ public class ClientPipelines {
 
     public static final RenderPipeline WORLD_PARTICLES_GLOW_PIPELINE = RenderPipelines.register(
             RenderPipeline.builder(RenderPipelines.POSITION_TEX_COLOR_SNIPPET)
-                    .withLocation(Identifier.of("minecraft", "world_particles_glow"))
+                    .withLocation(Identifier.of("rich", "world_particles_glow"))
                     .withVertexFormat(VertexFormats.POSITION_TEXTURE_COLOR, VertexFormat.DrawMode.QUADS)
                     .withCull(false)
                     .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)

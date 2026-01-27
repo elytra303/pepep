@@ -34,7 +34,7 @@ public class Arrows extends ModuleStructure {
         return Instance.get(Arrows.class);
     }
 
-    private static final Identifier ARROW_TEXTURE = Identifier.of("minecraft", "textures/world/arrow.png");
+    private static final Identifier ARROW_TEXTURE = Identifier.of("rich", "textures/world/arrow.png");
 
     public SliderSettings arrowsDistance = new SliderSettings("Дистанция", "Дистанция от прицела")
             .range(1.0f, 20.0f)

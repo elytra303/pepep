@@ -18,6 +18,7 @@ public class Hud extends ModuleStructure {
                     "HotKeys",
                     "Potions",
                     "Staff",
+                    "test",
                     "TargetHud",
 //                    "CoolDowns",
 //                    "Inventory",

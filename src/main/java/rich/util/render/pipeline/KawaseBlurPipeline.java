@@ -28,13 +28,13 @@ import java.util.OptionalInt;
 
 public class KawaseBlurPipeline {
 
-    private static final Identifier DOWN_PIPELINE_ID = Identifier.of("minecraft", "pipeline/kawase_down");
-    private static final Identifier DOWN_VERTEX_SHADER = Identifier.of("minecraft", "core/kawase_down");
-    private static final Identifier DOWN_FRAGMENT_SHADER = Identifier.of("minecraft", "core/kawase_down");
+    private static final Identifier DOWN_PIPELINE_ID = Identifier.of("rich", "pipeline/kawase_down");
+    private static final Identifier DOWN_VERTEX_SHADER = Identifier.of("rich", "core/kawase_down");
+    private static final Identifier DOWN_FRAGMENT_SHADER = Identifier.of("rich", "core/kawase_down");
 
-    private static final Identifier UP_PIPELINE_ID = Identifier.of("minecraft", "pipeline/kawase_up");
-    private static final Identifier UP_VERTEX_SHADER = Identifier.of("minecraft", "core/kawase_up");
-    private static final Identifier UP_FRAGMENT_SHADER = Identifier.of("minecraft", "core/kawase_up");
+    private static final Identifier UP_PIPELINE_ID = Identifier.of("rich", "pipeline/kawase_up");
+    private static final Identifier UP_VERTEX_SHADER = Identifier.of("rich", "core/kawase_up");
+    private static final Identifier UP_FRAGMENT_SHADER = Identifier.of("rich", "core/kawase_up");
 
     private static final RenderPipeline DOWN_PIPELINE = RenderPipelines.register(
             RenderPipeline.builder(RenderPipelines.TRANSFORMS_AND_PROJECTION_SNIPPET)

@@ -29,12 +29,13 @@ import java.util.OptionalInt;
 
 public class TexturePipeline {
 
-    private static final Identifier PIPELINE_ID = Identifier.of("minecraft", "pipeline/texture");
-    private static final Identifier VERTEX_SHADER = Identifier.of("minecraft", "core/texture");
-    private static final Identifier FRAGMENT_SHADER = Identifier.of("minecraft", "core/texture");
+    private static final Identifier PIPELINE_ID = Identifier.of("rich", "pipeline/texture");
+    private static final Identifier VERTEX_SHADER = Identifier.of("rich", "core/texture");
+    private static final Identifier FRAGMENT_SHADER = Identifier.of("rich", "core/texture");
 
     private static final Vector3f MODEL_OFFSET = new Vector3f(0, 0, 0);
     private static final Matrix4f TEXTURE_MATRIX = new Matrix4f();
+    private static final float FIXED_GUI_SCALE = 2.0f;
 
     private static final RenderPipeline PIPELINE = RenderPipelines.register(
             RenderPipeline.builder(RenderPipelines.TRANSFORMS_AND_PROJECTION_SNIPPET)
@@ -51,8 +52,7 @@ public class TexturePipeline {
                     .build());
 
     private static final Vector4f COLOR_MODULATOR = new Vector4f(1f, 1f, 1f, 1f);
-    private static final int INSTANCE_SIZE = 144;
-    private static final int BUFFER_SIZE = 16 + INSTANCE_SIZE;
+    private static final int BUFFER_SIZE = 256;
 
     private GpuBuffer uniformBuffer;
     private GpuBuffer dummyVertexBuffer;
@@ -115,7 +115,15 @@ public class TexturePipeline {
         }
 
         ensureInitialized();
-        prepareUniformData(client, x, y, width, height, u0, v0, u1, v1, colors, radii, smoothness, rotation);
+
+        int framebufferWidth = client.getWindow().getFramebufferWidth();
+        int framebufferHeight = client.getWindow().getFramebufferHeight();
+        float fixedScreenWidth = framebufferWidth / FIXED_GUI_SCALE;
+        float fixedScreenHeight = framebufferHeight / FIXED_GUI_SCALE;
+
+        prepareUniformData(x, y, width, height, u0, v0, u1, v1,
+                fixedScreenWidth, fixedScreenHeight, FIXED_GUI_SCALE,
+                colors, radii, smoothness, rotation);
         uploadAndDraw(client, textureGlId);
     }
 
@@ -131,18 +139,23 @@ public class TexturePipeline {
         }
 
         ensureInitialized();
-        prepareUniformData(client, x, y, width, height, 0, 0, 1, 1, colors, radii, 1f, 0f);
+
+        int framebufferWidth = client.getWindow().getFramebufferWidth();
+        int framebufferHeight = client.getWindow().getFramebufferHeight();
+        float fixedScreenWidth = framebufferWidth / FIXED_GUI_SCALE;
+        float fixedScreenHeight = framebufferHeight / FIXED_GUI_SCALE;
+
+        prepareUniformData(x, y, width, height, 0, 0, 1, 1,
+                fixedScreenWidth, fixedScreenHeight, FIXED_GUI_SCALE,
+                colors, radii, 1f, 0f);
         uploadAndDraw(client, textureId);
     }
 
-    private void prepareUniformData(MinecraftClient client, float x, float y, float w, float h,
+    private void prepareUniformData(float x, float y, float w, float h,
                                     float u0, float v0, float u1, float v1,
+                                    float screenWidth, float screenHeight, float guiScale,
                                     int[] colors, float[] radii, float smoothness, float rotation) {
         dataBuffer.clear();
-
-        float screenWidth = client.getWindow().getScaledWidth();
-        float screenHeight = client.getWindow().getScaledHeight();
-        float guiScale = (float) client.getWindow().getScaleFactor();
 
         dataBuffer.putFloat(screenWidth);
         dataBuffer.putFloat(screenHeight);
