@@ -11,6 +11,7 @@
   "environment": "client",
   "entrypoints": {
     "preLaunch": [
+      "rich.util.mods.config.wave.ResourceManager",
       "rich.util.mods.config.wave.WaveCapesConfigOverride"
     ],
     "client": [

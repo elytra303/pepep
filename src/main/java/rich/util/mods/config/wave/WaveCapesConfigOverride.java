@@ -32,4 +32,5 @@ public class WaveCapesConfigOverride implements PreLaunchEntrypoint {
             e.printStackTrace();
         }
     }
+    
 }

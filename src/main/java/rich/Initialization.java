@@ -3,8 +3,7 @@ package rich;
 import lombok.Getter;
 import net.fabricmc.api.ClientModInitializer;
 import rich.manager.Manager;
-
-import javax.swing.*;
+import rich.util.mods.config.wave.ResourceManager;
 
 /**
  *  © 2026 Copyright Rich Client 2.0
@@ -21,11 +20,13 @@ public class Initialization implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
+        ResourceManager.onClientInit();
     }
 
     public void init() {
         instance = this;
         manager = new Manager();
         manager.init();
+        ResourceManager.onClientInit();
     }
 }
