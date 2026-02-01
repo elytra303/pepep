@@ -21,7 +21,7 @@ import java.util.function.Predicate;
 public class RaycastAngle implements IMinecraft {
 
     public BlockHitResult raycast(double range, Angle angle, boolean includeFluids) {
-        return raycast(Objects.requireNonNull(mc.player).getCameraPosVec(1.0F),range,angle,includeFluids);
+        return raycast(Objects.requireNonNull(mc.player).getCameraPosVec(1.0F), range, angle, includeFluids);
     }
 
     public BlockHitResult raycast(Vec3d vec, double range, Angle angle, boolean includeFluids) {
@@ -39,7 +39,8 @@ public class RaycastAngle implements IMinecraft {
             return null;
         }
 
-        RaycastContext.FluidHandling fluidHandling = includeFluids ? RaycastContext.FluidHandling.ANY : RaycastContext.FluidHandling.NONE;
+        RaycastContext.FluidHandling fluidHandling = includeFluids ? RaycastContext.FluidHandling.ANY
+                : RaycastContext.FluidHandling.NONE;
         RaycastContext context = new RaycastContext(vec, end, RaycastContext.ShapeType.OUTLINE, fluidHandling, entity);
 
         return world.raycast(context);
@@ -53,13 +54,15 @@ public class RaycastAngle implements IMinecraft {
         return raycast(start, end, shapeType, RaycastContext.FluidHandling.NONE, entity);
     }
 
-    public BlockHitResult raycast(Vec3d start, Vec3d end, RaycastContext.ShapeType shapeType, RaycastContext.FluidHandling fluidHandling, Entity entity) {
+    public BlockHitResult raycast(Vec3d start, Vec3d end, RaycastContext.ShapeType shapeType,
+            RaycastContext.FluidHandling fluidHandling, Entity entity) {
         return mc.world.raycast(new RaycastContext(start, end, shapeType, fluidHandling, entity));
     }
 
     public EntityHitResult raytraceEntity(double range, Angle angle, Predicate<Entity> filter) {
         Entity entity = mc.player;
-        if (entity == null) return null;
+        if (entity == null)
+            return null;
 
         Vec3d cameraVec = entity.getCameraPosVec(1.0F);
         Vec3d rotationVec = angle.toVector();
@@ -67,7 +70,8 @@ public class RaycastAngle implements IMinecraft {
         Vec3d vec3d3 = cameraVec.add(rotationVec.x * range, rotationVec.y * range, rotationVec.z * range);
         Box box = entity.getBoundingBox().stretch(rotationVec.multiply(range)).expand(1.0, 1.0, 1.0);
 
-        return ProjectileUtil.raycast(entity, cameraVec, vec3d3, box, (e) -> !e.isSpectator() && filter.test(e), range * range);
+        return ProjectileUtil.raycast(entity, cameraVec, vec3d3, box, (e) -> !e.isSpectator() && filter.test(e),
+                range * range);
     }
 
     public boolean rayTrace(StrikerConstructor.AttackPerpetratorConfigurable config) {
@@ -77,15 +81,18 @@ public class RaycastAngle implements IMinecraft {
             return true;
         }
 
-        return rayTrace(AngleConnection.INSTANCE.getRotation().toVector(), config.getMaximumRange() - 0.25F, config.getBox());
+        return rayTrace(AngleConnection.INSTANCE.getRotation().toVector(), config.getMaximumRange(), config.getBox());
     }
 
     public boolean rayTrace(double range, Box box) {
-        return rayTrace(AngleConnection.INSTANCE.getRotation().toVector(), range - 0.25F, box);
+        return rayTrace(AngleConnection.INSTANCE.getRotation().toVector(), range, box);
     }
 
     public boolean rayTrace(Vec3d clientVec, double range, Box box) {
         Vec3d cameraVec = Objects.requireNonNull(mc.player).getEyePos();
-        return box.contains(cameraVec) || box.raycast(cameraVec, cameraVec.add(clientVec.multiply(range))).isPresent();
+        // Расширяем хитбокс для более стабильных ударов при резких движениях
+        Box expandedBox = box.expand(0.15);
+        return expandedBox.contains(cameraVec)
+                || expandedBox.raycast(cameraVec, cameraVec.add(clientVec.multiply(range))).isPresent();
     }
 }

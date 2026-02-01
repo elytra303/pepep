@@ -12,7 +12,6 @@ import rich.events.impl.InputEvent;
 import rich.modules.impl.combat.aura.Angle;
 import rich.modules.impl.combat.aura.AngleConnection;
 import rich.modules.impl.combat.aura.AngleConstructor;
-import rich.modules.impl.movement.AutoSprint;
 
 import static rich.IMinecraft.mc;
 
@@ -21,21 +20,7 @@ public class KeyboardInputMixin {
 
     @ModifyExpressionValue(method = "tick", at = @At(value = "NEW", target = "(ZZZZZZZ)Lnet/minecraft/util/PlayerInput;"))
     private PlayerInput tickHook(PlayerInput original) {
-        PlayerInput processed = original;
-
-        if (AutoSprint.isBlocked()) {
-            processed = new PlayerInput(
-                    original.forward(),
-                    original.backward(),
-                    original.left(),
-                    original.right(),
-                    original.jump(),
-                    original.sneak(),
-                    false
-            );
-        }
-
-        InputEvent event = new InputEvent(processed);
+        InputEvent event = new InputEvent(original);
         EventManager.callEvent(event);
         return transformInput(event.getInput());
     }
@@ -59,8 +44,6 @@ public class KeyboardInputMixin {
         int movementSideways = Math.round(newX);
         int movementForward = Math.round(newZ);
 
-        boolean sprintValue = AutoSprint.isBlocked() ? false : input.sprint();
-
         return new PlayerInput(
                 movementForward > 0F,
                 movementForward < 0F,
@@ -68,7 +51,6 @@ public class KeyboardInputMixin {
                 movementSideways < 0F,
                 input.jump(),
                 input.sneak(),
-                sprintValue
-        );
+                input.sprint());
     }
 }

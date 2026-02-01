@@ -26,7 +26,6 @@ import rich.modules.impl.combat.aura.impl.RotateConstructor;
 import rich.modules.impl.combat.aura.rotations.*;
 import rich.modules.impl.combat.aura.target.MultiPoint;
 import rich.modules.impl.combat.aura.target.TargetFinder;
-import rich.modules.impl.movement.AutoSprint;
 import rich.modules.impl.movement.ElytraTarget;
 import rich.modules.module.ModuleStructure;
 import rich.modules.module.category.ModuleCategory;
@@ -78,7 +77,8 @@ public class Aura extends ModuleStructure {
             .setValue(true);
 
     @Getter
-    private final BooleanSetting smartCrits = new BooleanSetting("Умные криты", "Smart crits - attack on ground when possible")
+    private final BooleanSetting smartCrits = new BooleanSetting("Умные криты",
+            "Smart crits - attack on ground when possible")
             .setValue(true)
             .visible(() -> checkCrit.isValue());
 
@@ -141,10 +141,6 @@ public class Aura extends ModuleStructure {
             case EventType.POST -> {
                 if (target != null) {
                     Initialization.getInstance().getManager().getAttackPerpetrator().performAttack(getConfig());
-                } else {
-                    if (AutoSprint.isBlocked()) {
-                        AutoSprint.unblockSprint();
-                    }
                 }
             }
         }
@@ -159,8 +155,7 @@ public class Aura extends ModuleStructure {
                 baseRange,
                 AngleConnection.INSTANCE.getRotation(),
                 getSmoothMode().randomValue(),
-                options.isSelected("Бить сквозь стены")
-        );
+                options.isSelected("Бить сквозь стены"));
 
         Vec3d computedPoint = pointData.getLeft();
         Box hitbox = pointData.getRight();
@@ -170,7 +165,8 @@ public class Aura extends ModuleStructure {
             double targetSpeed = targetVelocity.horizontalLength();
 
             float leadTicks = 0;
-            if (ElytraTarget.shouldElytraTarget && ElytraTarget.getInstance() != null && ElytraTarget.getInstance().isState()) {
+            if (ElytraTarget.shouldElytraTarget && ElytraTarget.getInstance() != null
+                    && ElytraTarget.getInstance().isState()) {
                 leadTicks = ElytraTarget.getInstance().elytraForward.getValue();
             }
 
@@ -184,8 +180,7 @@ public class Aura extends ModuleStructure {
                         predictedPos.z - target.getWidth() / 2,
                         predictedPos.x + target.getWidth() / 2,
                         predictedPos.y + target.getHeight(),
-                        predictedPos.z + target.getWidth() / 2
-                );
+                        predictedPos.z + target.getWidth() / 2);
             }
         }
 
@@ -196,8 +191,7 @@ public class Aura extends ModuleStructure {
                 baseRange,
                 options.getSelected(),
                 mode,
-                hitbox
-        );
+                hitbox);
     }
 
     public AngleConfig getRotationConfig() {
@@ -207,12 +201,14 @@ public class Aura extends ModuleStructure {
     }
 
     private void rotateToTarget(StrikerConstructor.AttackPerpetratorConfigurable config) {
-        StrikeManager attackHandler = Initialization.getInstance().getManager().getAttackPerpetrator().getAttackHandler();
+        StrikeManager attackHandler = Initialization.getInstance().getManager().getAttackPerpetrator()
+                .getAttackHandler();
         AngleConnection controller = AngleConnection.INSTANCE;
         Angle.VecRotation rotation = new Angle.VecRotation(config.getAngle(), config.getAngle().toVector());
         AngleConfig rotationConfig = getRotationConfig();
 
-        boolean elytraMode = mc.player.isGliding() && ElytraTarget.getInstance() != null && ElytraTarget.getInstance().isState();
+        boolean elytraMode = mc.player.isGliding() && ElytraTarget.getInstance() != null
+                && ElytraTarget.getInstance().isState();
 
         switch (mode.getSelected()) {
 
@@ -242,19 +238,18 @@ public class Aura extends ModuleStructure {
 
     @EventHandler
     public void onInput(InputEvent event) {
-        if (mc.player == null || mc.world == null) return;
+        if (mc.player == null || mc.world == null)
+            return;
 
         PlayerInput input = event.getInput();
-        if (input == null) return;
+        if (input == null)
+            return;
 
-        if (AutoSprint.isBlocked() && input.sprint()) {
-            event.setSprinting(false);
-            input = event.getInput();
-        }
+        if (!isState())
+            return;
 
-        if (!isState()) return;
-
-        if (target == null || !target.isAlive()) return;
+        if (target == null || !target.isAlive())
+            return;
 
         boolean w = mc.options.forwardKey.isPressed();
         boolean s = mc.options.backKey.isPressed();
@@ -277,17 +272,21 @@ public class Aura extends ModuleStructure {
             if (angleDiff >= -22.5 && angleDiff < 22.5) {
                 forward = true;
             } else if (angleDiff >= 22.5 && angleDiff < 67.5) {
-                forward = true; right = true;
+                forward = true;
+                right = true;
             } else if (angleDiff >= 67.5 && angleDiff < 112.5) {
                 right = true;
             } else if (angleDiff >= 112.5 && angleDiff < 157.5) {
-                back = true; right = true;
+                back = true;
+                right = true;
             } else if (angleDiff >= -67.5 && angleDiff < -22.5) {
-                forward = true; left = true;
+                forward = true;
+                left = true;
             } else if (angleDiff >= -112.5 && angleDiff < -67.5) {
                 left = true;
             } else if (angleDiff >= -157.5 && angleDiff < -112.5) {
-                back = true; left = true;
+                back = true;
+                left = true;
             } else {
                 back = true;
             }
@@ -297,7 +296,8 @@ public class Aura extends ModuleStructure {
         }
 
         if (moveFix.isSelected("Преследование")) {
-            if (!w && !s && !a && !d) return;
+            if (!w && !s && !a && !d)
+                return;
 
             Vec3d playerPos = mc.player.getEntityPos();
             Box targetBox = target.getBoundingBox();
@@ -316,10 +316,14 @@ public class Aura extends ModuleStructure {
             Vec3d moveTargetVec = center;
             Vec3d offsetVec = Vec3d.ZERO;
 
-            if (w) offsetVec = offsetVec.add(forwardDir);
-            if (s) offsetVec = offsetVec.add(forwardDir.multiply(-1.0));
-            if (a) offsetVec = offsetVec.add(leftDir);
-            if (d) offsetVec = offsetVec.add(rightDir);
+            if (w)
+                offsetVec = offsetVec.add(forwardDir);
+            if (s)
+                offsetVec = offsetVec.add(forwardDir.multiply(-1.0));
+            if (a)
+                offsetVec = offsetVec.add(leftDir);
+            if (d)
+                offsetVec = offsetVec.add(rightDir);
 
             if (offsetVec.lengthSquared() > 0) {
                 offsetVec = offsetVec.normalize().multiply(offset);
@@ -338,17 +342,21 @@ public class Aura extends ModuleStructure {
             if (angleDiff >= -22.5 && angleDiff < 22.5) {
                 forward = true;
             } else if (angleDiff >= 22.5 && angleDiff < 67.5) {
-                forward = true; right = true;
+                forward = true;
+                right = true;
             } else if (angleDiff >= 67.5 && angleDiff < 112.5) {
                 right = true;
             } else if (angleDiff >= 112.5 && angleDiff < 157.5) {
-                back = true; right = true;
+                back = true;
+                right = true;
             } else if (angleDiff >= -67.5 && angleDiff < -22.5) {
-                forward = true; left = true;
+                forward = true;
+                left = true;
             } else if (angleDiff >= -112.5 && angleDiff < -67.5) {
                 left = true;
             } else if (angleDiff >= -157.5 && angleDiff < -112.5) {
-                back = true; left = true;
+                back = true;
+                left = true;
             } else {
                 back = true;
             }
@@ -359,11 +367,15 @@ public class Aura extends ModuleStructure {
 
     private LivingEntity updateTarget() {
         TargetFinder.EntityFilter filter = new TargetFinder.EntityFilter(targetType.getSelected());
-        float range = attackrange.getValue() + 0.25F + (mc.player.isGliding() && ElytraTarget.getInstance() != null && ElytraTarget.getInstance().isState() ? ElytraTarget.getInstance().elytraFindRange.getValue() : lookrange.getValue());
+        float range = attackrange.getValue() + 0.25F
+                + (mc.player.isGliding() && ElytraTarget.getInstance() != null && ElytraTarget.getInstance().isState()
+                        ? ElytraTarget.getInstance().elytraFindRange.getValue()
+                        : lookrange.getValue());
 
         float dynamicFov = 360;
 
-        targetSelector.searchTargets(mc.world.getEntities(), range, dynamicFov, options.isSelected("Бить сквозь стены"));
+        targetSelector.searchTargets(mc.world.getEntities(), range, dynamicFov,
+                options.isSelected("Бить сквозь стены"));
         targetSelector.validateTarget(filter::isValid);
         return targetSelector.getCurrentTarget();
     }

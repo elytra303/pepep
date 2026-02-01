@@ -14,7 +14,7 @@ import org.joml.Quaternionf;
 import org.joml.Vector3f;
 import rich.IMinecraft;
 import rich.events.api.EventHandler;
-import rich.events.impl.Event3D;
+import rich.events.impl.WorldRenderEvent;
 import rich.modules.impl.combat.Aura;
 import rich.modules.module.ModuleStructure;
 import rich.modules.module.category.ModuleCategory;
@@ -50,7 +50,8 @@ public class TargetESP extends ModuleStructure implements IMinecraft {
             .value("Rhomb", "Ghost", "Chain", "Crystals", "Circle")
             .selected("Rhomb");
 
-    SliderSettings crystalRotationSpeed = new SliderSettings("Скорость вращения кристаллов", "Скорость вращения кристаллов")
+    SliderSettings crystalRotationSpeed = new SliderSettings("Скорость вращения кристаллов",
+            "Скорость вращения кристаллов")
             .range(0.1f, 2.0f)
             .visible(() -> mode.isSelected("Crystals"));
 
@@ -95,7 +96,7 @@ public class TargetESP extends ModuleStructure implements IMinecraft {
     }
 
     @EventHandler
-    public void onRender3D(Event3D e) {
+    public void onRender3D(WorldRenderEvent e) {
         float deltaTime = getDeltaTime();
 
         LivingEntity target = null;
@@ -114,10 +115,12 @@ public class TargetESP extends ModuleStructure implements IMinecraft {
 
         espAnim.setDirection(Direction.FORWARDS);
         float alpha = espAnim.getOutput().floatValue();
-        if (alpha <= 0.01f) return;
+        if (alpha <= 0.01f)
+            return;
 
         movingValue += 2f * deltaTime;
-        if (movingValue > 360000) movingValue = 0;
+        if (movingValue > 360000)
+            movingValue = 0;
 
         float hurtDecay = 0.1f * deltaTime;
         hurtProgress = target.hurtTime > 0 ? (float) target.hurtTime / 10f : Math.max(0, hurtProgress - hurtDecay);
@@ -125,15 +128,15 @@ public class TargetESP extends ModuleStructure implements IMinecraft {
         Render3D.updateTargetEsp(deltaTime);
 
         if (mode.isSelected("Circle")) {
-            renderCircle(e.stack, target, alpha);
+            renderCircle(e.getStack(), target, alpha);
             return;
         }
 
-        MatrixStack stack = e.stack;
-        VertexConsumerProvider provider = e.buffer;
+        MatrixStack stack = e.getStack();
+        VertexConsumerProvider.Immediate provider = mc.getBufferBuilders().getEntityVertexConsumers();
 
         Vec3d camPos = mc.gameRenderer.getCamera().getCameraPos();
-        float partialTicks = mc.getRenderTickCounter().getTickProgress(true);
+        float partialTicks = e.getPartialTicks();
         Vec3d targetPos = target.getLerpedPos(partialTicks);
 
         if (lastTarget != target || smoothedPos == null) {
@@ -147,16 +150,14 @@ public class TargetESP extends ModuleStructure implements IMinecraft {
             smoothedPos = new Vec3d(
                     smoothedPos.x + dx * smoothingFactor,
                     smoothedPos.y + dy * smoothingFactor,
-                    smoothedPos.z + dz * smoothingFactor
-            );
+                    smoothedPos.z + dz * smoothingFactor);
         }
 
         stack.push();
         stack.translate(
                 smoothedPos.x - camPos.x,
                 smoothedPos.y - camPos.y,
-                smoothedPos.z - camPos.z
-        );
+                smoothedPos.z - camPos.z);
 
         if (mode.isSelected("Rhomb")) {
             renderRhomb(stack, provider, target, alpha);
@@ -171,6 +172,8 @@ public class TargetESP extends ModuleStructure implements IMinecraft {
             }
             renderCrystals(stack, provider, target, alpha, deltaTime);
         }
+
+        provider.draw();
 
         stack.pop();
     }
@@ -187,8 +190,10 @@ public class TargetESP extends ModuleStructure implements IMinecraft {
         Render3D.drawCircle(stack, target, alpha, hurtProgress, baseColor1, baseColor2);
     }
 
-    private void renderChain(MatrixStack stack, VertexConsumerProvider provider, LivingEntity target, float alpha, float deltaTime) {
-        VertexConsumer consumer = provider.getBuffer(ClientPipelines.CHAIN_ESP.apply(Identifier.of("rich", "images/world/chain.png")));
+    private void renderChain(MatrixStack stack, VertexConsumerProvider provider, LivingEntity target, float alpha,
+            float deltaTime) {
+        VertexConsumer consumer = provider
+                .getBuffer(ClientPipelines.CHAIN_ESP.apply(Identifier.of("rich", "images/world/chain.png")));
 
         float animValue = (System.currentTimeMillis() % 360000) / 1000f * 60f;
 
@@ -235,8 +240,10 @@ public class TargetESP extends ModuleStructure implements IMinecraft {
                 float offsetX = (chain == 0 ? gradusX : -gradusX) / 100F;
                 float offsetZ = (chain == 0 ? -gradusZ : gradusZ) / 100F;
 
-                float prevSin = (float) (x + offsetX + Math.sin(Math.toRadians(i - modif + rotationValue)) * width * val);
-                float prevCos = (float) (z + offsetZ + Math.cos(Math.toRadians(i - modif + rotationValue)) * width * val);
+                float prevSin = (float) (x + offsetX
+                        + Math.sin(Math.toRadians(i - modif + rotationValue)) * width * val);
+                float prevCos = (float) (z + offsetZ
+                        + Math.cos(Math.toRadians(i - modif + rotationValue)) * width * val);
 
                 float sin = (float) (x + offsetX + Math.sin(Math.toRadians(i + rotationValue)) * width * val);
                 float cos = (float) (z + offsetZ + Math.cos(Math.toRadians(i + rotationValue)) * width * val);
@@ -255,7 +262,8 @@ public class TargetESP extends ModuleStructure implements IMinecraft {
     }
 
     private void renderRhomb(MatrixStack stack, VertexConsumerProvider provider, LivingEntity target, float alpha) {
-        VertexConsumer consumer = provider.getBuffer(ClientPipelines.ROMB_ESP.apply(Identifier.of("rich", "images/world/cube.png")));
+        VertexConsumer consumer = provider
+                .getBuffer(ClientPipelines.ROMB_ESP.apply(Identifier.of("rich", "images/world/cube.png")));
 
         Quaternionf camRot = mc.gameRenderer.getCamera().getRotation();
 
@@ -286,7 +294,8 @@ public class TargetESP extends ModuleStructure implements IMinecraft {
     }
 
     private void renderGhost(MatrixStack stack, VertexConsumerProvider consumers, LivingEntity target, float alpha) {
-        VertexConsumer consumer = consumers.getBuffer(ClientPipelines.GHOSTS_ESP.apply(Identifier.of("rich", "images/particle/ghost-glow.png")));
+        VertexConsumer consumer = consumers
+                .getBuffer(ClientPipelines.GHOSTS_ESP.apply(Identifier.of("rich", "images/particle/ghost-glow.png")));
 
         stack.translate(0, target.getHeight() * 0.5f, 0);
 
@@ -295,7 +304,8 @@ public class TargetESP extends ModuleStructure implements IMinecraft {
         particle(stack, consumer, (sin, cos) -> new Vec3d(-sin, -sin, cos), alpha, 2);
     }
 
-    private void particle(MatrixStack stack, VertexConsumer consumer, Transformation transformation, float alpha, int colorIndex) {
+    private void particle(MatrixStack stack, VertexConsumer consumer, Transformation transformation, float alpha,
+            int colorIndex) {
         double radius = 0.7f;
         double distance = 11;
 
@@ -363,7 +373,8 @@ public class TargetESP extends ModuleStructure implements IMinecraft {
         crystalList.add(new Crystal(new Vec3d(-0.2, 0.65, -0.7), new Vec3d(0, 0, 0)));
     }
 
-    private void renderCrystals(MatrixStack stack, VertexConsumerProvider provider, LivingEntity target, float alpha, float deltaTime) {
+    private void renderCrystals(MatrixStack stack, VertexConsumerProvider provider, LivingEntity target, float alpha,
+            float deltaTime) {
         if (target == null || crystalList.isEmpty()) {
             return;
         }
@@ -394,7 +405,7 @@ public class TargetESP extends ModuleStructure implements IMinecraft {
         public Crystal(Vec3d position, Vec3d rotation) {
             this.position = position;
             this.rotation = rotation;
-            this.rotationSpeed = 0.5f + (float)(Math.random() * 1.5f);
+            this.rotationSpeed = 0.5f + (float) (Math.random() * 1.5f);
         }
 
         public void render(MatrixStack stack, VertexConsumerProvider provider, float alpha, int baseColor) {
@@ -431,7 +442,8 @@ public class TargetESP extends ModuleStructure implements IMinecraft {
             stack.pop();
         }
 
-        private void drawFilledCrystal(MatrixStack stack, VertexConsumer consumer, int baseColor, float alphaMultiplier, float anim) {
+        private void drawFilledCrystal(MatrixStack stack, VertexConsumer consumer, int baseColor, float alphaMultiplier,
+                float anim) {
             float s = 0.05f;
             float h_prism = s * 1.0f;
             float h_pyramid = s * 1.5f;
@@ -485,14 +497,16 @@ public class TargetESP extends ModuleStructure implements IMinecraft {
             }
         }
 
-        private void drawTriangleFilled(Matrix4f matrix, VertexConsumer consumer, Vector3f v1, Vector3f v2, Vector3f v3, int color) {
+        private void drawTriangleFilled(Matrix4f matrix, VertexConsumer consumer, Vector3f v1, Vector3f v2, Vector3f v3,
+                int color) {
             consumer.vertex(matrix, v1.x, v1.y, v1.z).color(color);
             consumer.vertex(matrix, v2.x, v2.y, v2.z).color(color);
             consumer.vertex(matrix, v3.x, v3.y, v3.z).color(color);
             consumer.vertex(matrix, v3.x, v3.y, v3.z).color(color);
         }
 
-        private void drawQuadFilled(Matrix4f matrix, VertexConsumer consumer, Vector3f v1, Vector3f v2, Vector3f v3, Vector3f v4, int color) {
+        private void drawQuadFilled(Matrix4f matrix, VertexConsumer consumer, Vector3f v1, Vector3f v2, Vector3f v3,
+                Vector3f v4, int color) {
             consumer.vertex(matrix, v1.x, v1.y, v1.z).color(color);
             consumer.vertex(matrix, v2.x, v2.y, v2.z).color(color);
             consumer.vertex(matrix, v3.x, v3.y, v3.z).color(color);
@@ -500,7 +514,8 @@ public class TargetESP extends ModuleStructure implements IMinecraft {
         }
 
         private void drawBloomEffect(MatrixStack stack, VertexConsumerProvider provider, int baseColor, float anim) {
-            VertexConsumer bloomConsumer = provider.getBuffer(ClientPipelines.BLOOM_ESP.apply(Identifier.of("rich", "images/particle/glow.png")));
+            VertexConsumer bloomConsumer = provider
+                    .getBuffer(ClientPipelines.BLOOM_ESP.apply(Identifier.of("rich", "images/particle/glow.png")));
 
             int bloomAlpha = (int) (0.3f * 60 * anim);
             int bloomColor = withAlpha(baseColor, bloomAlpha);

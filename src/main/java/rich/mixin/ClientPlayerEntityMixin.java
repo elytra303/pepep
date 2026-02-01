@@ -21,7 +21,6 @@ import rich.events.api.EventManager;
 import rich.events.api.types.EventType;
 import rich.events.impl.*;
 import rich.modules.impl.combat.aura.AngleConnection;
-import rich.modules.impl.movement.AutoSprint;
 import rich.util.move.MoveUtil;
 
 import static rich.IMinecraft.mc;
@@ -59,29 +58,19 @@ public abstract class ClientPlayerEntityMixin extends AbstractClientPlayerEntity
 
     @Inject(method = "tickMovement", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/input/Input;tick()V", shift = At.Shift.AFTER))
     private void onInputTick(CallbackInfo ci) {
-        if (mc.player == null) return;
+        if (mc.player == null)
+            return;
         PlayerTravelEvent event = new PlayerTravelEvent(Vec3d.ZERO, false);
         EventManager.callEvent(event);
     }
 
-    @Redirect(
-            method = "applyMovementSpeedFactors",
-            at = @At(
-                    value = "INVOKE",
-                    target = "Lnet/minecraft/util/math/Vec2f;multiply(F)Lnet/minecraft/util/math/Vec2f;",
-                    ordinal = 1
-            )
-    )
+    @Redirect(method = "applyMovementSpeedFactors", at = @At(value = "INVOKE", target = "Lnet/minecraft/util/math/Vec2f;multiply(F)Lnet/minecraft/util/math/Vec2f;", ordinal = 1))
     private Vec2f cancelItemSlowdown(Vec2f vec2f, float multiplier) {
         UsingItemEvent event = new UsingItemEvent(EventType.ON);
         EventManager.callEvent(event);
 
         if (event.isCancelled() && this.isUsingItem() && !this.hasVehicle()) {
             return vec2f.multiply(1.0F);
-        }
-
-        if (this.isUsingItem() && !this.hasVehicle()) {
-            AutoSprint.blockSprint();
         }
 
         return vec2f.multiply(multiplier);
@@ -91,14 +80,16 @@ public abstract class ClientPlayerEntityMixin extends AbstractClientPlayerEntity
     private void closeHandledScreenHook(CallbackInfo info) {
         CloseScreenEvent event = new CloseScreenEvent(client.currentScreen);
         EventManager.callEvent(event);
-        if (event.isCancelled()) info.cancel();
+        if (event.isCancelled())
+            info.cancel();
     }
 
     @Inject(method = "pushOutOfBlocks", at = @At("HEAD"), cancellable = true)
     public void pushOutOfBlocks(double x, double z, CallbackInfo ci) {
         PushEvent event = new PushEvent(PushEvent.Type.BLOCK);
         EventManager.callEvent(event);
-        if (event.isCancelled()) ci.cancel();
+        if (event.isCancelled())
+            ci.cancel();
     }
 
     @Inject(method = "move", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/network/AbstractClientPlayerEntity;move(Lnet/minecraft/entity/MovementType;Lnet/minecraft/util/math/Vec3d;)V"), cancellable = true)
@@ -112,7 +103,8 @@ public abstract class ClientPlayerEntityMixin extends AbstractClientPlayerEntity
         ci.cancel();
     }
 
-    @ModifyExpressionValue(method = {"sendMovementPackets", "tick"}, at = @At(value = "INVOKE", target = "Lnet/minecraft/client/network/ClientPlayerEntity;getYaw()F"))
+    @ModifyExpressionValue(method = { "sendMovementPackets",
+            "tick" }, at = @At(value = "INVOKE", target = "Lnet/minecraft/client/network/ClientPlayerEntity;getYaw()F"))
     private float hookSilentRotationYaw(float original) {
         if (mc.player != null && AngleConnection.INSTANCE.getRotation() != null) {
             float currentYaw = AngleConnection.INSTANCE.getRotation().getYaw();
@@ -123,8 +115,7 @@ public abstract class ClientPlayerEntityMixin extends AbstractClientPlayerEntity
                     prevZ,
                     mc.player.getX(),
                     mc.player.getZ(),
-                    mc.player.handSwingProgress
-            );
+                    mc.player.handSwingProgress);
 
             prevBodyYaw = newBodyYaw;
             prevX = mc.player.getX();
@@ -137,7 +128,8 @@ public abstract class ClientPlayerEntityMixin extends AbstractClientPlayerEntity
         return original;
     }
 
-    @ModifyExpressionValue(method = {"sendMovementPackets", "tick"}, at = @At(value = "INVOKE", target = "Lnet/minecraft/client/network/ClientPlayerEntity;getPitch()F"))
+    @ModifyExpressionValue(method = { "sendMovementPackets",
+            "tick" }, at = @At(value = "INVOKE", target = "Lnet/minecraft/client/network/ClientPlayerEntity;getPitch()F"))
     private float hookSilentRotationPitch(float original) {
         if (AngleConnection.INSTANCE.getRotation() != null) {
             return AngleConnection.INSTANCE.getRotation().getPitch();

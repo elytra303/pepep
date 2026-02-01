@@ -64,7 +64,15 @@ public class StrikeManager implements IMinecraft {
     }
 
     public void resetPendingState() {
-        AutoSprint.cancelPending();
+    }
+
+    private boolean hasAnyMovementInput() {
+        if (mc.player == null)
+            return false;
+        return mc.player.input.playerInput.forward() ||
+                mc.player.input.playerInput.backward() ||
+                mc.player.input.playerInput.left() ||
+                mc.player.input.playerInput.right();
     }
 
     private boolean isHoldingMace() {
@@ -72,10 +80,13 @@ public class StrikeManager implements IMinecraft {
     }
 
     private boolean isPlayerEating() {
-        if (mc.player == null) return false;
-        if (!mc.player.isUsingItem()) return false;
+        if (mc.player == null)
+            return false;
+        if (!mc.player.isUsingItem())
+            return false;
         var activeItem = mc.player.getActiveItem();
-        if (activeItem.isEmpty()) return false;
+        if (activeItem.isEmpty())
+            return false;
         var useAction = activeItem.getUseAction();
         return useAction == UseAction.EAT || useAction == UseAction.DRINK;
     }
@@ -86,11 +97,13 @@ public class StrikeManager implements IMinecraft {
     }
 
     private boolean isInWater() {
-        return mc.player != null && (mc.player.isTouchingWater() || mc.player.isSubmergedInWater() || mc.player.isSwimming());
+        return mc.player != null
+                && (mc.player.isTouchingWater() || mc.player.isSubmergedInWater() || mc.player.isSwimming());
     }
 
     private boolean hasLowCeiling() {
-        if (mc.player == null || mc.world == null) return false;
+        if (mc.player == null || mc.world == null)
+            return false;
 
         BlockPos playerPos = mc.player.getBlockPos();
         BlockPos above1 = playerPos.up(2);
@@ -106,7 +119,8 @@ public class StrikeManager implements IMinecraft {
     }
 
     private boolean isPerfectCrit() {
-        if (mc.player == null) return false;
+        if (mc.player == null)
+            return false;
 
         return mc.player.fallDistance > 0.0F
                 && !mc.player.isOnGround()
@@ -118,12 +132,14 @@ public class StrikeManager implements IMinecraft {
     }
 
     private boolean isAscending() {
-        if (mc.player == null) return false;
+        if (mc.player == null)
+            return false;
         return !mc.player.isOnGround() && mc.player.getVelocity().y > 0.0;
     }
 
     private boolean isDescending() {
-        if (mc.player == null) return false;
+        if (mc.player == null)
+            return false;
         return !mc.player.isOnGround() && mc.player.getVelocity().y <= 0.0;
     }
 
@@ -144,55 +160,54 @@ public class StrikeManager implements IMinecraft {
                 && !sim.player.getAbilities().flying;
     }
 
-    private boolean critComingSoon() {
-        if (isPerfectCrit()) return true;
-        if (mc.player.isOnGround()) return false;
-
-        for (int i = 1; i <= 3; i++) {
-            PlayerSimulation sim = PlayerSimulation.simulateLocalPlayer(i);
-            if (sim.fallDistance > 0.0F && !sim.onGround && sim.velocity.y <= 0.0) {
-                return true;
-            }
-        }
-        return false;
-    }
-
     private boolean hasMovementRestrictions() {
-        if (mc.player == null) return true;
+        if (mc.player == null)
+            return true;
 
-        if (isInWater()) return false;
-        if (hasLowCeiling()) return true;
-        if (mc.player.hasStatusEffect(StatusEffects.BLINDNESS)) return true;
-        if (mc.player.hasStatusEffect(StatusEffects.LEVITATION)) return true;
-        if (PlayerInteractionHelper.isBoxInBlock(mc.player.getBoundingBox().expand(-1e-3), Blocks.COBWEB)) return true;
-        if (mc.player.isInLava()) return true;
-        if (mc.player.isClimbing()) return true;
-        if (!PlayerInteractionHelper.canChangeIntoPose(EntityPose.STANDING, mc.player.getEntityPos())) return true;
-        if (mc.player.getAbilities().flying) return true;
+        if (isInWater())
+            return false;
+        if (hasLowCeiling())
+            return true;
+        if (mc.player.hasStatusEffect(StatusEffects.BLINDNESS))
+            return true;
+        if (mc.player.hasStatusEffect(StatusEffects.LEVITATION))
+            return true;
+        if (PlayerInteractionHelper.isBoxInBlock(mc.player.getBoundingBox().expand(-1e-3), Blocks.COBWEB))
+            return true;
+        if (mc.player.isInLava())
+            return true;
+        if (mc.player.isClimbing())
+            return true;
+        if (!PlayerInteractionHelper.canChangeIntoPose(EntityPose.STANDING, mc.player.getEntityPos()))
+            return true;
+        if (mc.player.getAbilities().flying)
+            return true;
 
         return false;
     }
 
-    private boolean needsSprintReset() {
-        if (mc.player == null) return false;
-
-        boolean noResetSprint = AutoSprint.getInstance() != null &&
-                AutoSprint.getInstance().isState() &&
-                AutoSprint.getInstance().getNoReset().isValue();
-
-        if (noResetSprint) return false;
-        if (isInWater()) return false;
-        if (mc.player.isGliding()) return false;
-        if (!mc.player.isSprinting()) return false;
-
-        return AutoSprint.hasAnyMovementInput();
-    }
-
-    private boolean canAttackNow(StrikerConstructor.AttackPerpetratorConfigurable config) {
-        if (!clickScheduler.isCooldownComplete(0)) {
+    private boolean shouldResetSprintForCrit() {
+        if (mc.player == null)
             return false;
+
+        Aura aura = Aura.getInstance();
+        if (aura.getResetSprintMode().isSelected("Легитный")) {
+            boolean noResetSprint = AutoSprint.getInstance() != null &&
+                    AutoSprint.getInstance().isState() &&
+                    AutoSprint.getInstance().getNoReset().isValue();
+            if (noResetSprint)
+                return false;
         }
 
+        if (isInWater())
+            return false;
+        if (mc.player.isGliding())
+            return false;
+
+        return mc.player.isSprinting();
+    }
+
+    private boolean canCritNow() {
         Aura aura = Aura.getInstance();
         boolean checkCritEnabled = aura.getCheckCrit().isValue();
         boolean smartCritsEnabled = aura.getSmartCrits().isValue();
@@ -221,12 +236,10 @@ public class StrikeManager implements IMinecraft {
 
     void handleAttack(StrikerConstructor.AttackPerpetratorConfigurable config) {
         if (config.getTarget() == null || !config.getTarget().isAlive()) {
-            resetPendingState();
             return;
         }
 
         if (shouldWaitForEating()) {
-            resetPendingState();
             return;
         }
 
@@ -237,45 +250,39 @@ public class StrikeManager implements IMinecraft {
 
         boolean elytraMode = checkElytraMode(config);
         if (elytraMode && !checkElytraRaycast(config)) {
-            resetPendingState();
             return;
         }
 
         if (!RaycastAngle.rayTrace(config)) {
-            resetPendingState();
             return;
         }
 
-        if (AutoSprint.isAttackPending()) {
-            if (!AutoSprint.isReadyForAttack()) {
-                return;
-            }
-
-            if (!canAttackNow(config)) {
-                return;
-            }
-
-            executeAttack(config);
-            AutoSprint.unblockSprint();
+        if (!clickScheduler.isCooldownComplete(0)) {
             return;
         }
 
-        if (!canAttackNow(config)) {
-            if (critComingSoon() && needsSprintReset() && clickScheduler.isCooldownComplete(0)) {
-                preAttackEntity(config);
-                AutoSprint.blockSprint();
-            }
+        if (!canCritNow()) {
             return;
         }
 
         preAttackEntity(config);
 
-        if (needsSprintReset()) {
-            AutoSprint.blockSprint();
-            return;
+        // Запоминаем состояние спринта
+        boolean wasSprinting = mc.player.isSprinting();
+
+        // Если спринтим - сбрасываем спринт перед атакой через setSprinting
+        // Это вызовет автоматическую отправку пакета через миксины
+        if (wasSprinting && shouldResetSprintForCrit()) {
+            mc.player.setSprinting(false);
         }
 
+        // Выполняем атаку
         executeAttack(config);
+
+        // Восстанавливаем спринт если был и есть движение
+        if (wasSprinting && hasAnyMovementInput()) {
+            mc.player.setSprinting(true);
+        }
     }
 
     private void preAttackEntity(StrikerConstructor.AttackPerpetratorConfigurable config) {
@@ -288,26 +295,30 @@ public class StrikeManager implements IMinecraft {
     }
 
     private void handleMaceAttack(StrikerConstructor.AttackPerpetratorConfigurable config) {
-        if (shouldWaitForEating()) return;
-        if (mc.player.distanceTo(config.getTarget()) > Aura.getInstance().getAttackrange().getValue()) return;
-        if (!RaycastAngle.rayTrace(config)) return;
-        if (!clickScheduler.isMaceFastAttack()) return;
-        if (!attackTimer.finished(25)) return;
+        if (shouldWaitForEating())
+            return;
+        if (mc.player.distanceTo(config.getTarget()) > Aura.getInstance().getAttackrange().getValue())
+            return;
+        if (!RaycastAngle.rayTrace(config))
+            return;
+        if (!clickScheduler.isMaceFastAttack())
+            return;
+        if (!attackTimer.finished(25))
+            return;
 
         preAttackEntity(config);
 
-        if (needsSprintReset()) {
-            if (!AutoSprint.isBlocked()) {
-                AutoSprint.blockSprint();
-                return;
-            }
-            if (!AutoSprint.isReadyForAttack()) {
-                return;
-            }
+        boolean wasSprinting = mc.player.isSprinting();
+
+        if (wasSprinting && shouldResetSprintForCrit()) {
+            mc.player.setSprinting(false);
         }
 
         executeAttack(config);
-        AutoSprint.unblockSprint();
+
+        if (wasSprinting && hasAnyMovementInput()) {
+            mc.player.setSprinting(true);
+        }
     }
 
     private boolean checkElytraMode(StrikerConstructor.AttackPerpetratorConfigurable config) {
@@ -331,8 +342,7 @@ public class StrikeManager implements IMinecraft {
                 predictedPos.z - config.getTarget().getWidth() / 2,
                 predictedPos.x + config.getTarget().getWidth() / 2,
                 predictedPos.y + config.getTarget().getHeight(),
-                predictedPos.z + config.getTarget().getWidth() / 2
-        );
+                predictedPos.z + config.getTarget().getWidth() / 2);
         Vec3d eyePos = mc.player.getEyePos();
         Vec3d lookVec = AngleConnection.INSTANCE.getRotation().toVector();
         return predictedBox.raycast(eyePos, eyePos.add(lookVec.multiply(config.getMaximumRange()))).isPresent();
@@ -346,31 +356,35 @@ public class StrikeManager implements IMinecraft {
     }
 
     void handleTriggerAttack(StrikerConstructor.AttackPerpetratorConfigurable config, TriggerBot triggerBot) {
-        if (shouldWaitForEating()) return;
-        if (!RaycastAngle.rayTrace(config)) return;
-
-        if (AutoSprint.isAttackPending()) {
-            if (!AutoSprint.isReadyForAttack()) return;
-            if (!canAttackTrigger(config, triggerBot)) return;
-
-            executeAttack(config);
-            AutoSprint.unblockSprint();
+        if (shouldWaitForEating())
             return;
-        }
-
-        if (!canAttackTrigger(config, triggerBot)) return;
-
-        if (needsSprintReset()) {
-            AutoSprint.blockSprint();
+        if (!RaycastAngle.rayTrace(config))
             return;
+        if (!clickScheduler.isCooldownComplete(0))
+            return;
+        if (!canAttackTrigger(config, triggerBot))
+            return;
+
+        preAttackEntity(config);
+
+        boolean wasSprinting = mc.player.isSprinting();
+
+        if (wasSprinting && shouldResetSprintForCrit()) {
+            mc.player.setSprinting(false);
         }
 
         executeAttack(config);
+
+        if (wasSprinting && hasAnyMovementInput()) {
+            mc.player.setSprinting(true);
+        }
     }
 
     private boolean canAttackTrigger(StrikerConstructor.AttackPerpetratorConfigurable config, TriggerBot triggerBot) {
-        if (shouldWaitForEating()) return false;
-        if (!clickScheduler.isCooldownComplete(0)) return false;
+        if (shouldWaitForEating())
+            return false;
+        if (!clickScheduler.isCooldownComplete(0))
+            return false;
 
         boolean checkCritEnabled = triggerBot.isOnlyCrits();
         boolean smartCritsEnabled = triggerBot.getSmartCrits().isValue();
@@ -379,9 +393,11 @@ public class StrikeManager implements IMinecraft {
             return true;
         }
 
-        if (!checkCritEnabled) return true;
+        if (!checkCritEnabled)
+            return true;
 
-        if (isAscending()) return false;
+        if (isAscending())
+            return false;
 
         if (smartCritsEnabled) {
             if (mc.player.isOnGround()) {
@@ -394,20 +410,27 @@ public class StrikeManager implements IMinecraft {
     }
 
     public boolean shouldResetSprinting(StrikerConstructor.AttackPerpetratorConfigurable config) {
-        if (Aura.target == null) return false;
-        if (shouldWaitForEating()) return false;
-        if (isHoldingMace()) return true;
-        return critComingSoon() && needsSprintReset();
+        if (Aura.target == null)
+            return false;
+        if (shouldWaitForEating())
+            return false;
+        if (isHoldingMace())
+            return true;
+        return shouldResetSprintForCrit();
     }
 
-    public boolean shouldResetSprintingForTrigger(StrikerConstructor.AttackPerpetratorConfigurable config, TriggerBot triggerBot) {
-        if (triggerBot.target == null) return false;
-        if (shouldWaitForEating()) return false;
-        return critComingSoon() && needsSprintReset();
+    public boolean shouldResetSprintingForTrigger(StrikerConstructor.AttackPerpetratorConfigurable config,
+                                                  TriggerBot triggerBot) {
+        if (triggerBot.target == null)
+            return false;
+        if (shouldWaitForEating())
+            return false;
+        return shouldResetSprintForCrit();
     }
 
     public boolean canAttack(StrikerConstructor.AttackPerpetratorConfigurable config, int ticks) {
-        if (shouldWaitForEating()) return false;
+        if (shouldWaitForEating())
+            return false;
         if (isHoldingMace()) {
             return attackTimer.finished(25) && clickScheduler.isMaceFastAttack();
         }
@@ -421,24 +444,29 @@ public class StrikeManager implements IMinecraft {
             boolean checkCritEnabled = aura.getCheckCrit().isValue();
             boolean smartCritsEnabled = aura.getSmartCrits().isValue();
 
-            if (!checkCritEnabled) return true;
-            if (isInWater() || hasLowCeiling() || hasMovementRestrictions()) return true;
+            if (!checkCritEnabled)
+                return true;
+            if (isInWater() || hasLowCeiling() || hasMovementRestrictions())
+                return true;
 
             for (int i = 0; i <= ticks; i++) {
-                if (willBeCritInTicks(i)) return true;
+                if (willBeCritInTicks(i))
+                    return true;
                 if (smartCritsEnabled) {
                     PlayerSimulation sim = PlayerSimulation.simulateLocalPlayer(i);
-                    if (sim.onGround) return true;
+                    if (sim.onGround)
+                        return true;
                 }
             }
             return false;
         }
 
-        return canAttackNow(config);
+        return clickScheduler.isCooldownComplete(0) && canCritNow();
     }
 
     public boolean canCrit(StrikerConstructor.AttackPerpetratorConfigurable config, int ticks) {
-        if (isHoldingMace()) return true;
+        if (isHoldingMace())
+            return true;
 
         if (mc.player.isUsingItem()
                 && !mc.player.getActiveItem().getItem().equals(Items.SHIELD)
@@ -454,19 +482,22 @@ public class StrikeManager implements IMinecraft {
         boolean checkCritEnabled = aura.getCheckCrit().isValue();
         boolean smartCritsEnabled = aura.getSmartCrits().isValue();
 
-        if (!checkCritEnabled) return true;
+        if (!checkCritEnabled)
+            return true;
 
         if (ticks > 0) {
             for (int i = 0; i <= ticks; i++) {
-                if (willBeCritInTicks(i)) return true;
+                if (willBeCritInTicks(i))
+                    return true;
                 if (smartCritsEnabled) {
                     PlayerSimulation sim = PlayerSimulation.simulateLocalPlayer(i);
-                    if (sim.onGround) return true;
+                    if (sim.onGround)
+                        return true;
                 }
             }
             return false;
         }
 
-        return canAttackNow(config);
+        return canCritNow();
     }
 }
