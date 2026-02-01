@@ -11,14 +11,15 @@ public class Pressing implements IMinecraft {
     long lastClickTime = System.currentTimeMillis();
 
     public boolean isCooldownComplete(int ticks) {
-        if (mc.player == null) return false;
+        if (mc.player == null)
+            return false;
 
         if (isHoldingMace()) {
             return lastClickPassed() >= 50;
         }
 
         float cooldownProgress = mc.player.getAttackCooldownProgress(ticks);
-        return cooldownProgress >= 0.93F;
+        return cooldownProgress >= 0.95F;
     }
 
     public boolean isMaceFastAttack() {
@@ -34,15 +35,18 @@ public class Pressing implements IMinecraft {
     }
 
     public boolean isHoldingMace() {
-        if (mc.player == null) return false;
+        if (mc.player == null)
+            return false;
         ItemStack mainHand = mc.player.getMainHandStack();
         return mainHand.getItem().getTranslationKey().toLowerCase().contains("mace");
     }
 
     public boolean isWeapon() {
-        if (mc.player == null) return false;
+        if (mc.player == null)
+            return false;
         ItemStack mainHand = mc.player.getMainHandStack();
-        if (mainHand.isEmpty()) return false;
+        if (mainHand.isEmpty())
+            return false;
         String itemName = mainHand.getItem().getTranslationKey().toLowerCase();
         return itemName.contains("sword") || itemName.contains("axe") || itemName.contains("trident");
     }

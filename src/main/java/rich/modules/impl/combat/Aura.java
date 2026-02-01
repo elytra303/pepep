@@ -69,7 +69,7 @@ public class Aura extends ModuleStructure {
 
     @Getter
     private final SelectSetting resetSprintMode = new SelectSetting("Сброс спринта", "Reset sprint mode")
-            .value("Легитный", "Интенсивный")
+            .value("Легитный", "Пакетный")
             .selected("Легитный");
 
     @Getter

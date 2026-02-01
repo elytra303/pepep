@@ -11,6 +11,7 @@ import net.minecraft.entity.effect.StatusEffects;
 import net.minecraft.item.Items;
 import net.minecraft.item.consume.UseAction;
 import net.minecraft.network.packet.Packet;
+import net.minecraft.network.packet.c2s.play.ClientCommandC2SPacket;
 import net.minecraft.network.packet.c2s.play.HandSwingC2SPacket;
 import net.minecraft.network.packet.c2s.play.UpdateSelectedSlotC2SPacket;
 import net.minecraft.util.Hand;
@@ -25,7 +26,6 @@ import rich.modules.impl.combat.Aura;
 import rich.modules.impl.combat.TriggerBot;
 import rich.modules.impl.combat.aura.AngleConnection;
 import rich.modules.impl.combat.aura.target.RaycastAngle;
-import rich.modules.impl.movement.AutoSprint;
 import rich.modules.impl.movement.ElytraTarget;
 import rich.util.player.PlayerSimulation;
 import rich.util.string.PlayerInteractionHelper;
@@ -190,15 +190,6 @@ public class StrikeManager implements IMinecraft {
         if (mc.player == null)
             return false;
 
-        Aura aura = Aura.getInstance();
-        if (aura.getResetSprintMode().isSelected("Легитный")) {
-            boolean noResetSprint = AutoSprint.getInstance() != null &&
-                    AutoSprint.getInstance().isState() &&
-                    AutoSprint.getInstance().getNoReset().isValue();
-            if (noResetSprint)
-                return false;
-        }
-
         if (isInWater())
             return false;
         if (mc.player.isGliding())
@@ -257,6 +248,10 @@ public class StrikeManager implements IMinecraft {
             return;
         }
 
+        if (!isLookingAtTarget(config)) {
+            return;
+        }
+
         if (!clickScheduler.isCooldownComplete(0)) {
             return;
         }
@@ -267,21 +262,27 @@ public class StrikeManager implements IMinecraft {
 
         preAttackEntity(config);
 
-        // Запоминаем состояние спринта
         boolean wasSprinting = mc.player.isSprinting();
+        boolean shouldReset = wasSprinting && shouldResetSprintForCrit();
 
-        // Если спринтим - сбрасываем спринт перед атакой через setSprinting
-        // Это вызовет автоматическую отправку пакета через миксины
-        if (wasSprinting && shouldResetSprintForCrit()) {
-            mc.player.setSprinting(false);
+        if (shouldReset) {
+            if (Aura.getInstance().getResetSprintMode().isSelected("Пакетный")) {
+                mc.getNetworkHandler()
+                        .sendPacket(new ClientCommandC2SPacket(mc.player, ClientCommandC2SPacket.Mode.STOP_SPRINTING));
+            } else {
+                mc.player.setSprinting(false);
+            }
         }
 
-        // Выполняем атаку
         executeAttack(config);
 
-        // Восстанавливаем спринт если был и есть движение
-        if (wasSprinting && hasAnyMovementInput()) {
-            mc.player.setSprinting(true);
+        if (shouldReset) {
+            if (Aura.getInstance().getResetSprintMode().isSelected("Пакетный")) {
+                mc.getNetworkHandler()
+                        .sendPacket(new ClientCommandC2SPacket(mc.player, ClientCommandC2SPacket.Mode.START_SPRINTING));
+            } else {
+                mc.player.setSprinting(true);
+            }
         }
     }
 
@@ -301,6 +302,8 @@ public class StrikeManager implements IMinecraft {
             return;
         if (!RaycastAngle.rayTrace(config))
             return;
+        if (!isLookingAtTarget(config))
+            return;
         if (!clickScheduler.isMaceFastAttack())
             return;
         if (!attackTimer.finished(25))
@@ -309,15 +312,26 @@ public class StrikeManager implements IMinecraft {
         preAttackEntity(config);
 
         boolean wasSprinting = mc.player.isSprinting();
+        boolean shouldReset = wasSprinting && shouldResetSprintForCrit();
 
-        if (wasSprinting && shouldResetSprintForCrit()) {
-            mc.player.setSprinting(false);
+        if (shouldReset) {
+            if (Aura.getInstance().getResetSprintMode().isSelected("Пакетный")) {
+                mc.getNetworkHandler()
+                        .sendPacket(new ClientCommandC2SPacket(mc.player, ClientCommandC2SPacket.Mode.STOP_SPRINTING));
+            } else {
+                mc.player.setSprinting(false);
+            }
         }
 
         executeAttack(config);
 
-        if (wasSprinting && hasAnyMovementInput()) {
-            mc.player.setSprinting(true);
+        if (shouldReset) {
+            if (Aura.getInstance().getResetSprintMode().isSelected("Пакетный")) {
+                mc.getNetworkHandler()
+                        .sendPacket(new ClientCommandC2SPacket(mc.player, ClientCommandC2SPacket.Mode.START_SPRINTING));
+            } else {
+                mc.player.setSprinting(true);
+            }
         }
     }
 
@@ -360,6 +374,8 @@ public class StrikeManager implements IMinecraft {
             return;
         if (!RaycastAngle.rayTrace(config))
             return;
+        if (!isLookingAtTarget(config))
+            return;
         if (!clickScheduler.isCooldownComplete(0))
             return;
         if (!canAttackTrigger(config, triggerBot))
@@ -368,15 +384,26 @@ public class StrikeManager implements IMinecraft {
         preAttackEntity(config);
 
         boolean wasSprinting = mc.player.isSprinting();
+        boolean shouldReset = wasSprinting && shouldResetSprintForCrit();
 
-        if (wasSprinting && shouldResetSprintForCrit()) {
-            mc.player.setSprinting(false);
+        if (shouldReset) {
+            if (Aura.getInstance().getResetSprintMode().isSelected("Пакетный")) {
+                mc.getNetworkHandler()
+                        .sendPacket(new ClientCommandC2SPacket(mc.player, ClientCommandC2SPacket.Mode.STOP_SPRINTING));
+            } else {
+                mc.player.setSprinting(false);
+            }
         }
 
         executeAttack(config);
 
-        if (wasSprinting && hasAnyMovementInput()) {
-            mc.player.setSprinting(true);
+        if (shouldReset) {
+            if (Aura.getInstance().getResetSprintMode().isSelected("Пакетный")) {
+                mc.getNetworkHandler()
+                        .sendPacket(new ClientCommandC2SPacket(mc.player, ClientCommandC2SPacket.Mode.START_SPRINTING));
+            } else {
+                mc.player.setSprinting(true);
+            }
         }
     }
 
@@ -420,7 +447,7 @@ public class StrikeManager implements IMinecraft {
     }
 
     public boolean shouldResetSprintingForTrigger(StrikerConstructor.AttackPerpetratorConfigurable config,
-                                                  TriggerBot triggerBot) {
+            TriggerBot triggerBot) {
         if (triggerBot.target == null)
             return false;
         if (shouldWaitForEating())
@@ -499,5 +526,12 @@ public class StrikeManager implements IMinecraft {
         }
 
         return canCritNow();
+    }
+
+    private boolean isLookingAtTarget(StrikerConstructor.AttackPerpetratorConfigurable config) {
+        Vec3d eyePos = mc.player.getEyePos();
+        Vec3d lookVec = AngleConnection.INSTANCE.getRotation().toVector();
+        Vec3d endVec = eyePos.add(lookVec.multiply(config.getMaximumRange()));
+        return config.getBox().raycast(eyePos, endVec).isPresent();
     }
 }
