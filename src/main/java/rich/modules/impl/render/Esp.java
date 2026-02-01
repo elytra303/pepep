@@ -55,7 +55,8 @@ public class Esp extends ModuleStructure {
         return Instance.get(Esp.class);
     }
 
-    Identifier TEXTURE = Identifier.of("textures/features/esp/container.png");
+    Identifier TEXTURE = Identifier.of("rich", "textures/features/esp/container.png");
+
     List<PlayerEntity> players = new ArrayList<>();
 
     public MultiSelectSetting entityType = new MultiSelectSetting("Тип сущности", "Сущности, которые будут отображаться")
