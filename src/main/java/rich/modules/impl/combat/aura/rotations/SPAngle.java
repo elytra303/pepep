@@ -1,5 +1,6 @@
 package rich.modules.impl.combat.aura.rotations;
 
+import net.minecraft.client.Minecraft;
 import rich.Initialization;
 import rich.modules.impl.combat.Aura;
 import rich.modules.impl.combat.aura.Angle;
@@ -9,27 +10,30 @@ import rich.modules.impl.combat.aura.attack.StrikeManager;
 import rich.modules.impl.combat.aura.impl.RotateConstructor;
 import rich.modules.impl.combat.aura.target.RaycastAngle;
 import rich.modules.impl.combat.aura.target.Vector;
-import rich.util.move.MoveUtil;
-import rich.util.timer.StopWatch;
 import net.minecraft.entity.Entity;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 
 import java.security.SecureRandom;
 
+/**
+ * Рефакторинг SPAngle: Эмуляция физики мыши и обход эвристик MX Anticheat.
+ */
 public class SPAngle extends RotateConstructor {
 
     private final SecureRandom random = new SecureRandom();
+    private final Minecraft mc = Minecraft.getMinecraft();
 
-    private float currentJitterYaw = 0;
-    private float currentJitterPitch = 0;
-    private float targetJitterYaw = 0;
-    private float targetJitterPitch = 0;
+    private float currentJitterYaw, currentJitterPitch;
+    private float lastStepYaw, lastStepPitch;
+
+    // Поля для динамических паттернов
+    private int currentPattern = 0;
+    private long lastPatternSwitch = 0;
+    private float noiseState = 0;
 
     private float circlePhase = 0;
     private float circleRadius = 0;
-    private float targetCircleRadius = 0;
-
     private float currentSpeed = 0;
 
     public SPAngle() {
@@ -40,109 +44,95 @@ public class SPAngle extends RotateConstructor {
     public Angle limitAngleChange(Angle currentAngle, Angle targetAngle, Vec3d vec3d, Entity entity) {
         StrikeManager attackHandler = Initialization.getInstance().getManager().getAttackPerpetrator().getAttackHandler();
         Aura aura = Aura.getInstance();
-        StopWatch attackTimer = attackHandler.getAttackTimer();
-        int count = attackHandler.getCount();
         boolean canAttack = entity != null && attackHandler.canAttack(aura.getConfig(), 0);
 
+        // 1. Динамическая точка прицеливания с учетом скорости (Prediction)
         if (entity != null && canAttack) {
-            Vec3d aimPoint = Vector.hitbox(entity, 1, entity.isOnGround() ? 1F : 1.256F, 1, 2);
+            // Базовая точка + небольшое смещение на основе движения цели
+            double predictX = entity.posX - entity.prevPosX;
+            double predictZ = entity.posZ - entity.prevPosZ;
+            Vec3d aimPoint = Vector.hitbox(entity, 1, entity.isOnGround() ? 1F : 1.2F, 1, 2)
+                    .addVector(predictX * 1.5, 0, predictZ * 1.5);
             targetAngle = MathAngle.calculateAngle(aimPoint);
         }
 
         Angle angleDelta = MathAngle.calculateDelta(currentAngle, targetAngle);
-        float yawDelta = angleDelta.getYaw();
+        float yawDelta = MathHelper.wrapDegrees(angleDelta.getYaw());
         float pitchDelta = angleDelta.getPitch();
-        float rotationDifference = (float) Math.hypot(Math.abs(yawDelta), Math.abs(pitchDelta));
+        float dist = (float) Math.hypot(yawDelta, pitchDelta);
 
-        if (rotationDifference < 0.01f) rotationDifference = 1;
-
-        boolean lookingAtHitbox = false;
-        if (entity != null && !canAttack) {
-            lookingAtHitbox = RaycastAngle.rayTrace(
-                    AngleConnection.INSTANCE.getRotation().toVector(),
-                    4.0,
-                    entity.getBoundingBox()
-            );
+        // 2. Рандомизация паттернов (Уход от предсказуемых циклов)
+        if (System.currentTimeMillis() - lastPatternSwitch > 1200 + random.nextInt(1500)) {
+            currentPattern = random.nextInt(4);
+            lastPatternSwitch = System.currentTimeMillis();
         }
 
-        float deltaTime = 0.75f;
-        circlePhase += deltaTime * randomLerp(7.5f, 12.5f);
-        if (circlePhase > Math.PI * 2) circlePhase -= Math.PI * 2;
+        // 3. Многослойный шум (Вместо простых sin/cos)
+        noiseState += 0.05f + random.nextFloat() * 0.1f;
+        float layeredNoiseYaw = (float) (Math.sin(noiseState) * 1.2 + Math.sin(noiseState * 0.5) * 2.0 + Math.cos(noiseState * 1.5) * 0.5);
+        float layeredNoisePitch = (float) (Math.cos(noiseState * 0.7) * 0.8 + Math.sin(noiseState * 2.1) * 1.1);
 
-        if (canAttack) {
-            targetCircleRadius = randomLerp(0.5f, 4.5f);
-        } else if (lookingAtHitbox) {
-            targetCircleRadius = randomLerp(12f, 12f);
-        } else {
-            targetCircleRadius = randomLerp(8f, 12f);
-        }
+        // 4. Динамическое сглаживание и Эмуляция инерции (Ease In/Out)
+        // Чем дальше цель, тем выше начальная скорость, при приближении — торможение.
+        float targetSpeedFactor = MathHelper.clamp(dist / 40f, 0.2f, 1.0f);
+        float acceleration = (dist > 5) ? 0.15f : 0.08f;
+        currentSpeed = moveTowards(currentSpeed, targetSpeedFactor, acceleration, 0.1f);
 
-        circleRadius += (targetCircleRadius - circleRadius) * 0.18f;
+        // Применяем кривую Безье (простейшая аппроксимация через cubic easing)
+        float t = currentSpeed;
+        float smoothT = t * t * (3 - 2 * t);
 
-        float circleYaw = (float) (Math.cos(circlePhase) * circleRadius);
-        float circlePitch = (float) (Math.sin(circlePhase * 11.3f) * circleRadius * 0.4f);
+        // 5. Расчет финальных углов с джиттером
+        float moveYaw = yawDelta * smoothT;
+        float movePitch = pitchDelta * smoothT;
 
-        float timeRandom = attackTimer.elapsedTime() / 100F + (count % 5);
-        int pattern = count % 4;
+        float jitterMult = canAttack ? 0.4f : 1.2f;
+        float finalYaw = currentAngle.getYaw() + moveYaw + (layeredNoiseYaw * jitterMult);
+        float finalPitch = currentAngle.getPitch() + movePitch + (layeredNoisePitch * jitterMult);
 
-        Angle randomAngle = switch (pattern) {
-            case 0 -> new Angle((float) Math.cos(timeRandom), (float) Math.sin(timeRandom));
-            case 1 -> new Angle((float) Math.sin(timeRandom * 2.2f), (float) Math.cos(timeRandom * 0.6f));
-            case 2 -> new Angle((float) Math.sin(timeRandom), (float) -Math.cos(timeRandom));
-            default -> new Angle((float) -Math.cos(timeRandom * 0.5f), (float) Math.sin(timeRandom * 2.1f));
-        };
-
-        float jitterMultiplier = canAttack ? 0.5f : (lookingAtHitbox ? 0.6f : 1f);
-
-        targetJitterYaw = randomLerp(35f, 32f) * randomAngle.getYaw() * jitterMultiplier;
-        targetJitterPitch = randomLerp(5f, 2f) * randomAngle.getPitch() * jitterMultiplier;
-
-        float jitterSmoothSpeed = 0.15f;
-        currentJitterYaw += (targetJitterYaw - currentJitterYaw) * jitterSmoothSpeed;
-        currentJitterPitch += (targetJitterPitch - currentJitterPitch) * jitterSmoothSpeed;
-
-        float targetSpeed;
-        if (canAttack) {
-            targetSpeed = randomLerp(1f, 1f);
-        } else if (lookingAtHitbox) {
-            targetSpeed = randomLerp(0.35f, 0.15f);
-        } else if (entity != null) {
-            float distanceFactor = MathHelper.clamp(rotationDifference / 30f, 0.1f, 1f);
-            targetSpeed = randomLerp(0.45f, 0.25f) * distanceFactor;
-        } else {
-            targetSpeed = !attackTimer.finished(600) ? 0.53f : randomLerp(0.2f, 0.35f);
-        }
-
-        currentSpeed += (targetSpeed - currentSpeed) * 0.65f;
-
-        float lineYaw = (Math.abs(yawDelta / rotationDifference) * 180);
-        float linePitch = (Math.abs(pitchDelta / rotationDifference) * 90);
-
-        float moveYaw = MathHelper.clamp(yawDelta, -lineYaw, lineYaw);
-        float movePitch = MathHelper.clamp(pitchDelta, -linePitch, linePitch);
-
-        float totalJitterYaw = currentJitterYaw + circleYaw;
-        float totalJitterPitch = currentJitterPitch + circlePitch;
-
-        if (!aura.isState() || entity == null) {
-            if (attackTimer.finished(800)) {
-                totalJitterYaw *= 0.3f;
-                totalJitterPitch *= 0.3f;
-            }
-        }
-
-        float newYaw = MathHelper.lerp(currentSpeed, currentAngle.getYaw(), currentAngle.getYaw() + moveYaw) + totalJitterYaw;
-        float newPitch = MathHelper.lerp(currentSpeed, currentAngle.getPitch(), currentAngle.getPitch() + movePitch) + totalJitterPitch;
-
-        return new Angle(newYaw, MathHelper.clamp(newPitch, -90, 90));
+        // 6. GCD Fix: Нормализация под чувствительность мыши
+        return applyGCD(finalYaw, finalPitch, currentAngle);
     }
 
-    private float randomLerp(float min, float max) {
-        return MathHelper.lerp(random.nextFloat(), min, max);
+    /**
+     * Исправление GCD (Greatest Common Divisor).
+     * Эмулирует дискретные шаги сенсора мыши, что является критическим для обхода MX Anticheat.
+     */
+    private Angle applyGCD(float yaw, float pitch, Angle prevAngle) {
+        float sensitivity = mc.gameSettings.mouseSensitivity;
+
+        // Формула Minecraft для шага камеры
+        float f = sensitivity * 0.6F + 0.2F;
+        float gcd = f * f * f * 8.0F * 0.15F;
+
+        float deltaYaw = yaw - prevAngle.getYaw();
+        float deltaPitch = pitch - prevAngle.getPitch();
+
+        // Округление дельты до ближайшего кратного шагу GCD
+        float fixedYaw = prevAngle.getYaw() + (Math.round(deltaYaw / gcd) * gcd);
+        float fixedPitch = prevAngle.getPitch() + (Math.round(deltaPitch / gcd) * gcd);
+
+        return new Angle(fixedYaw, MathHelper.clamp(fixedPitch, -90, 90));
+    }
+
+    /**
+     * Плавное изменение значения для эмуляции веса/инерции
+     */
+    private float moveTowards(float current, float target, float accel, float decel) {
+        if (current < target) {
+            current = Math.min(current + accel, target);
+        } else {
+            current = Math.max(current - decel, target);
+        }
+        return current;
     }
 
     @Override
     public Vec3d randomValue() {
-        return Vec3d.ZERO;
+        return new Vec3d(
+                (random.nextFloat() - 0.5) * 0.02,
+                (random.nextFloat() - 0.5) * 0.02,
+                (random.nextFloat() - 0.5) * 0.02
+        );
     }
 }
