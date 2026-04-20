@@ -1,0 +1,11 @@
+<component name="libraryTable">
+  <library name="minecraft-extracted_server">
+    <CLASSES>
+      <root url="jar://$USER_HOME$/.gradle/caches/fabric-loom/1.21.11/minecraft-extracted_server.jar!/" />
+      <root url="jar://$USER_HOME$/.gradle/caches/fabric-loom/1.21.11/minecraft-server.jar!/" />
+      <root url="jar://$USER_HOME$/.gradle/caches/fabric-loom/1.21.11/minecraft-merged.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>
